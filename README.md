@@ -101,6 +101,10 @@ When YiSang exposes authorized tools, the engine may return:
 YiSang authorizes and executes the action, feeds the deterministic result back
 to engines that support action feedback, and only then accepts a final answer.
 
+## Validation
+
+GitHub Actions runs the full pytest suite on Python 3.11 and 3.12 for the current development branch.
+
 ## Core invariants
 
 1. `YiSang != LLM`
