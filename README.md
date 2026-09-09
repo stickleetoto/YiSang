@@ -10,6 +10,7 @@ YiSang keeps durable agent assets outside the model:
 - external memory
 - E.G.O capability packs
 - context compilation
+- guarded tool execution
 - verification and governance
 
 The attached LLM is a replaceable reasoning engine.
@@ -24,6 +25,10 @@ v0.2 makes the foundation usable without BIO:
 - deterministic context rendering
 - E.G.O loading from `manifest.json` + `SKILL.md`
 - engine-swap invariance probe
+- typed `ToolRegistry`
+- E.G.O capability + permission `ActionGate`
+- side-effect tools disabled by default
+- deterministic action evidence verification
 - no required third-party runtime dependencies
 
 BIO remains a future `MemoryPort` adapter rather than a YiSang dependency.
@@ -41,6 +46,8 @@ YiSang Runtime
     +-- E.G.O Registry
     +-- Context Compiler
     +-- Engine Router ----- local LLM / Codex later
+    +-- Action Gate ------- model requests, YiSang authorizes
+    +-- Tool Runtime
     +-- Verifier
     +-- Memory Governor
 ```
@@ -83,6 +90,9 @@ the engine role.
 4. Model output is not authoritative memory.
 5. Memory writes pass through proposal + governance.
 6. E.G.O is external capability data, not model weights.
-7. Core depends on interfaces, not model providers.
+7. Model-proposed actions do not create execution authority.
+8. Side-effecting tools are opt-in.
+9. Failed deterministic actions must not become remembered successes.
+10. Core depends on interfaces, not model providers.
 
-See `docs/ARCHITECTURE.md` and `docs/HANDOFF.md`.
+See `docs/ARCHITECTURE.md`, `docs/EXECUTION.md`, and `docs/HANDOFF.md`.
