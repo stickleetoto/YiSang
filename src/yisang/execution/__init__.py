@@ -1,3 +1,4 @@
+from .builtin import register_workspace_read_tools
 from .gate import ActionGate
 from .models import ActionDecision, ActionProposal, ActionResult
 from .runtime import ActionRuntime
@@ -11,4 +12,5 @@ __all__ = [
     "ActionRuntime",
     "ToolDefinition",
     "ToolRegistry",
+    "register_workspace_read_tools",
 ]
