@@ -12,6 +12,22 @@ class ActionRuntime:
         self.tools = tools
         self.gate = gate or ActionGate()
 
+    def available_tools(
+        self,
+        *,
+        selected_egos: list[EgoManifest],
+    ) -> list[dict]:
+        specs: list[dict] = []
+        for tool in self.tools.list_all():
+            decision = self.gate.evaluate(
+                ActionProposal(action=tool.tool_id),
+                selected_egos=selected_egos,
+                tools=self.tools,
+            )
+            if decision.allowed:
+                specs.append(tool.to_context_spec(ego_id=decision.ego_id))
+        return specs
+
     def execute(
         self,
         proposal: ActionProposal,
@@ -33,6 +49,7 @@ class ActionRuntime:
 
         tool = self.tools.get(proposal.action)
         try:
+            tool.validate_arguments(dict(proposal.arguments))
             output = tool.handler(dict(proposal.arguments))
         except Exception as exc:
             return ActionResult(
