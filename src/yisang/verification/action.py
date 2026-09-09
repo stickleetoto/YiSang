@@ -10,6 +10,9 @@ class ActionEvidenceVerifier(Verifier):
         self.require_actions = require_actions
 
     def verify(self, *, request, engine_result) -> VerificationResult:
+        if engine_result.metadata.get("action_loop_exhausted"):
+            return VerificationResult("FAIL", "action_loop_exhausted")
+
         raw = engine_result.metadata.get("action_results", [])
         if not isinstance(raw, list):
             return VerificationResult("FAIL", "invalid_action_evidence")
