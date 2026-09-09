@@ -20,6 +20,10 @@ request
  -> route E.G.O
  -> compile budgeted context
  -> call engine
+ -> collect ActionProposal objects
+ -> Action Gate checks tool + E.G.O capability + permissions
+ -> Action Runtime executes only authorized tools
+ -> attach action evidence to EngineResult metadata
  -> verify
  -> propose memory
  -> governance
@@ -33,10 +37,11 @@ request
 - Memory: `MemoryPort`
 - Capability: E.G.O Registry
 - Runtime state: YiSang AgentState
+- Tool authority: YiSang Action Gate
 - Reasoning: current Engine
 - Verification: verifier output
 
-An LLM output is never a source of truth by itself.
+An LLM output is never a source of truth or execution authority by itself.
 
 ## Memory boundary
 
@@ -80,6 +85,46 @@ ego/<name>/
 
 `EgoRegistry.from_directory()` loads these assets independently from the
 reasoning engine.
+
+## Execution boundary
+
+An engine may only *propose* an action:
+
+```text
+EngineResult.action_proposals
+        |
+        v
+ActionGate
+  - tool exists?
+  - selected E.G.O provides required capabilities?
+  - E.G.O permissions satisfy tool requirements?
+  - side effects explicitly enabled?
+        |
+        v
+ActionRuntime
+        |
+        v
+ActionResult
+```
+
+Important invariants:
+
+1. tool ids emitted by a model do not grant execution authority;
+2. every registered tool requires at least one E.G.O capability;
+3. unknown tools are denied;
+4. insufficient permissions are denied;
+5. side-effecting tools are disabled by default;
+6. tool exceptions become structured `ERROR` results instead of crashing the
+   YiSang runtime;
+7. action evidence is attached before verification.
+
+The current filesystem permission ordering is:
+
+```text
+none < read < workspace < unrestricted
+```
+
+See `docs/EXECUTION.md` for the concrete execution contract.
 
 ## Context compiler
 
