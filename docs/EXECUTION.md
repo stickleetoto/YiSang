@@ -24,19 +24,22 @@ ActionGate
       v
 ActionRuntime
       |
+      +-- argument validation failure --> ERROR
       +-- handler error -----------------> ERROR
       |
       v
-ActionResult
+ActionResult(EXECUTED)
       |
       v
-ActionEvidenceVerifier
-      |
-      +-- DENIED / ERROR / unknown ------> FAIL
-      +-- EXECUTED ----------------------> PASS
+bounded feedback to compatible engine
 ```
 
-## ToolDefinition
+## Tool surface
+
+Only tools already authorized by the selected E.G.O set are exposed to the
+reasoning engine. `ActionRuntime.available_tools()` asks the same `ActionGate`
+used at execution time, so an unavailable tool is not merely hidden by prompt
+convention: it is also denied if the model invents its id.
 
 Each tool declares:
 
@@ -45,85 +48,104 @@ Each tool declares:
 - human-readable description
 - required E.G.O capabilities
 - required permissions
+- argument schema
 - whether it has side effects
 
-Every tool must require at least one E.G.O capability. This prevents a model
-from gaining tool access independently from YiSang's portable capability layer.
+Every tool must require at least one E.G.O capability.
 
-## ActionGate
+## Structured action protocol
 
-The gate authorizes a proposal only when one selected E.G.O:
+OpenAI-compatible engines can decode both:
 
-1. provides every capability required by the tool; and
-2. grants every permission required by the tool.
+1. a provider-neutral JSON envelope:
 
-Filesystem permissions currently form this ordered policy:
-
-```text
-none < read < workspace < unrestricted
+```json
+{
+  "response": "I need one more piece of evidence.",
+  "actions": [
+    {
+      "tool": "workspace.read_text",
+      "arguments": {"path": "README.md"}
+    }
+  ]
+}
 ```
 
-Boolean permissions such as `network` require explicit `true` when the tool
-requires them.
+2. OpenAI-style `message.tool_calls` when an endpoint returns them.
 
-## Side effects
+Malformed action entries fail closed at decoding time. Action count and
+serialized argument size are bounded.
 
-`ActionGate(allow_side_effects=False)` is the default.
+## Tool feedback loop
 
-Therefore a tool marked `side_effecting=True` cannot run until the application
-explicitly opts into side effects. Future write/shell tools should remain
-side-effecting and should add stronger confirmation policy above this baseline.
+Engines opt into repeated action feedback via `supports_action_feedback`.
+Legacy engines do not opt in and retain one-shot behavior.
 
-## Error containment
-
-Tool exceptions do not crash YiSang. They are converted into:
+Compatible engines may:
 
 ```text
-ActionResult(status="ERROR", error="ExceptionType: message")
+reason
+ -> request authorized action
+ -> receive deterministic ActionResult
+ -> reason again
+ -> request another action or answer
 ```
 
-Denied tools similarly become structured `DENIED` results.
+The loop is bounded by `YiSangRuntime.max_action_rounds`. If the engine still
+requests an action after the limit, YiSang records a structured denial with
+`gate_reason=action_loop_limit`.
+
+## Tool output trust
+
+Tool output is injected back into context as **untrusted data/evidence**.
+It does not redefine identity, policy, permissions, or instructions.
+
+The context compiler bounds action-result history so large tool payloads cannot
+grow context without limit. Non-JSON Python values are converted to safe string
+representations before context serialization.
+
+## Read-only workspace tools
+
+`register_workspace_read_tools()` provides:
+
+- `workspace.list`
+- `workspace.read_text`
+
+Both require the `repository_analysis` capability and `filesystem: read`
+permission. Paths are resolved under a configured workspace root. `..`,
+absolute-path escape, and symlink escape resolve outside the root and are
+rejected.
+
+These tools are intentionally read-only. File mutation and shell execution
+remain future side-effecting capabilities requiring stronger approval policy.
+
+## Argument validation
+
+`ToolDefinition.argument_schema` supports a lightweight object-schema contract:
+
+- `required`
+- property `type`
+- `additionalProperties: false`
+
+This is not intended to replace a full JSON Schema implementation. It provides
+an early deterministic rejection layer before tool handlers run.
 
 ## Verification integration
 
-After execution, YiSang attaches serialized action results to:
+YiSang accumulates structured action evidence in:
 
 ```python
 EngineResult.metadata["action_results"]
 ```
 
-before calling the verifier.
-
-`ActionEvidenceVerifier` fails closed for:
-
-- denied actions
-- tool errors
-- malformed evidence
-- unknown action statuses
-
-`CompositeVerifier` can combine the normal response verifier with action
-evidence verification. Since durable memory is only committed after a `PASS`, a
-failed action can prevent an unsupported success claim from becoming persistent
-memory.
-
-Example:
-
-```text
-model: "change succeeded"
-      |
-      +-- action -> DENIED
-      |
-ActionEvidenceVerifier -> FAIL
-      |
-MemoryProposal is NOT committed
-```
+before verification. `ActionEvidenceVerifier` can reject denied or errored
+actions. Memory proposals are committed only after the configured verifier
+returns `PASS`.
 
 ## Security invariant
-
-The execution layer must preserve this rule:
 
 > Reasoning may request authority; reasoning never creates authority.
 
 The source of execution authority is YiSang policy: registered tools, selected
 E.G.O capabilities, permissions, explicit side-effect configuration, and
-verification of deterministic action evidence.
+bounded runtime rules.
