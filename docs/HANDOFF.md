@@ -2,7 +2,7 @@
 
 ## Current target
 
-**v0.2.0 — Standalone Persistence, Local Engine & Guarded Execution**
+**v0.2 development — Standalone Persistence, Local Engine & Guarded Tool Loop**
 
 ## Core thesis
 
@@ -17,10 +17,12 @@ portable external capability
 +
 guarded tool execution
 +
+bounded tool feedback
++
 verification/governance
 ```
 
-## v0.2 additions
+## Implemented in the current development branch
 
 - SQLite persistent `MemoryPort`
 - OpenAI-compatible engine adapter
@@ -36,8 +38,13 @@ verification/governance
 - `ActionEvidenceVerifier`
 - `CompositeVerifier`
 - failed/denied actions can block memory commit
-- expanded tests
-- correct `.gitignore`
+- structured JSON action decoding
+- OpenAI-style native `tool_calls` decoding
+- authorized tool surface in `ContextPack`
+- bounded action-feedback loop
+- read-only workspace list/read tools
+- workspace path escape protection
+- lightweight argument-schema validation
 
 ## Guardrails
 
@@ -48,27 +55,30 @@ verification/governance
 - Do not put provider logic in Core.
 - Keep E.G.O portable between engines.
 - Side-effecting tools remain opt-in.
+- Tool outputs are untrusted data/evidence.
+- Tool loops must remain bounded.
 - Failed deterministic actions must not become remembered successes.
 - Codex should eventually use a dedicated `AgentBackend`.
 
 ## Validation status
 
-- previous v0.2 foundation validation: 14 tests passed before the execution patch
-- guarded execution + action-verification patch: 13 focused tests passed in an isolated local harness
-- full `dev/v0.2.0` suite should be rerun after pulling this branch
+- v0.2 foundation: 14 tests passed before guarded execution work
+- guarded execution/action-verification milestone: 13 focused tests passed
+- structured action + tool-feedback + workspace-read milestone: 13 focused tests passed in an isolated harness
+- full `dev/v0.2.0` suite should be rerun after pulling the branch
 
 ## Next priorities
 
-1. structured action decoding for OpenAI-compatible engines
-2. Codex `AgentBackend` contract and adapter
-3. read-only repository tools
+1. full regression run on the development branch
+2. real LM Studio / Qwen smoke with `workspace.list` and `workspace.read_text`
+3. Codex `AgentBackend` contract
 4. explicit side-effect approval policy for write tools
-5. verifier policies for domain-specific outputs
-6. Qwen/local benchmark harness
-7. enhancement benchmark: base model vs YiSang-wrapped model
+5. domain-specific verifier policies
+6. Qwen/local enhancement benchmark
+7. base model vs YiSang-wrapped model benchmark
 8. BIO adapter later
 
-## Definition of done for v0.2
+## Definition of done for this line
 
 - all tests pass
 - SQLite memory survives reopening
@@ -79,3 +89,5 @@ verification/governance
 - model-proposed tools cannot bypass Action Gate
 - denied/failed actions remain structured and auditable
 - failed action evidence can prevent memory promotion
+- compatible engines can consume tool results and produce a final answer
+- read-only workspace tools cannot escape their configured root
