@@ -2,92 +2,115 @@
 
 ## Current target
 
-**v0.2 development — Standalone Persistence, Local Engine & Guarded Tool Loop**
+**v0.3.0 development — OpenAI-compatible YiSang Model Server**
 
 ## Core thesis
 
-YiSang is not an LLM. It is a model-independent enhancement layer.
+YiSang is not the attached base LLM. YiSang is the persistent cognitive layer
+that can itself be exposed as a model to an external agent harness.
 
 ```text
-replaceable reasoning engine
-+
-persistent external memory
-+
-portable external capability
-+
-guarded tool execution
-+
-bounded tool feedback
-+
-verification/governance
+Codex / client agent
+        |
+        v
+YiSang model-compatible proxy
+        |
+        +-- identity/state
+        +-- memory
+        +-- E.G.O
+        +-- context compiler
+        |
+        v
+replaceable Qwen / local model
 ```
 
-## Implemented in the current development branch
+## v0.3 implemented
+
+- `YiSangModelProxy`
+- stdlib-only HTTP server
+- `GET /health`
+- `GET /v1/models`
+- `POST /v1/chat/completions`
+- non-streaming completion proxy
+- SSE streaming proxy
+- YiSang model alias rewriting
+- original client message preservation
+- original client tool-schema preservation
+- upstream tool-call preservation
+- YiSang memory retrieval before each model request
+- E.G.O routing before each model request
+- YiSang context injection before the original conversation
+- `yisang-model-server` CLI entry point
+- explicit unsupported `/v1/responses` error
+- HTTP/proxy regression tests
+
+## Codex ownership model
+
+In Codex mode:
+
+```text
+Codex owns:
+- shell
+- repository mutations
+- tool execution
+- sandbox
+- approvals
+- agent loop
+
+YiSang owns:
+- persistent cognition layer
+- memory retrieval
+- E.G.O selection
+- context augmentation
+- attached base-model selection
+```
+
+Codex tool schemas are passed through YiSang to Qwen. Qwen tool calls are passed
+back through YiSang to Codex. YiSang does not steal Codex's tool executor.
+
+## v0.2 inherited foundation
 
 - SQLite persistent `MemoryPort`
 - OpenAI-compatible engine adapter
-- context budget policy and deterministic renderer
+- context budgeting
 - E.G.O directory loader
 - model invariance probe
-- typed `ToolRegistry`
-- `ActionProposal` / `ActionDecision` / `ActionResult`
-- E.G.O capability + permission `ActionGate`
-- side-effect tools disabled by default
-- guarded `ActionRuntime`
-- action evidence attached before verification
-- `ActionEvidenceVerifier`
-- `CompositeVerifier`
-- failed/denied actions can block memory commit
-- structured JSON action decoding
-- OpenAI-style native `tool_calls` decoding
-- authorized tool surface in `ContextPack`
-- bounded action-feedback loop
-- read-only workspace list/read tools
-- workspace path escape protection
-- lightweight argument-schema validation
-- GitHub Actions pytest matrix for Python 3.11 / 3.12
+- guarded standalone action runtime
+- verification/governance
+- bounded internal tool-feedback loop
+- read-only workspace tools
+- Python 3.11 / 3.12 CI
 
 ## Guardrails
 
 - BIO is not a dependency yet.
-- Do not make model output authoritative.
-- Do not let engines write durable memory directly.
-- Do not let engines execute tools directly.
-- Do not put provider logic in Core.
-- Keep E.G.O portable between engines.
-- Side-effecting tools remain opt-in.
-- Tool outputs are untrusted data/evidence.
-- Tool loops must remain bounded.
-- Failed deterministic actions must not become remembered successes.
-- Codex should eventually use a dedicated `AgentBackend`.
-
-## Validation status
-
-- v0.2 foundation: 14 tests passed before guarded execution work
-- guarded execution/action-verification milestone: 13 focused tests passed
-- structured action + tool-feedback + workspace-read milestone: focused local harness passed
-- GitHub Actions full suite: **PASS** on Python 3.11 and 3.12 (run 34319460691)
+- Do not make base-model output authoritative memory.
+- Keep memory and E.G.O outside Qwen.
+- Preserve external client tools exactly unless protocol translation requires a
+  deterministic transformation.
+- Do not execute Codex-owned tools inside YiSang model-server mode.
+- Bind to loopback by default.
+- Do not claim Responses API compatibility until its event and tool protocol is
+  actually implemented and tested.
 
 ## Next priorities
 
-1. real LM Studio / Qwen smoke with `workspace.list` and `workspace.read_text`
-2. Codex `AgentBackend` contract
-3. explicit side-effect approval policy for write tools
-4. domain-specific verifier policies
-5. Qwen/local enhancement benchmark
-6. base model vs YiSang-wrapped model benchmark
-7. BIO adapter later
+1. pass the full Python 3.11 / 3.12 CI on the v0.3 branch
+2. real LM Studio + Qwen smoke
+3. real Codex `wire_api = "chat"` smoke
+4. add `/v1/responses` compatibility
+5. Responses streaming + tool event translation
+6. per-client/session continuity metadata
+7. exact usage accounting / token-aware augmentation budgeting
+8. base Qwen vs `Codex + YiSang(Qwen)` benchmark
+9. BIO `MemoryPort` adapter later
 
-## Definition of done for this line
+## Definition of done for v0.3 first milestone
 
-- all tests pass
-- SQLite memory survives reopening
-- local OpenAI-compatible engine can be registered
-- E.G.O loads from disk
-- budgeted context cannot grow without bound
-- identity/memory/capabilities survive engine swap
-- model-proposed tools cannot bypass Action Gate
-- denied/failed actions remain structured and auditable
-- failed action evidence can prevent memory promotion
-- compatible engines can consume tool results and produce a final answer
-- read-only workspace tools cannot escape their configured root
+- Codex can select `yisang-qwen` as a custom model
+- YiSang injects memory/E.G.O context before Qwen inference
+- Codex tool schemas reach Qwen
+- Qwen tool calls reach Codex unchanged
+- both streaming and non-streaming Chat Completions work
+- the model server remains loopback-only by default
+- the inherited YiSang test suite still passes
