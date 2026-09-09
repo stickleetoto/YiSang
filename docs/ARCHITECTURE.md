@@ -105,6 +105,9 @@ ActionRuntime
         |
         v
 ActionResult
+        |
+        v
+ActionEvidenceVerifier / CompositeVerifier
 ```
 
 Important invariants:
@@ -116,7 +119,8 @@ Important invariants:
 5. side-effecting tools are disabled by default;
 6. tool exceptions become structured `ERROR` results instead of crashing the
    YiSang runtime;
-7. action evidence is attached before verification.
+7. action evidence is attached before verification;
+8. failed action evidence can prevent unsupported memory promotion.
 
 The current filesystem permission ordering is:
 
