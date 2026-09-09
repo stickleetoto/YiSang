@@ -32,6 +32,7 @@ The current development branch makes YiSang usable without BIO:
 - structured action decoding
 - bounded tool-feedback loop for compatible engines
 - read-only workspace tools with path confinement
+- GitHub Actions test matrix for Python 3.11 / 3.12
 - no required third-party runtime dependencies
 
 BIO remains a future `MemoryPort` adapter rather than a YiSang dependency.
