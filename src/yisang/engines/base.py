@@ -16,6 +16,7 @@ class EngineResult:
 
 class LLMEngine(ABC):
     engine_id: str
+    supports_action_feedback: bool = False
 
     @abstractmethod
     def generate(self, context) -> EngineResult:
