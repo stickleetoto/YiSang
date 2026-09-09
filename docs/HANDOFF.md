@@ -45,6 +45,7 @@ verification/governance
 - read-only workspace list/read tools
 - workspace path escape protection
 - lightweight argument-schema validation
+- GitHub Actions pytest matrix for Python 3.11 / 3.12
 
 ## Guardrails
 
@@ -64,12 +65,12 @@ verification/governance
 
 - v0.2 foundation: 14 tests passed before guarded execution work
 - guarded execution/action-verification milestone: 13 focused tests passed
-- structured action + tool-feedback + workspace-read milestone: 13 focused tests passed in an isolated harness
-- full `dev/v0.2.0` suite should be rerun after pulling the branch
+- structured action + tool-feedback + workspace-read milestone: focused local harness passed
+- CI now runs the full repository suite on Python 3.11 and 3.12
 
 ## Next priorities
 
-1. full regression run on the development branch
+1. inspect CI result and fix any full-suite regressions
 2. real LM Studio / Qwen smoke with `workspace.list` and `workspace.read_text`
 3. Codex `AgentBackend` contract
 4. explicit side-effect approval policy for write tools
