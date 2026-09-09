@@ -27,7 +27,13 @@ ActionRuntime
       +-- handler error -----------------> ERROR
       |
       v
-ActionResult(EXECUTED)
+ActionResult
+      |
+      v
+ActionEvidenceVerifier
+      |
+      +-- DENIED / ERROR / unknown ------> FAIL
+      +-- EXECUTED ----------------------> PASS
 ```
 
 ## ToolDefinition
@@ -86,9 +92,31 @@ After execution, YiSang attaches serialized action results to:
 EngineResult.metadata["action_results"]
 ```
 
-before calling the verifier. This allows verifier implementations to judge
-claims against deterministic execution evidence without changing the existing
-verifier interface.
+before calling the verifier.
+
+`ActionEvidenceVerifier` fails closed for:
+
+- denied actions
+- tool errors
+- malformed evidence
+- unknown action statuses
+
+`CompositeVerifier` can combine the normal response verifier with action
+evidence verification. Since durable memory is only committed after a `PASS`, a
+failed action can prevent an unsupported success claim from becoming persistent
+memory.
+
+Example:
+
+```text
+model: "change succeeded"
+      |
+      +-- action -> DENIED
+      |
+ActionEvidenceVerifier -> FAIL
+      |
+MemoryProposal is NOT committed
+```
 
 ## Security invariant
 
@@ -97,4 +125,5 @@ The execution layer must preserve this rule:
 > Reasoning may request authority; reasoning never creates authority.
 
 The source of execution authority is YiSang policy: registered tools, selected
-E.G.O capabilities, permissions, and explicit side-effect configuration.
+E.G.O capabilities, permissions, explicit side-effect configuration, and
+verification of deterministic action evidence.
