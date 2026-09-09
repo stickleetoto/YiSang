@@ -4,8 +4,9 @@ from .memory.models import MemoryRecord, MemoryProposal
 from .memory.sqlite import SQLiteMemoryPort
 from .engines.base import LLMEngine
 from .engines.openai_compatible import OpenAICompatibleEngine
+from .server.proxy import YiSangModelProxy
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "YiSangRuntime",
@@ -16,4 +17,5 @@ __all__ = [
     "SQLiteMemoryPort",
     "LLMEngine",
     "OpenAICompatibleEngine",
+    "YiSangModelProxy",
 ]
