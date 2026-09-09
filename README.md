@@ -15,9 +15,9 @@ YiSang keeps durable agent assets outside the model:
 
 The attached LLM is a replaceable reasoning engine.
 
-## v0.2
+## v0.2 development line
 
-v0.2 makes the foundation usable without BIO:
+The current development branch makes YiSang usable without BIO:
 
 - persistent `SQLiteMemoryPort`
 - OpenAI-compatible local LLM engine (e.g. LM Studio)
@@ -29,6 +29,9 @@ v0.2 makes the foundation usable without BIO:
 - E.G.O capability + permission `ActionGate`
 - side-effect tools disabled by default
 - deterministic action evidence verification
+- structured action decoding
+- bounded tool-feedback loop for compatible engines
+- read-only workspace tools with path confinement
 - no required third-party runtime dependencies
 
 BIO remains a future `MemoryPort` adapter rather than a YiSang dependency.
@@ -48,6 +51,7 @@ YiSang Runtime
     +-- Engine Router ----- local LLM / Codex later
     +-- Action Gate ------- model requests, YiSang authorizes
     +-- Tool Runtime
+    +-- Tool Feedback Loop
     +-- Verifier
     +-- Memory Governor
 ```
@@ -79,8 +83,22 @@ engine = OpenAICompatibleEngine(
 )
 ```
 
-YiSang Core does not depend on LM Studio; any compatible endpoint can implement
-the engine role.
+When YiSang exposes authorized tools, the engine may return:
+
+```json
+{
+  "response": "I need to inspect the file.",
+  "actions": [
+    {
+      "tool": "workspace.read_text",
+      "arguments": {"path": "README.md"}
+    }
+  ]
+}
+```
+
+YiSang authorizes and executes the action, feeds the deterministic result back
+to engines that support action feedback, and only then accepts a final answer.
 
 ## Core invariants
 
@@ -93,6 +111,8 @@ the engine role.
 7. Model-proposed actions do not create execution authority.
 8. Side-effecting tools are opt-in.
 9. Failed deterministic actions must not become remembered successes.
-10. Core depends on interfaces, not model providers.
+10. Tool output is untrusted data/evidence, not instruction authority.
+11. Tool loops are bounded.
+12. Core depends on interfaces, not model providers.
 
 See `docs/ARCHITECTURE.md`, `docs/EXECUTION.md`, and `docs/HANDOFF.md`.
