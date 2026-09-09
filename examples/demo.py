@@ -1,9 +1,11 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 from yisang.core.models import YiSangRequest
 from yisang.core.runtime import YiSangRuntime
 from yisang.identity.models import IdentityCharter, AgentState
-from yisang.memory.in_memory import InMemoryMemoryPort
+from yisang.memory.sqlite import SQLiteMemoryPort
 from yisang.memory.governor import MemoryGovernor
-from yisang.ego.models import EgoManifest
 from yisang.ego.registry import EgoRegistry
 from yisang.ego.router import CapabilityRouter
 from yisang.context.compiler import ContextCompiler
@@ -14,47 +16,37 @@ from yisang.verification.base import PassThroughVerifier
 identity = IdentityCharter(agent_id="yisang-001", name="YiSang")
 state = AgentState(active_engine="qwen-demo", active_project="YiSang")
 
-memory = InMemoryMemoryPort()
-governor = MemoryGovernor()
-
-egos = EgoRegistry()
-egos.register(EgoManifest(
-    ego_id="ego.python.debug",
-    name="Python Debugger",
-    provides=("python_debugging",),
-    keywords=("python", "pytest", "traceback", "버그"),
-    instructions="Inspect evidence, isolate the failing behavior, verify with tests.",
-))
-egos.register(EgoManifest(
-    ego_id="ego.repo.inspect",
-    name="Repository Inspector",
-    provides=("repository_analysis",),
-    keywords=("repo", "repository", "레포", "저장소"),
-    instructions="Inspect structure before changing implementation.",
-))
+registry = EgoRegistry.from_directory(Path(__file__).parents[1] / "ego")
 
 engines = EngineRouter()
 engines.register(EchoEngine("qwen-demo", "SMALL"))
 engines.register(EchoEngine("codex-demo", "STRONG"))
 
-runtime = YiSangRuntime(
-    identity=identity,
-    state=state,
-    memory=memory,
-    governor=governor,
-    ego_registry=egos,
-    capability_router=CapabilityRouter(),
-    context_compiler=ContextCompiler(),
-    engine_router=engines,
-    verifier=PassThroughVerifier(),
-)
+with TemporaryDirectory() as temp:
+    memory = SQLiteMemoryPort(Path(temp) / "yisang.db")
 
-print(runtime.run(YiSangRequest("req-1", "remember: YiSang keeps memory outside the model")).text)
+    runtime = YiSangRuntime(
+        identity=identity,
+        state=state,
+        memory=memory,
+        governor=MemoryGovernor(),
+        ego_registry=registry,
+        capability_router=CapabilityRouter(),
+        context_compiler=ContextCompiler(),
+        engine_router=engines,
+        verifier=PassThroughVerifier(),
+    )
 
-state.active_engine = "codex-demo"
+    print(runtime.run(
+        YiSangRequest("req-1", "remember: YiSang keeps memory outside the model")
+    ).text)
 
-result = runtime.run(YiSangRequest("req-2", "repo python 버그를 분석해"))
-print(result.text)
-print("engine:", result.engine_id)
-print("memory:", [m.content for m in memory.all()])
-print("E.G.O:", result.used_ego_ids)
+    state.active_engine = "codex-demo"
+
+    result = runtime.run(YiSangRequest("req-2", "repo python 버그를 분석해"))
+    print(result.text)
+    print("engine:", result.engine_id)
+    print("memory:", [m.content for m in memory.all()])
+    print("E.G.O:", result.used_ego_ids)
+
+    memory.close()

@@ -1,69 +1,88 @@
-# YiSang v0.1
+# YiSang
 
-YiSang is a **model-independent LLM enhancement layer**.
-
-Core principle:
+**YiSang is a model-independent LLM enhancement layer.**
 
 > Models are replaceable. Memory and capability remain.
 
-YiSang separates:
+YiSang keeps durable agent assets outside the model:
 
-- Identity
-- Memory
-- E.G.O / Skills
-- Context compilation
-- Engine backends
-- Verification
-- Governance
+- identity and runtime state
+- external memory
+- E.G.O capability packs
+- context compilation
+- verification and governance
 
-The LLM is treated as a replaceable reasoning engine.
+The attached LLM is a replaceable reasoning engine.
+
+## v0.2
+
+v0.2 makes the foundation usable without BIO:
+
+- persistent `SQLiteMemoryPort`
+- OpenAI-compatible local LLM engine (e.g. LM Studio)
+- model-agnostic context budgets
+- deterministic context rendering
+- E.G.O loading from `manifest.json` + `SKILL.md`
+- engine-swap invariance probe
+- no required third-party runtime dependencies
+
+BIO remains a future `MemoryPort` adapter rather than a YiSang dependency.
 
 ## Architecture
 
 ```text
-User
- ↓
+User / App
+    |
+    v
 YiSang Runtime
- ├ Identity
- ├ MemoryPort
- ├ E.G.O Registry
- ├ Context Compiler
- ├ Engine Router
- ├ Verification
- └ Memory Governance
-      ↓
-  LLM / Agent Backend
+    |
+    +-- Identity
+    +-- MemoryPort -------- SQLite now / BIO later
+    +-- E.G.O Registry
+    +-- Context Compiler
+    +-- Engine Router ----- local LLM / Codex later
+    +-- Verifier
+    +-- Memory Governor
 ```
 
-## Quick start
+## Install
 
 ```bash
 python -m pip install -e .[dev]
 pytest -q
+```
+
+## Demo
+
+```bash
 python examples/demo.py
 ```
 
-## v0.1 scope
+## Local Qwen / LM Studio
 
-Implemented:
+Start an OpenAI-compatible local server, then register it as an engine:
 
-- YiSang core runtime
-- immutable-ish identity charter object
-- in-memory memory backend
-- MemoryProposal + governance gate
-- E.G.O manifest / registry / routing
-- ContextPack compiler
-- generic LLMEngine interface
-- deterministic demo engine
-- verification result contract
-- model invariance smoke test
-- enhancement smoke test
+```python
+from yisang.engines.openai_compatible import OpenAICompatibleEngine
 
-Not implemented yet:
+engine = OpenAICompatibleEngine(
+    engine_id="qwen-local",
+    base_url="http://127.0.0.1:1234/v1",
+    model="your-loaded-model-id",
+)
+```
 
-- BIO adapter
-- Codex adapter
-- persistent DB backend
-- real embeddings
-- tool execution sandbox
-- LoRA / fine-tuning
+YiSang Core does not depend on LM Studio; any compatible endpoint can implement
+the engine role.
+
+## Core invariants
+
+1. `YiSang != LLM`
+2. Engine replacement must not reset memory.
+3. Engine replacement must not reset capabilities.
+4. Model output is not authoritative memory.
+5. Memory writes pass through proposal + governance.
+6. E.G.O is external capability data, not model weights.
+7. Core depends on interfaces, not model providers.
+
+See `docs/ARCHITECTURE.md` and `docs/HANDOFF.md`.

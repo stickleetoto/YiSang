@@ -1,41 +1,56 @@
-# YiSang v0.1 Handoff
+# YiSang Handoff
 
-## Current baseline
+## Current target
 
-Foundation scaffold.
+**v0.2.0 — Standalone Persistence & Local Engine**
 
-## Goal
+## Core thesis
 
-Build a model-independent LLM enhancement layer where memory and capability survive engine swaps.
+YiSang is not an LLM. It is a model-independent enhancement layer.
 
-## Implemented
+```text
+replaceable reasoning engine
++
+persistent external memory
++
+portable external capability
++
+verification/governance
+```
 
-- Core runtime
-- Identity charter / state
-- Memory interface
-- In-memory memory backend
-- Proposal governance
-- E.G.O registry and router
-- Context compiler
-- Engine interface/router
-- Demo deterministic engines
-- Verification contract
-- Baseline tests
+## v0.2 additions
 
-## Next priorities
-
-1. BIO MemoryPort adapter
-2. Codex AgentBackend adapter
-3. persistent SQLite backend
-4. real tool/action gate
-5. benchmark harness
-6. Qwen local backend
-7. context budget hardening
+- SQLite persistent `MemoryPort`
+- OpenAI-compatible engine adapter
+- context budget policy and deterministic renderer
+- E.G.O directory loader
+- model invariance probe
+- expanded tests
+- correct `.gitignore`
 
 ## Guardrails
 
-- Do not make any model the source of truth.
-- Do not let engines write memory directly.
-- Do not couple Core to BIO internals.
-- Do not couple Core to Codex implementation.
-- Preserve portability between engines.
+- BIO is not a dependency yet.
+- Do not make model output authoritative.
+- Do not let engines write durable memory directly.
+- Do not put provider logic in Core.
+- Keep E.G.O portable between engines.
+- Codex should eventually use a dedicated `AgentBackend`.
+
+## Next priorities
+
+1. Action Gate + typed Tool Registry
+2. actual verifier implementations
+3. Codex `AgentBackend`
+4. Qwen/local benchmark harness
+5. enhancement benchmark: base model vs YiSang-wrapped model
+6. BIO adapter later
+
+## Definition of done for v0.2
+
+- all tests pass
+- SQLite memory survives reopening
+- local OpenAI-compatible engine can be registered
+- E.G.O loads from disk
+- budgeted context cannot grow without bound
+- identity/memory/capabilities survive engine swap
