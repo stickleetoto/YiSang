@@ -1,0 +1,19 @@
+{
+  "ego_id": "ego.python.debug",
+  "name": "Python Debugger",
+  "provides": [
+    "python_debugging",
+    "traceback_analysis",
+    "test_execution"
+  ],
+  "keywords": [
+    "python",
+    "pytest",
+    "traceback",
+    "버그"
+  ],
+  "permissions": {
+    "filesystem": "workspace",
+    "network": false
+  }
+}

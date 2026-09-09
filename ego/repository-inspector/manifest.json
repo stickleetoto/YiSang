@@ -1,0 +1,17 @@
+{
+  "ego_id": "ego.repo.inspect",
+  "name": "Repository Inspector",
+  "provides": [
+    "repository_analysis"
+  ],
+  "keywords": [
+    "repo",
+    "repository",
+    "레포",
+    "저장소"
+  ],
+  "permissions": {
+    "filesystem": "read",
+    "network": false
+  }
+}
