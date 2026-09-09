@@ -61,6 +61,12 @@ class YiSangModelProxy:
         if not isinstance(payload, dict):
             raise ValueError("request body must be a JSON object")
 
+        requested_model = payload.get("model")
+        if not isinstance(requested_model, str) or not requested_model.strip():
+            raise ValueError("model must be a non-empty string")
+        if requested_model != self.model_id:
+            raise ValueError(f"unknown YiSang model: {requested_model}")
+
         messages = payload.get("messages")
         if not isinstance(messages, list) or not messages:
             raise ValueError("messages must be a non-empty list")
@@ -70,11 +76,15 @@ class YiSangModelProxy:
         query = _retrieval_query(messages)
         request_id = f"ysreq_{uuid4().hex}"
         memories = self.memory.search(query, limit=8) if query else []
-        egos = self.capability_router.route(
-            query,
-            self.ego_registry.list_all(),
-            limit=3,
-        ) if query else []
+        egos = (
+            self.capability_router.route(
+                query,
+                self.ego_registry.list_all(),
+                limit=3,
+            )
+            if query
+            else []
+        )
 
         context = self.context_compiler.compile(
             request=YiSangRequest(request_id=request_id, text=query or "conversation"),
@@ -127,7 +137,11 @@ class YiSangModelProxy:
 
         item["model"] = self.model_id
         suffix = b"\n\n" if line.endswith(b"\n\n") else b"\n"
-        return b"data: " + json.dumps(item, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + suffix
+        return (
+            b"data: "
+            + json.dumps(item, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            + suffix
+        )
 
 
 def _augmentation_message(rendered_context: str) -> str:
@@ -146,14 +160,21 @@ def _augmentation_message(rendered_context: str) -> str:
 
 
 def _retrieval_query(messages: list[dict[str, Any]]) -> str:
-    parts: list[str] = []
+    # Prefer explicit user intent so large Codex developer/system prompts do not
+    # dominate memory retrieval or E.G.O routing.
+    user_parts: list[str] = []
+    fallback_parts: list[str] = []
     for message in messages[-12:]:
         role = message.get("role")
-        if role not in {"user", "developer", "system"}:
-            continue
         text = _content_text(message.get("content"))
-        if text:
-            parts.append(text)
+        if not text:
+            continue
+        if role == "user":
+            user_parts.append(text)
+        elif role in {"developer", "system"}:
+            fallback_parts.append(text)
+
+    parts = user_parts[-4:] if user_parts else fallback_parts[-2:]
     return "\n".join(parts)[-6000:]
 
 

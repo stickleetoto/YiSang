@@ -14,6 +14,8 @@ from .http import create_http_server
 from .proxy import YiSangModelProxy
 from .upstream import OpenAIChatUpstream
 
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -32,11 +34,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--memory", default="data/yisang-model.db")
     parser.add_argument("--ego-root", default="ego")
     parser.add_argument("--project", default=str(Path.cwd()))
+    parser.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="Allow binding to a non-loopback host. No server auth/TLS is provided.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.host not in _LOOPBACK_HOSTS and not args.allow_remote:
+        parser.error(
+            "refusing non-loopback bind without --allow-remote; "
+            "the built-in model server has no authentication or TLS"
+        )
 
     memory_path = Path(args.memory)
     memory_path.parent.mkdir(parents=True, exist_ok=True)

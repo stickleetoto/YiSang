@@ -84,6 +84,32 @@ def test_prepare_chat_preserves_client_tools_and_messages():
     assert prepared.used_ego_ids == ("ego.repo.inspect",)
 
 
+def test_prepare_chat_rejects_unknown_model_alias():
+    proxy = _proxy()
+    try:
+        proxy.prepare_chat_request(
+            {"model": "raw-qwen", "messages": [{"role": "user", "content": "hi"}]}
+        )
+    except ValueError as exc:
+        assert "unknown YiSang model" in str(exc)
+    else:
+        raise AssertionError("unknown model alias was accepted")
+
+
+def test_user_intent_drives_ego_routing_over_large_system_prompt():
+    proxy = _proxy()
+    prepared = proxy.prepare_chat_request(
+        {
+            "model": "yisang-qwen",
+            "messages": [
+                {"role": "system", "content": "repository " * 4000},
+                {"role": "user", "content": "say hello"},
+            ],
+        }
+    )
+    assert prepared.used_ego_ids == ()
+
+
 def test_normalize_response_preserves_tool_calls():
     proxy = _proxy()
     tool_calls = [

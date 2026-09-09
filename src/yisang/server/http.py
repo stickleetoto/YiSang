@@ -3,6 +3,7 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from typing import Any
+from urllib.parse import urlsplit
 
 from .proxy import YiSangModelProxy
 from .upstream import OpenAIChatUpstream, UpstreamHTTPError
@@ -25,10 +26,11 @@ def create_http_server(
         server_version = "YiSangModelServer/0.3"
 
         def do_GET(self) -> None:  # noqa: N802
-            if self.path == "/health":
+            path = urlsplit(self.path).path.rstrip("/") or "/"
+            if path == "/health":
                 self._send_json(200, {"status": "ok", "model": proxy.model_id})
                 return
-            if self.path == "/v1/models":
+            if path == "/v1/models":
                 self._send_json(
                     200,
                     {
@@ -46,7 +48,8 @@ def create_http_server(
             self._send_error(404, "not_found", "route not found")
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path == "/v1/responses":
+            path = urlsplit(self.path).path.rstrip("/") or "/"
+            if path == "/v1/responses":
                 self._send_error(
                     501,
                     "responses_not_implemented",
@@ -54,7 +57,7 @@ def create_http_server(
                     "Completions wire protocol. Configure Codex with wire_api=\"chat\".",
                 )
                 return
-            if self.path != "/v1/chat/completions":
+            if path != "/v1/chat/completions":
                 self._send_error(404, "not_found", "route not found")
                 return
 
@@ -95,12 +98,24 @@ def create_http_server(
             return body
 
         def _stream_chat(self, payload: dict[str, Any]) -> None:
+            # Prefetch one event before sending 200 so an upstream HTTP failure is
+            # still representable as a clean 502 JSON response.
+            events = iter(upstream.stream(payload))
+            try:
+                first = next(events)
+            except StopIteration:
+                first = None
+
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
             self.send_header("Cache-Control", "no-cache")
             self.send_header("Connection", "close")
             self.end_headers()
-            for line in upstream.stream(payload):
+
+            if first is not None:
+                self.wfile.write(proxy.normalize_sse_line(first))
+                self.wfile.flush()
+            for line in events:
                 self.wfile.write(proxy.normalize_sse_line(line))
                 self.wfile.flush()
 
