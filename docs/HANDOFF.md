@@ -66,18 +66,17 @@ verification/governance
 - v0.2 foundation: 14 tests passed before guarded execution work
 - guarded execution/action-verification milestone: 13 focused tests passed
 - structured action + tool-feedback + workspace-read milestone: focused local harness passed
-- CI now runs the full repository suite on Python 3.11 and 3.12
+- GitHub Actions full suite: **PASS** on Python 3.11 and 3.12 (run 34319460691)
 
 ## Next priorities
 
-1. inspect CI result and fix any full-suite regressions
-2. real LM Studio / Qwen smoke with `workspace.list` and `workspace.read_text`
-3. Codex `AgentBackend` contract
-4. explicit side-effect approval policy for write tools
-5. domain-specific verifier policies
-6. Qwen/local enhancement benchmark
-7. base model vs YiSang-wrapped model benchmark
-8. BIO adapter later
+1. real LM Studio / Qwen smoke with `workspace.list` and `workspace.read_text`
+2. Codex `AgentBackend` contract
+3. explicit side-effect approval policy for write tools
+4. domain-specific verifier policies
+5. Qwen/local enhancement benchmark
+6. base model vs YiSang-wrapped model benchmark
+7. BIO adapter later
 
 ## Definition of done for this line
 
