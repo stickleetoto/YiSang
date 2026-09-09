@@ -27,7 +27,11 @@ class YiSangRuntime:
         engine_router: EngineRouter,
         verifier: Verifier,
         action_runtime: ActionRuntime | None = None,
+        max_action_rounds: int = 3,
     ) -> None:
+        if max_action_rounds < 0:
+            raise ValueError("max_action_rounds must be non-negative")
+
         self.identity = identity
         self.state = state
         self.memory = memory
@@ -38,6 +42,7 @@ class YiSangRuntime:
         self.engine_router = engine_router
         self.verifier = verifier
         self.action_runtime = action_runtime
+        self.max_action_rounds = max_action_rounds
 
     def run(self, request: YiSangRequest) -> YiSangResponse:
         memories = self.memory.search(request.text, limit=8)
@@ -46,41 +51,79 @@ class YiSangRuntime:
             self.ego_registry.list_all(),
             limit=3,
         )
-        context = self.context_compiler.compile(
-            request=request,
-            identity=self.identity,
-            state=self.state,
-            memories=memories,
-            egos=selected_egos,
+        available_tools = (
+            self.action_runtime.available_tools(selected_egos=selected_egos)
+            if self.action_runtime is not None
+            else []
         )
 
         engine = self.engine_router.get(self.state.active_engine)
-        result = engine.generate(context)
-
         action_results: list[ActionResult] = []
-        for proposal in result.action_proposals:
-            if self.action_runtime is None:
-                action_results.append(
-                    ActionResult(
+        action_history: list[dict] = []
+        loop_exhausted = False
+
+        for action_round in range(self.max_action_rounds + 1):
+            context = self.context_compiler.compile(
+                request=request,
+                identity=self.identity,
+                state=self.state,
+                memories=memories,
+                egos=selected_egos,
+                tools=available_tools,
+                action_history=action_history,
+            )
+            result = engine.generate(context)
+
+            if not result.action_proposals:
+                break
+
+            if action_round >= self.max_action_rounds:
+                loop_exhausted = True
+                for proposal in result.action_proposals:
+                    denied = ActionResult(
+                        tool_id=proposal.action,
+                        status="DENIED",
+                        gate_reason="action_loop_limit",
+                    )
+                    action_results.append(denied)
+                    action_history.append(_history_item(proposal, denied))
+                break
+
+            round_failed = False
+            for proposal in result.action_proposals:
+                if self.action_runtime is None:
+                    executed = ActionResult(
                         tool_id=proposal.action,
                         status="DENIED",
                         gate_reason="action_runtime_not_configured",
                     )
-                )
-                continue
+                else:
+                    executed = self.action_runtime.execute(
+                        proposal,
+                        selected_egos=selected_egos,
+                    )
 
-            action_results.append(
-                self.action_runtime.execute(
-                    proposal,
-                    selected_egos=selected_egos,
-                )
-            )
+                action_results.append(executed)
+                action_history.append(_history_item(proposal, executed))
 
-        if action_results:
+                if executed.status != "EXECUTED":
+                    round_failed = True
+
+            if round_failed:
+                break
+
+            # Preserve one-shot behavior for legacy engines. Only engines that
+            # explicitly support action feedback receive another reasoning turn.
+            if not getattr(engine, "supports_action_feedback", False):
+                break
+
+        if action_results or loop_exhausted:
             result.metadata = dict(result.metadata)
             result.metadata["action_results"] = [
                 item.to_dict() for item in action_results
             ]
+            if loop_exhausted:
+                result.metadata["action_loop_exhausted"] = True
 
         verification = self.verifier.verify(
             request=request,
@@ -102,3 +145,14 @@ class YiSangRuntime:
             used_ego_ids=[e.ego_id for e in selected_egos],
             action_results=[item.to_dict() for item in action_results],
         )
+
+
+def _history_item(proposal, result: ActionResult) -> dict:
+    return {
+        "requested_action": {
+            "tool_id": proposal.action,
+            "arguments": dict(proposal.arguments),
+            "requested_by": proposal.requested_by,
+        },
+        "result": result.to_dict(),
+    }
