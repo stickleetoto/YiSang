@@ -33,6 +33,9 @@ verification/governance
 - side-effect tools disabled by default
 - guarded `ActionRuntime`
 - action evidence attached before verification
+- `ActionEvidenceVerifier`
+- `CompositeVerifier`
+- failed/denied actions can block memory commit
 - expanded tests
 - correct `.gitignore`
 
@@ -45,21 +48,22 @@ verification/governance
 - Do not put provider logic in Core.
 - Keep E.G.O portable between engines.
 - Side-effecting tools remain opt-in.
+- Failed deterministic actions must not become remembered successes.
 - Codex should eventually use a dedicated `AgentBackend`.
 
 ## Validation status
 
-- previous v0.2 foundation validation: 14 tests passed before this execution patch
-- guarded execution patch: 9 focused tests passed in an isolated local harness
+- previous v0.2 foundation validation: 14 tests passed before the execution patch
+- guarded execution + action-verification patch: 13 focused tests passed in an isolated local harness
 - full `dev/v0.2.0` suite should be rerun after pulling this branch
 
 ## Next priorities
 
-1. verifier implementations that consume action evidence
-2. structured action decoding for OpenAI-compatible engines
-3. Codex `AgentBackend` contract and adapter
-4. read-only repository tools
-5. explicit side-effect approval policy for write tools
+1. structured action decoding for OpenAI-compatible engines
+2. Codex `AgentBackend` contract and adapter
+3. read-only repository tools
+4. explicit side-effect approval policy for write tools
+5. verifier policies for domain-specific outputs
 6. Qwen/local benchmark harness
 7. enhancement benchmark: base model vs YiSang-wrapped model
 8. BIO adapter later
@@ -74,3 +78,4 @@ verification/governance
 - identity/memory/capabilities survive engine swap
 - model-proposed tools cannot bypass Action Gate
 - denied/failed actions remain structured and auditable
+- failed action evidence can prevent memory promotion
