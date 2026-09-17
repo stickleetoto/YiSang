@@ -43,6 +43,12 @@ pytest -q
 python examples/demo.py
 ```
 
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Current handoff](docs/HANDOFF.md)
+- [Tech Radar — 2026-09-17](docs/TECH_RADAR_2026-09-17.md)
+
 ## v0.1 scope
 
 Implemented:
