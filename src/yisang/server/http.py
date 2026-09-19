@@ -28,9 +28,12 @@ def create_http_server(
     proxy: YiSangModelProxy,
     upstream: OpenAIChatUpstream,
     max_body_bytes: int = _DEFAULT_MAX_BODY_BYTES,
+    tool_profile: str = "full",
 ) -> ThreadingHTTPServer:
     if max_body_bytes <= 0:
         raise ValueError("max_body_bytes must be positive")
+    if tool_profile not in {"full", "codex-small"}:
+        raise ValueError(f"unknown tool profile: {tool_profile}")
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "YiSangModelServer/0.3"
@@ -97,7 +100,11 @@ def create_http_server(
             self._send_json(200, proxy.normalize_chat_response(response))
 
         def _handle_responses(self, body: dict[str, Any]) -> None:
-            prepared = prepare_responses_request(proxy, body)
+            prepared = prepare_responses_request(
+                proxy,
+                body,
+                tool_profile=tool_profile,
+            )
             # The bridge intentionally uses a completed upstream Chat response,
             # then renders Responses events. This keeps Ollama compatibility
             # while presenting the protocol current Codex expects.
@@ -106,6 +113,7 @@ def create_http_server(
                 proxy=proxy,
                 chat_response=chat_response,
                 tool_metadata=prepared.tool_metadata,
+                recover_text_tool_calls=(tool_profile == "codex-small"),
             )
             if prepared.stream:
                 self._send_responses_sse(response)
