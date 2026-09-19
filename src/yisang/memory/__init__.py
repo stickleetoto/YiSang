@@ -1,3 +1,4 @@
+from .audit import MemoryAuditIssue, MemoryAuditReport, audit_memory
 from .retrieval import (
     ProjectionTrace,
     RetrievalCandidateTrace,
@@ -49,6 +50,8 @@ __all__ = [
     "InMemoryMemoryPort",
     "InMemoryVectorProjection",
     "MemoryGovernor",
+    "MemoryAuditIssue",
+    "MemoryAuditReport",
     "MemoryHit",
     "MemoryMutation",
     "MemoryPort",
@@ -72,6 +75,7 @@ __all__ = [
     "SQLiteFTSProjection",
     "SQLiteMemoryPort",
     "SQLiteQuarantinePort",
+    "audit_memory",
     "build_memory_archive",
     "export_memory_archive",
     "load_memory_archive",
