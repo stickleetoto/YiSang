@@ -480,11 +480,15 @@ def _recover_text_tool_calls(
     recovered: list[dict[str, Any]] = []
     for raw_call in decoded_calls:
         name = raw_call.get("name")
-        if not isinstance(name, str) or name not in tool_metadata:
+        if not isinstance(name, str):
+            return None
+
+        wire_name = _resolve_tool_wire_name(name, tool_metadata)
+        if wire_name is None:
             return None
 
         raw_arguments = raw_call.get("parameters", raw_call.get("arguments", {}))
-        kind = tool_metadata[name][0]
+        kind = tool_metadata[wire_name][0]
         if kind == "custom" and "input" in raw_call and "parameters" not in raw_call:
             raw_arguments = {"input": raw_call["input"]}
 
@@ -498,7 +502,7 @@ def _recover_text_tool_calls(
             )
 
         item = _tool_call_item(
-            wire_name=name,
+            wire_name=wire_name,
             arguments=arguments,
             call_id=f"call_{uuid4().hex}",
             tool_metadata=tool_metadata,
@@ -509,6 +513,29 @@ def _recover_text_tool_calls(
         recovered.append(item)
 
     return recovered
+
+
+def _resolve_tool_wire_name(
+    name: str,
+    tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]],
+) -> str | None:
+    """Resolve model-emitted tool names without weakening the allowlist.
+
+    Prefer an exact wire-name match. Small models sometimes omit a Responses
+    namespace and emit the original child name instead; accept that only when
+    it identifies exactly one currently exposed tool.
+    """
+    if name in tool_metadata:
+        return name
+
+    matches = [
+        wire_name
+        for wire_name, (_, _namespace, original_name, _schema) in tool_metadata.items()
+        if original_name == name
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return None
 
 
 def _decode_text_tool_call_sequence(content: str) -> list[dict[str, Any]] | None:

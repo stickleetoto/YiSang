@@ -144,6 +144,43 @@ class TextualToolCallUpstream(FakeUpstream):
         }
 
 
+class NamespacedTextualToolCallUpstream(FakeUpstream):
+    def complete(self, payload):
+        self.seen.append(payload)
+        arguments = {
+            "cmd": "Get-Content test.txt",
+            "justification": "",
+            "login": True,
+            "max_output_tokens": 1000,
+            "prefix_rule": [],
+            "sandbox_permissions": "use_default",
+            "shell": "cmd /c",
+            "tty": False,
+            "workdir": r"C:\\tmp\\yisang-codex-e2e",
+            "yield_time_ms": 10000,
+        }
+        return {
+            "id": "chatcmpl-text-namespaced",
+            "object": "chat.completion",
+            "model": payload["model"],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": json.dumps(
+                            {
+                                "name": "exec_command",
+                                "parameters": json.dumps(arguments),
+                            }
+                        ),
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+
+
 class TextualUnknownToolUpstream(FakeUpstream):
     def complete(self, payload):
         self.seen.append(payload)
@@ -540,6 +577,76 @@ def test_codex_small_profile_filters_tools_and_recovers_textual_tool_call():
         assert item["type"] == "function_call"
         assert item["name"] == "exec_command"
         assert json.loads(item["arguments"]) == {"cmd": "Get-Content test.txt"}
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_codex_small_profile_recovers_unqualified_namespaced_tool_with_string_parameters():
+    server, thread, upstream = _server(
+        NamespacedTextualToolCallUpstream(),
+        tool_profile="codex-small",
+    )
+    try:
+        _, _, raw = _post_json(
+            server,
+            "/v1/responses",
+            {
+                "model": "yisang-qwen",
+                "input": [
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "read test.txt"}],
+                    }
+                ],
+                "tools": [
+                    {
+                        "type": "namespace",
+                        "name": "functions",
+                        "tools": [
+                            {
+                                "type": "function",
+                                "name": "exec_command",
+                                "description": "Run a command",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "cmd": {"type": "string"},
+                                        "justification": {"type": "string"},
+                                        "login": {"type": "boolean"},
+                                        "max_output_tokens": {"type": "integer"},
+                                        "prefix_rule": {"type": "array"},
+                                        "sandbox_permissions": {"type": "string"},
+                                        "shell": {"type": "string"},
+                                        "tty": {"type": "boolean"},
+                                        "workdir": {"type": "string"},
+                                        "yield_time_ms": {"type": "integer"},
+                                    },
+                                    "required": ["cmd"],
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "stream": False,
+            },
+        )
+        response = json.loads(raw)
+        forwarded = upstream.seen[0]
+        assert forwarded["tools"][0]["function"]["name"] == "functions__exec_command"
+
+        item = response["output"][0]
+        assert item["type"] == "function_call"
+        assert item["name"] == "exec_command"
+        assert item["namespace"] == "functions"
+        arguments = json.loads(item["arguments"])
+        assert arguments["cmd"] == "Get-Content test.txt"
+        assert arguments["login"] is True
+        assert arguments["max_output_tokens"] == 1000
+        assert arguments["prefix_rule"] == []
+        assert arguments["yield_time_ms"] == 10000
     finally:
         server.shutdown()
         server.server_close()
