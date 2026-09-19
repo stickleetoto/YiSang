@@ -83,6 +83,44 @@ class ToolCallingUpstream(FakeUpstream):
         }
 
 
+class MalformedTypedToolUpstream(FakeUpstream):
+    def complete(self, payload):
+        self.seen.append(payload)
+        return {
+            "id": "chatcmpl-typed",
+            "object": "chat.completion",
+            "model": payload["model"],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": "call-typed",
+                                "type": "function",
+                                "function": {
+                                    "name": "typed_tool",
+                                    "arguments": json.dumps(
+                                        {
+                                            "paths": "['result.txt']",
+                                            "limit": "100",
+                                            "ratio": "1.5",
+                                            "enabled": "false",
+                                            "options": "{'mode': 'fast'}",
+                                        }
+                                    ),
+                                },
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+        }
+
+
 class FailingStreamUpstream(FakeUpstream):
     def stream(self, payload):
         raise UpstreamHTTPError(503, "model unavailable")
@@ -324,6 +362,65 @@ def test_responses_tool_call_round_trip_back_to_codex():
         assert assistant["tool_calls"][0]["id"] == "call-1"
         assert tool["tool_call_id"] == "call-1"
         assert tool["content"] == "hello"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_responses_repairs_tool_argument_types_from_schema():
+    server, thread, _ = _server(MalformedTypedToolUpstream())
+    try:
+        _, _, raw = _post_json(
+            server,
+            "/v1/responses",
+            {
+                "model": "yisang-qwen",
+                "input": [
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "use the typed tool"}],
+                    }
+                ],
+                "tools": [
+                    {
+                        "type": "function",
+                        "name": "typed_tool",
+                        "description": "Exercise typed arguments",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "paths": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "limit": {"type": "integer"},
+                                "ratio": {"type": "number"},
+                                "enabled": {"type": "boolean"},
+                                "options": {
+                                    "type": "object",
+                                    "properties": {
+                                        "mode": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                    }
+                ],
+                "stream": False,
+            },
+        )
+        response = json.loads(raw)
+        item = response["output"][0]
+        arguments = json.loads(item["arguments"])
+
+        assert item["type"] == "function_call"
+        assert arguments["paths"] == ["result.txt"]
+        assert arguments["limit"] == 100
+        assert arguments["ratio"] == 1.5
+        assert arguments["enabled"] is False
+        assert arguments["options"] == {"mode": "fast"}
     finally:
         server.shutdown()
         server.server_close()
