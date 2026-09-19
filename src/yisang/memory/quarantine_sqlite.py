@@ -161,6 +161,21 @@ def _row_to_quarantined(row: sqlite3.Row) -> QuarantinedMemory:
             if proposal_raw.get("writer") is not None
             else None
         ),
+        valid_from=(
+            float(proposal_raw["valid_from"])
+            if proposal_raw.get("valid_from") is not None
+            else None
+        ),
+        valid_until=(
+            float(proposal_raw["valid_until"])
+            if proposal_raw.get("valid_until") is not None
+            else None
+        ),
+        supersedes_id=(
+            str(proposal_raw["supersedes_id"])
+            if proposal_raw.get("supersedes_id") is not None
+            else None
+        ),
     )
 
     return QuarantinedMemory(
