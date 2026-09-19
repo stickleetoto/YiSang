@@ -1,6 +1,6 @@
 # YiSang v0.5 Identity Continuity — Preparation
 
-Status: **portable continuity bundle implemented / real multi-engine validation pending**
+Status: **continuity evaluation harness implemented / real multi-engine validation pending**
 
 v0.5 must prove that changing the reasoning engine changes reasoning quality but
 does not create a new YiSang identity.
@@ -99,14 +99,34 @@ envelope therefore cannot silently substitute a different persistent store.
 A fresh runtime with the same YiSang agent id can be rehydrated from the bundle
 onto a different registered reasoning engine through the staged restore path.
 
+## Continuity evaluation harness now present
+
+The harness performs the repeatable sequence:
+
+~~~text
+source runtime
+ -> build portable continuity bundle
+ -> create/receive a fresh target runtime
+ -> staged restore onto target engine
+ -> compare identity / goal / state / memory / E.G.O digests
+ -> compare continuity fingerprint
+ -> issue a post-restore probe request
+ -> verify the replacement engine is actually used
+ -> verify expected durable memory and E.G.O capability are still reachable
+ -> record restore + probe latency
+~~~
+
+Multiple target engines can be collected into one JSON continuity report. Unit
+fixtures currently use deterministic EchoEngine replacements only; this does
+not satisfy the real two-engine exit criterion.
+
 ## Next v0.5 implementation steps
 
-1. add a repeatable engine-swap continuity evaluation harness
-2. validate concrete Library references when Roland exists
-3. add stale-schema migration fixtures and partial/corrupt bundle cases
-4. benchmark restore latency
-5. test two real local engine families
-6. build the release-level continuity report
+1. add stale-schema migration fixtures and partial/corrupt bundle cases
+2. benchmark repeated restore latency and variance
+3. test at least two real local engine families
+4. validate concrete Library references when Roland exists
+5. freeze a v0.5 closeout report after real validation
 
 ## Restore rule
 
