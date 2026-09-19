@@ -9,6 +9,11 @@ from .proxy import YiSangModelProxy
 from .upstream import OpenAIChatUpstream, UpstreamHTTPError
 
 _DEFAULT_MAX_BODY_BYTES = 8 * 1024 * 1024
+_CLIENT_DISCONNECT_ERRORS = (
+    BrokenPipeError,
+    ConnectionAbortedError,
+    ConnectionResetError,
+)
 
 
 def create_http_server(
@@ -106,26 +111,49 @@ def create_http_server(
             except StopIteration:
                 first = None
 
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("Connection", "close")
-            self.end_headers()
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Connection", "close")
+                self.end_headers()
+            except _CLIENT_DISCONNECT_ERRORS:
+                return
 
-            if first is not None:
-                self.wfile.write(proxy.normalize_sse_line(first))
-                self.wfile.flush()
+            if first is not None and not self._write_response_bytes(
+                proxy.normalize_sse_line(first),
+                flush=True,
+            ):
+                return
             for line in events:
-                self.wfile.write(proxy.normalize_sse_line(line))
-                self.wfile.flush()
+                if not self._write_response_bytes(
+                    proxy.normalize_sse_line(line),
+                    flush=True,
+                ):
+                    return
 
-        def _send_json(self, status: int, payload: dict[str, Any]) -> None:
+        def _write_response_bytes(self, data: bytes, *, flush: bool = False) -> bool:
+            try:
+                self.wfile.write(data)
+                if flush:
+                    self.wfile.flush()
+                return True
+            except _CLIENT_DISCONNECT_ERRORS:
+                # The client may cancel a long-running local inference or close
+                # the socket after receiving enough data. This is not a server
+                # failure and must not trigger a second error response.
+                return False
+
+        def _send_json(self, status: int, payload: dict[str, Any]) -> bool:
             encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(encoded)))
-            self.end_headers()
-            self.wfile.write(encoded)
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(encoded)))
+                self.end_headers()
+            except _CLIENT_DISCONNECT_ERRORS:
+                return False
+            return self._write_response_bytes(encoded)
 
         def _send_error(self, status: int, code: str, message: str) -> None:
             self._send_json(
