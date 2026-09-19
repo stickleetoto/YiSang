@@ -71,11 +71,29 @@ class ContinuityReport:
         return bool(self.cases) and all(case.passed for case in self.cases)
 
     def to_dict(self) -> dict:
+        restore_latencies = [
+            case.restore_latency_ms for case in self.cases
+        ]
+        probe_latencies = [
+            case.probe_latency_ms for case in self.cases
+        ]
         return {
             "schema_version": self.schema_version,
             "case_count": len(self.cases),
             "pass_rate": self.pass_rate,
             "all_passed": self.all_passed,
+            "summary": {
+                "mean_restore_latency_ms": _mean(restore_latencies),
+                "p95_restore_latency_ms": _percentile(
+                    restore_latencies,
+                    0.95,
+                ),
+                "mean_probe_latency_ms": _mean(probe_latencies),
+                "p95_probe_latency_ms": _percentile(
+                    probe_latencies,
+                    0.95,
+                ),
+            },
             "cases": [asdict(case) for case in self.cases],
         }
 
@@ -249,3 +267,19 @@ def write_continuity_report(
         encoding="utf-8",
     )
     return output
+
+
+def _mean(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def _percentile(values: list[float], fraction: float) -> float:
+    if not values:
+        return 0.0
+    if not 0.0 <= fraction <= 1.0:
+        raise ValueError("fraction must be between 0 and 1")
+    ordered = sorted(values)
+    index = max(0, min(len(ordered) - 1, int((len(ordered) - 1) * fraction)))
+    return ordered[index]
