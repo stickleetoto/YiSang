@@ -222,7 +222,7 @@ def apply_restore(
     old_state = runtime.state
     old_memory = runtime.memory
     old_egos = runtime.ego_registry
-    old_pipeline_memory = runtime.memory_pipeline.memory
+    old_pipeline = runtime.memory_pipeline
 
     try:
         runtime.identity = staged_identity
@@ -261,11 +261,7 @@ def apply_restore(
         runtime.state = old_state
         runtime.memory = old_memory
         runtime.ego_registry = old_egos
-        runtime.memory_pipeline = MemoryWritePipeline(
-            memory=old_pipeline_memory,
-            governor=runtime.governor,
-            quarantine=runtime.memory_pipeline.quarantine,
-        )
+        runtime.memory_pipeline = old_pipeline
         raise
 
     return RestoreReport(
