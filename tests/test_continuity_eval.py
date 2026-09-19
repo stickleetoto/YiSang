@@ -91,8 +91,12 @@ def test_continuity_case_restores_and_probes_replacement_engine():
     )
 
     assert result.passed is True
+    assert result.source_engine == "engine-a"
     assert result.target_engine == "engine-b"
+    assert result.source_engine_used is True
     assert result.target_engine_used is True
+    assert result.source_expected_memory_retrieved is True
+    assert result.source_expected_ego_selected is True
     assert result.continuity_fingerprint_preserved is True
     assert result.expected_memory_retrieved is True
     assert result.expected_ego_selected is True
