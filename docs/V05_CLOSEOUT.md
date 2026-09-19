@@ -1,10 +1,10 @@
 # YiSang v0.5 Identity Continuity — Implementation Closeout
 
-Status: **implementation frozen / real two-engine validation pending**
+Status: **live two-engine validation passed / saved-report closeout check pending**
 
-Frozen branch: `freeze/v0.5-implementation` (created from the freeze merge commit).\n\nThis closeout records implementation coverage only. It does not claim that the
-deferred repository test pass, v0.4 integrated memory validation, or the real
-Llama/Qwen continuity run has already passed.
+Frozen branch: `freeze/v0.5-implementation` (created from the freeze merge commit).
+
+A real Llama-family to Qwen-family continuity run passed on 2026-09-19 with 5/5 cases and `closeout_ready=true`. The remaining explicit closeout step is loading the saved report through `yisang-eval-continuity-check`. See `docs/VALIDATION_2026-09-19.md`.
 
 ## Implemented
 
@@ -106,11 +106,11 @@ Hardening includes:
 
 | v0.5 exit criterion | Implementation status |
 | --- | --- |
-| engine swap does not create a new identity | implemented; real run pending |
+| engine swap does not create a new identity | live cross-family run passed |
 | restart + restore resumes same goal/state | portable fresh-runtime restore implemented |
 | schema migrations explicit/testable | implemented |
 | snapshot corruption detected | implemented |
-| continuity across two different engines | runner/checker implemented; real run pending |
+| continuity across two different engines | Llama 3.2 3B -> Qwen 2.5 1.5B, 5/5 passed; saved-report checker pending |
 
 ## Deferred validation pass
 

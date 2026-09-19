@@ -16,7 +16,7 @@ Baseline commit:
 
 Status:
 
-**implementation frozen / integrated validation pending**
+**implementation frozen / validated**
 
 The branch represents the v0.4 implementation closeout before v0.5 development began.
 
@@ -28,7 +28,7 @@ Frozen implementation branch:
 
 Status:
 
-**implementation frozen / real two-engine validation pending**
+**implementation frozen / live two-engine pass; saved-report closeout pending**
 
 The branch is created from the freeze merge commit that records this policy and the v0.5 release-candidate metadata.
 
