@@ -77,7 +77,25 @@ def build_continuity_bundle(
 
 
 def validate_continuity_bundle(bundle: ContinuityBundle) -> None:
+    if bundle.snapshot.memory.kind != "memory":
+        raise ValueError("continuity bundle snapshot memory reference kind is invalid")
+    if bundle.snapshot.ego_registry.kind != "ego_registry":
+        raise ValueError("continuity bundle snapshot E.G.O reference kind is invalid")
+    if bundle.snapshot.memory.sha256 is None:
+        raise ValueError("continuity bundle snapshot memory reference lacks sha256")
+    if bundle.snapshot.ego_registry.sha256 is None:
+        raise ValueError("continuity bundle snapshot E.G.O reference lacks sha256")
+
     validate_memory_archive(bundle.memory_archive)
+
+    archive_memory_schema = bundle.memory_archive.get("memory_schema_version")
+    if (
+        bundle.snapshot.memory.schema_version is not None
+        and archive_memory_schema != bundle.snapshot.memory.schema_version
+    ):
+        raise ValueError(
+            "continuity bundle memory schema does not match snapshot reference"
+        )
 
     if bundle.memory_archive.get("records_sha256") != bundle.snapshot.memory.sha256:
         raise ValueError(
@@ -87,6 +105,14 @@ def validate_continuity_bundle(bundle: ContinuityBundle) -> None:
     registry = EgoRegistry()
     for manifest in bundle.ego_manifests:
         registry.register(manifest)
+
+    if (
+        bundle.snapshot.ego_registry.schema_version is not None
+        and bundle.snapshot.ego_registry.schema_version != 1
+    ):
+        raise ValueError(
+            "unsupported continuity bundle E.G.O registry schema"
+        )
 
     if ego_registry_digest(registry) != bundle.snapshot.ego_registry.sha256:
         raise ValueError(
