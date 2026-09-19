@@ -86,6 +86,8 @@ class MemoryGovernor:
         for record in memory.all():
             if not record.is_active():
                 continue
+            if proposal.supersedes_id == record.memory_id:
+                continue
             if record.content.strip().lower() == normalized:
                 return GovernanceDecision(False, "duplicate")
 
