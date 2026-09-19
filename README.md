@@ -120,4 +120,9 @@ GitHub Actions runs the full pytest suite on Python 3.11 and 3.12 for the curren
 11. Tool loops are bounded.
 12. Core depends on interfaces, not model providers.
 
-See `docs/ARCHITECTURE.md`, `docs/EXECUTION.md`, and `docs/HANDOFF.md`.
+## Documentation
+
+- `docs/ARCHITECTURE.md`
+- `docs/EXECUTION.md`
+- `docs/HANDOFF.md`
+- `docs/TECH_RADAR_2026-09-17.md`
