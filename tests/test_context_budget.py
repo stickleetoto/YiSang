@@ -1,3 +1,5 @@
+import pytest
+
 from yisang.context.budget import ContextBudgetPolicy
 from yisang.context.compiler import ContextCompiler
 from yisang.core.models import YiSangRequest
@@ -41,3 +43,31 @@ def test_context_budget_limits_payload():
     assert len(pack.memories) <= 2
     assert len(pack.egos) <= 1
     assert pack.approx_chars() <= 900
+
+
+def test_context_budget_rejects_irreducible_envelope_overflow():
+    compiler = ContextCompiler(
+        ContextBudgetPolicy(
+            max_total_chars=10,
+            max_user_chars=1,
+            max_memory_chars=1,
+            max_ego_chars=1,
+            max_tool_chars=1,
+            max_action_history_chars=1,
+            max_session_chars=1,
+            max_memories=1,
+            max_egos=1,
+            max_tools=1,
+            max_action_history=1,
+            max_session_messages=1,
+        )
+    )
+
+    with pytest.raises(ValueError, match="irreducible context envelope"):
+        compiler.compile(
+            request=YiSangRequest("r", "x"),
+            identity=IdentityCharter("yisang-001", "YiSang"),
+            state=AgentState(active_engine="test"),
+            memories=[],
+            egos=[],
+        )

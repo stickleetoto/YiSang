@@ -5,6 +5,7 @@ from yisang.memory.in_memory import InMemoryMemoryPort
 from yisang.memory.models import MemoryProposal
 from yisang.memory.projected import ProjectedMemoryPort
 from yisang.memory.projection import LexicalMemoryProjection
+from yisang.memory.retrieval import RetrievalPolicy
 
 
 def _proposal(content, *, importance=0.5):
@@ -104,14 +105,32 @@ def test_projection_weights_can_bias_hybrid_fusion(tmp_path):
             lexical.projection_id: 0.5,
             fts.projection_id: 2.0,
         },
+        retrieval_policy=RetrievalPolicy(
+            importance_weight=0.0,
+            recency_weight=0.0,
+            trust_weight=0.0,
+            preferred_kind_weight=0.0,
+        ),
     )
 
-    first = memory.commit(_proposal("alpha beta gamma"))
-    memory.commit(_proposal("alpha beta"))
+    lexical_first = memory.commit(
+        _proposal(
+            "alpha beta gamma delta epsilon zeta eta theta",
+            importance=1.0,
+        )
+    )
+    fts_first = memory.commit(
+        _proposal("alpha beta", importance=0.0)
+    )
+
+    lexical_hits = lexical.search("alpha beta")
+    fts_hits = fts.search("alpha beta")
+    assert lexical_hits[0].memory_id == lexical_first.memory_id
+    assert fts_hits[0].memory_id == fts_first.memory_id
 
     found = memory.search("alpha beta")
 
-    assert found[0].memory_id == first.memory_id
+    assert found[0].memory_id == fts_first.memory_id
     fts.close()
 
 
