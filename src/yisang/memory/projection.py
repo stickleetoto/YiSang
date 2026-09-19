@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import re
 from threading import RLock
 
+from .lexical import lexical_terms
 from .models import MemoryRecord
-
-_TOKEN_RE = re.compile(r"[A-Za-z0-9_가-힣]+")
 
 
 @dataclass(frozen=True)
@@ -64,7 +62,7 @@ class LexicalMemoryProjection(MemoryProjection):
             if record.invalidated or not record.is_durable:
                 continue
             replacement_records[record.memory_id] = record
-            replacement_terms[record.memory_id] = _terms(record.content)
+            replacement_terms[record.memory_id] = lexical_terms(record.content)
 
         with self._lock:
             self._records = replacement_records
@@ -77,7 +75,7 @@ class LexicalMemoryProjection(MemoryProjection):
                 self._terms.pop(record.memory_id, None)
                 return
             self._records[record.memory_id] = record
-            self._terms[record.memory_id] = _terms(record.content)
+            self._terms[record.memory_id] = lexical_terms(record.content)
 
     def remove(self, memory_id: str) -> None:
         with self._lock:
@@ -90,7 +88,7 @@ class LexicalMemoryProjection(MemoryProjection):
         if limit == 0:
             return []
 
-        query_terms = _terms(query)
+        query_terms = lexical_terms(query)
         if not query_terms:
             return []
 
@@ -123,10 +121,3 @@ class LexicalMemoryProjection(MemoryProjection):
     def size(self) -> int:
         with self._lock:
             return len(self._records)
-
-
-def _terms(text: str) -> frozenset[str]:
-    return frozenset(
-        match.group(0).lower()
-        for match in _TOKEN_RE.finditer(text)
-    )
