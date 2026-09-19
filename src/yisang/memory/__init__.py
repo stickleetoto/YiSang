@@ -1,3 +1,4 @@
+from .fts import SQLiteFTSProjection
 from .governor import MemoryGovernor
 from .in_memory import InMemoryMemoryPort
 from .lifecycle import MemoryMutation, new_memory_mutation, record_fingerprint
@@ -47,6 +48,7 @@ __all__ = [
     "QuarantinePort",
     "LexicalMemoryProjection",
     "ProjectedMemoryPort",
+    "SQLiteFTSProjection",
     "SQLiteMemoryPort",
     "SQLiteQuarantinePort",
     "build_memory_archive",
