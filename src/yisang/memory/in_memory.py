@@ -32,3 +32,19 @@ class InMemoryMemoryPort(MemoryPort):
 
     def all(self) -> list[MemoryRecord]:
         return list(self._records)
+
+    def import_record(
+        self,
+        record: MemoryRecord,
+        *,
+        overwrite: bool = False,
+    ) -> MemoryRecord:
+        for index, existing in enumerate(self._records):
+            if existing.memory_id != record.memory_id:
+                continue
+            if not overwrite:
+                raise ValueError(f"memory already exists: {record.memory_id}")
+            self._records[index] = record
+            return record
+        self._records.append(record)
+        return record
