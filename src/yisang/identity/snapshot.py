@@ -204,7 +204,13 @@ def load_identity_snapshot(path: str | Path) -> IdentitySnapshot:
     if _sha256_json(payload) != expected:
         raise ValueError("identity snapshot checksum mismatch")
 
-    snapshot = _snapshot_from_dict(payload)
+    return identity_snapshot_from_dict(payload)
+
+
+def identity_snapshot_from_dict(raw: dict[str, Any]) -> IdentitySnapshot:
+    if not isinstance(raw, dict):
+        raise ValueError("identity snapshot payload must be an object")
+    snapshot = _snapshot_from_dict(raw)
     report = validate_identity_snapshot(snapshot)
     if not report.valid:
         raise ValueError(
