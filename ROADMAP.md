@@ -362,7 +362,7 @@ Record:
 
 ## v0.5 — Identity Continuity
 
-> Status: **portable continuity bundle implemented / real multi-engine validation pending**. See `docs/V05_PREP.md`.
+> Status: **continuity evaluation harness implemented / real multi-engine validation pending**. See `docs/V05_PREP.md`.
 
 ### Objective
 
@@ -1054,16 +1054,16 @@ Do not move to the next phase only because code exists. Move when the exit crite
 
 # 6. Immediate next work
 
-The next implementation milestone is v0.3.1.
+The current implementation milestone is **v0.5 Identity Continuity**.
 
 Order:
 
-1. add Codex model metadata for yisang-llama
-2. add goal-satisfied / stop-after-success behavior
-3. define ToolFailure
-4. build the repeated Codex E2E test matrix
-5. record baseline metrics
-6. freeze v0.3 once repeatability is acceptable
-7. begin v0.4 memory schema and governance work
+1. validate stale-schema migration and corrupt/partial continuity bundles
+2. run repeated restore benchmarks and record latency variance
+3. perform the continuity suite against at least two real local engine families
+4. verify restart + restore resumes the same goal/state
+5. freeze the v0.5 continuity report once the real-engine exit criteria pass
+6. begin v0.6 Roland only after v0.5 continuity is demonstrated
 
-This keeps the current successful Codex integration as a stable foundation rather than burying it under new features.
+v0.4 remains implementation-complete but integrated-validation-pending until the
+deferred full repository/memory benchmark pass is executed.

@@ -1,3 +1,11 @@
+from .continuity import (
+    ContinuityCaseResult,
+    ContinuityProbe,
+    ContinuityReport,
+    build_continuity_report,
+    run_continuity_case,
+    write_continuity_report,
+)
 from .memory_benchmark import (
     DEFAULT_MEMORY_CASES,
     MEMORY_BENCHMARK_PROFILES,
@@ -37,13 +45,19 @@ __all__ = [
     "CodexEvalCase",
     "DEFAULT_CODEX_V031_MATRIX",
     "CaseMetrics",
+    "ContinuityCaseResult",
+    "ContinuityProbe",
+    "ContinuityReport",
     "RepeatabilityReport",
     "RunMetrics",
     "aggregate_case",
+    "build_continuity_report",
     "build_report",
     "evaluate_baseline",
     "matrix_case_ids",
     "run_case",
+    "run_continuity_case",
     "run_memory_benchmark",
     "run_profile_matrix",
+    "write_continuity_report",
 ]
