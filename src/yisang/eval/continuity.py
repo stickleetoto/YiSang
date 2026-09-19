@@ -315,6 +315,96 @@ def evaluate_v05_closeout(
     )
 
 
+def load_continuity_report(path: str | Path) -> ContinuityReport:
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("continuity report is not valid JSON") from exc
+
+    if not isinstance(raw, dict):
+        raise ValueError("continuity report root must be an object")
+    if raw.get("schema_version") != 1:
+        raise ValueError("unsupported continuity report schema")
+
+    metadata = raw.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise ValueError("continuity report metadata must be an object")
+
+    case_items = raw.get("cases")
+    if not isinstance(case_items, list):
+        raise ValueError("continuity report cases must be a list")
+
+    cases: list[ContinuityCaseResult] = []
+    for item in case_items:
+        if not isinstance(item, dict):
+            raise ValueError("continuity report case must be an object")
+        try:
+            cases.append(
+                ContinuityCaseResult(
+                    case_id=str(item["case_id"]),
+                    source_engine=str(item["source_engine"]),
+                    target_engine=str(item["target_engine"]),
+                    passed=bool(item["passed"]),
+                    identity_preserved=bool(item["identity_preserved"]),
+                    goal_preserved=bool(item["goal_preserved"]),
+                    state_preserved=bool(item["state_preserved"]),
+                    memory_preserved=bool(item["memory_preserved"]),
+                    capabilities_preserved=bool(item["capabilities_preserved"]),
+                    continuity_fingerprint_preserved=bool(
+                        item["continuity_fingerprint_preserved"]
+                    ),
+                    source_engine_used=bool(item["source_engine_used"]),
+                    target_engine_used=bool(item["target_engine_used"]),
+                    source_expected_memory_retrieved=bool(
+                        item["source_expected_memory_retrieved"]
+                    ),
+                    source_expected_ego_selected=bool(
+                        item["source_expected_ego_selected"]
+                    ),
+                    expected_memory_retrieved=bool(
+                        item["expected_memory_retrieved"]
+                    ),
+                    expected_ego_selected=bool(item["expected_ego_selected"]),
+                    restore_latency_ms=float(item["restore_latency_ms"]),
+                    probe_latency_ms=float(item["probe_latency_ms"]),
+                    source_fingerprint=str(item["source_fingerprint"]),
+                    restored_fingerprint=str(item["restored_fingerprint"]),
+                    source_used_memory_ids=tuple(
+                        str(value)
+                        for value in item.get("source_used_memory_ids", [])
+                    ),
+                    source_used_ego_ids=tuple(
+                        str(value)
+                        for value in item.get("source_used_ego_ids", [])
+                    ),
+                    used_memory_ids=tuple(
+                        str(value) for value in item.get("used_memory_ids", [])
+                    ),
+                    used_ego_ids=tuple(
+                        str(value) for value in item.get("used_ego_ids", [])
+                    ),
+                    source_response_text=str(
+                        item.get("source_response_text", "")
+                    ),
+                    response_text=str(item.get("response_text", "")),
+                )
+            )
+        except KeyError as exc:
+            raise ValueError(
+                f"continuity report case missing field: {exc.args[0]}"
+            ) from exc
+
+    return ContinuityReport(
+        schema_version=1,
+        cases=tuple(cases),
+        metadata={
+            str(key): value
+            for key, value in metadata.items()
+            if isinstance(value, (str, int, float, bool)) or value is None
+        },
+    )
+
+
 def write_continuity_report(
     report: ContinuityReport,
     path: str | Path,
