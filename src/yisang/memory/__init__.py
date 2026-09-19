@@ -14,6 +14,7 @@ from .port import MemoryPort
 from .sqlite import SQLiteMemoryPort
 
 __all__ = [
+    "ARCHIVE_SCHEMA_VERSION",
     "DURABLE_MEMORY_KINDS",
     "MEMORY_KINDS",
     "MEMORY_SCHEMA_VERSION",
@@ -26,4 +27,16 @@ __all__ = [
     "MemoryProposal",
     "MemoryRecord",
     "SQLiteMemoryPort",
+    "build_memory_archive",
+    "export_memory_archive",
+    "load_memory_archive",
+    "restore_memory_archive",
 ]
+
+from .transfer import (
+    ARCHIVE_SCHEMA_VERSION,
+    build_memory_archive,
+    export_memory_archive,
+    load_memory_archive,
+    restore_memory_archive,
+)
