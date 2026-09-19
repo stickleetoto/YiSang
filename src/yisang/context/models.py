@@ -15,6 +15,7 @@ class ContextPack:
     constraints: list[str] = field(default_factory=list)
     tools: list[dict[str, Any]] = field(default_factory=list)
     action_history: list[dict[str, Any]] = field(default_factory=list)
+    session_history: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -28,6 +29,7 @@ class ContextPack:
             "constraints": self.constraints,
             "tools": self.tools,
             "action_history": self.action_history,
+            "session_history": self.session_history,
         }
 
     def approx_chars(self) -> int:
@@ -43,6 +45,7 @@ class ContextBudgetReport:
     ego_chars: int
     tool_chars: int
     action_history_chars: int
+    session_chars: int
     selected_memories: int
     dropped_memories: int
     selected_egos: int
@@ -51,6 +54,8 @@ class ContextBudgetReport:
     dropped_tools: int
     selected_action_history: int
     dropped_action_history: int
+    selected_session_messages: int
+    dropped_session_messages: int
     user_truncated: bool
 
     @property

@@ -15,10 +15,12 @@ class ContextBudgetPolicy:
     max_ego_chars: int = 3_000
     max_tool_chars: int = 3_000
     max_action_history_chars: int = 4_000
+    max_session_chars: int = 4_000
     max_memories: int = 8
     max_egos: int = 3
     max_tools: int = 8
     max_action_history: int = 8
+    max_session_messages: int = 12
 
     def __post_init__(self) -> None:
         values = (
@@ -28,10 +30,12 @@ class ContextBudgetPolicy:
             self.max_ego_chars,
             self.max_tool_chars,
             self.max_action_history_chars,
+            self.max_session_chars,
             self.max_memories,
             self.max_egos,
             self.max_tools,
             self.max_action_history,
+            self.max_session_messages,
         )
         if any(v <= 0 for v in values):
             raise ValueError("context budget values must be positive")
