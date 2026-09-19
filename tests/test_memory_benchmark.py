@@ -68,7 +68,9 @@ def test_default_report_is_serializable_and_tracks_poison_escape():
 
     assert payload["schema_version"] == 1
     assert payload["summary"]["case_count"] == 40
-    assert 0.0 <= payload["summary"]["pass_rate"] <= 1.0
+    assert payload["summary"]["pass_rate"] == 1.0
+    assert payload["summary"]["mean_recall"] == 1.0
+    assert payload["summary"]["forbidden_hits"] == 0
     assert payload["summary"]["poison_escape_rate"] == 0.0
     json.dumps(payload)
 
