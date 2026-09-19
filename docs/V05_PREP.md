@@ -1,6 +1,6 @@
 # YiSang v0.5 Identity Continuity — Preparation
 
-Status: **snapshot + restore-planning foundation implemented / restore application pending**
+Status: **staged restore application implemented / real multi-engine validation pending**
 
 v0.5 must prove that changing the reasoning engine changes reasoning quality but
 does not create a new YiSang identity.
@@ -71,16 +71,27 @@ An engine swap by itself must not fail this check. Persistent state drift must.
 - pure IdentityCharter reconstruction
 - pure AgentState reconstruction with the replacement engine supplied externally
 
+## Staged restore application now present
+
+- preflight RestorePlan before runtime mutation
+- memory archive checksum and snapshot-reference validation
+- E.G.O registry digest validation
+- staging MemoryPort factory for authoritative-memory replacement
+- staging E.G.O registry construction
+- identity/state reconstruction with the replacement engine selected externally
+- runtime component swap only after all required artifacts are staged
+- rollback to original runtime references on post-apply validation failure
+- post-restore continuity fingerprint validation
+- persistent RestoreReport evidence
+
 ## Next v0.5 implementation steps
 
-1. validate concrete referenced store locations before applying restore
-2. add atomic/staged restore application
-3. persist restore evidence / restore report
-4. reject partial restore after any failed dependency validation
-5. add Library reference validation when Roland exists
-6. extend the engine-swap suite to two real local engine families
-7. add corruption / partial-store / stale-schema restore cases
-8. build the release-level continuity report
+1. add a portable continuity bundle that packages snapshot + memory + E.G.O artifacts
+2. validate concrete Library references when Roland exists
+3. extend the engine-swap suite to two real local engine families
+4. add stale-schema migration fixtures and partial/corrupt bundle cases
+5. benchmark restore latency
+6. build the release-level continuity report
 
 ## Restore rule
 
