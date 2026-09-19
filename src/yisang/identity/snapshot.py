@@ -158,6 +158,27 @@ def snapshot_payload_sha256(snapshot: IdentitySnapshot) -> str:
     return _sha256_json(snapshot.to_dict())
 
 
+def continuity_fingerprint(snapshot: IdentitySnapshot) -> str:
+    """Hash persistent agent state while excluding capture-instance metadata.
+
+    snapshot_id, created_at, runtime_version and any replaceable engine id are
+    intentionally outside the continuity identity.
+    """
+    payload = {
+        "agent_id": snapshot.agent_id,
+        "identity": snapshot.identity,
+        "state": snapshot.state,
+        "active_goals": list(snapshot.active_goals),
+        "memory": asdict(snapshot.memory),
+        "ego_registry": asdict(snapshot.ego_registry),
+        "library": asdict(snapshot.library) if snapshot.library else None,
+        "policy_version": snapshot.policy_version,
+        "schema_version": snapshot.schema_version,
+        "migrations": [asdict(item) for item in snapshot.migrations],
+    }
+    return _sha256_json(payload)
+
+
 def write_identity_snapshot(
     snapshot: IdentitySnapshot,
     path: str | Path,
