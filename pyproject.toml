@@ -18,6 +18,7 @@ yisang-codex-catalog = "yisang.integrations.codex:main"
 yisang-eval-repeatability = "yisang.eval.repeatability:main"
 yisang-eval-codex = "yisang.eval.codex_runner:main"
 yisang-eval-memory = "yisang.eval.memory_benchmark:main"
+yisang-eval-continuity = "yisang.eval.continuity_runner:main"
 yisang-memory-archive = "yisang.memory.transfer:main"
 yisang-memory-audit = "yisang.memory.audit:main"
 
