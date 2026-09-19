@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from .failure import ToolFailure
+
 
 @dataclass(frozen=True)
 class ActionProposal:
@@ -31,6 +33,7 @@ class ActionResult:
     error: str | None = None
     gate_reason: str = ""
     ego_id: str | None = None
+    failure: ToolFailure | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,4 +43,5 @@ class ActionResult:
             "error": self.error,
             "gate_reason": self.gate_reason,
             "ego_id": self.ego_id,
+            "failure": self.failure.to_dict() if self.failure is not None else None,
         }
