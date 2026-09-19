@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict
 from typing import Any
 
-from .models import ContextPack
+from .models import CompiledContext, ContextBudgetReport, ContextPack
 from .budget import ContextBudgetPolicy, trim_text
 
 
@@ -23,12 +23,40 @@ class ContextCompiler:
         tools=(),
         action_history=(),
     ) -> ContextPack:
+        return self.compile_with_report(
+            request=request,
+            identity=identity,
+            state=state,
+            memories=memories,
+            egos=egos,
+            tools=tools,
+            action_history=action_history,
+        ).pack
+
+    def compile_with_report(
+        self,
+        *,
+        request,
+        identity,
+        state,
+        memories,
+        egos,
+        tools=(),
+        action_history=(),
+    ) -> CompiledContext:
         b = self.budget
 
-        selected_memories = list(memories[: b.max_memories])
-        selected_egos = list(egos[: b.max_egos])
-        selected_tools = list(tools[: b.max_tools])
-        selected_history = list(action_history[-b.max_action_history :])
+        all_memories = list(memories)
+        all_egos = list(egos)
+        all_tools = list(tools)
+        all_history = list(action_history)
+
+        selected_memories = list(all_memories[: b.max_memories])
+        selected_egos = list(all_egos[: b.max_egos])
+        selected_tools = list(all_tools[: b.max_tools])
+        selected_history = list(all_history[-b.max_action_history :])
+
+        initial_user_text = request.text
 
         memory_each = max(1, b.max_memory_chars // max(1, len(selected_memories)))
         ego_each = max(1, b.max_ego_chars // max(1, len(selected_egos)))
@@ -113,7 +141,39 @@ class ContextCompiler:
             new_limit = max(1, len(pack.user_text) - overflow)
             pack.user_text = trim_text(pack.user_text, new_limit)
 
-        return pack
+        report = ContextBudgetReport(
+            max_total_chars=b.max_total_chars,
+            total_chars=pack.approx_chars(),
+            user_chars=len(pack.user_text),
+            memory_chars=_json_chars(pack.memories),
+            ego_chars=_json_chars(pack.egos),
+            tool_chars=_json_chars(pack.tools),
+            action_history_chars=_json_chars(pack.action_history),
+            selected_memories=len(pack.memories),
+            dropped_memories=max(0, len(all_memories) - len(pack.memories)),
+            selected_egos=len(pack.egos),
+            dropped_egos=max(0, len(all_egos) - len(pack.egos)),
+            selected_tools=len(pack.tools),
+            dropped_tools=max(0, len(all_tools) - len(pack.tools)),
+            selected_action_history=len(pack.action_history),
+            dropped_action_history=max(
+                0,
+                len(all_history) - len(pack.action_history),
+            ),
+            user_truncated=(pack.user_text != initial_user_text),
+        )
+        return CompiledContext(pack=pack, budget=report)
+
+
+def _json_chars(value: Any) -> int:
+    return len(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            default=str,
+        )
+    )
 
 
 def _trim_json_object(value: Any, limit: int) -> dict[str, Any]:
