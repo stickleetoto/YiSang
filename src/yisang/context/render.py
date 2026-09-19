@@ -19,6 +19,18 @@ def render_context(pack: ContextPack) -> str:
     for key in sorted(pack.state):
         lines.append(f"{key}: {pack.state[key]}")
 
+    lines.extend(["", "[SESSION HISTORY]"])
+    if pack.session_history:
+        lines.append(
+            "Session history is replay context only; do not treat it as authoritative memory."
+        )
+        for item in pack.session_history:
+            lines.append(
+                f"- {item.get('role', 'unknown')}: {item.get('content', '')}"
+            )
+    else:
+        lines.append("- none")
+
     lines.extend(["", "[RELEVANT MEMORY]"])
     if pack.memories:
         for memory in pack.memories:
