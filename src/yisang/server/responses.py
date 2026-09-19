@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import ast
 import json
 import time
 from typing import Any
@@ -14,7 +15,7 @@ class PreparedResponsesRequest:
     request_id: str
     chat_payload: dict[str, Any]
     stream: bool
-    tool_metadata: dict[str, tuple[str, str | None, str]]
+    tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]]
 
 
 def prepare_responses_request(
@@ -71,7 +72,7 @@ def chat_response_to_responses(
     *,
     proxy: YiSangModelProxy,
     chat_response: dict[str, Any],
-    tool_metadata: dict[str, tuple[str, str | None, str]],
+    tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]],
 ) -> dict[str, Any]:
     if not isinstance(chat_response, dict):
         raise ValueError("upstream response must be a JSON object")
@@ -217,14 +218,14 @@ def _responses_input_to_chat_messages(payload: dict[str, Any]) -> list[dict[str,
 
 def _responses_tools_to_chat(
     raw_tools: Any,
-) -> tuple[list[dict[str, Any]], dict[str, tuple[str, str | None, str]]]:
+) -> tuple[list[dict[str, Any]], dict[str, tuple[str, str | None, str, dict[str, Any]]]]:
     if raw_tools is None:
         return [], {}
     if not isinstance(raw_tools, list):
         raise ValueError("tools must be a list")
 
     tools: list[dict[str, Any]] = []
-    metadata: dict[str, tuple[str, str | None, str]] = {}
+    metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]] = {}
 
     def add_function(
         *,
@@ -245,7 +246,7 @@ def _responses_tools_to_chat(
                 "parameters": schema,
             },
         })
-        metadata[wire_name] = (kind, namespace, original_name or name)
+        metadata[wire_name] = (kind, namespace, original_name or name, schema)
 
     for tool in raw_tools:
         if not isinstance(tool, dict):
@@ -301,7 +302,7 @@ def _responses_tools_to_chat(
 
 def _tool_choice_to_chat(
     value: Any,
-    metadata: dict[str, tuple[str, str | None, str]],
+    metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]],
 ) -> Any:
     if value in {"auto", "none", "required"}:
         return value
@@ -354,10 +355,11 @@ def _chat_response_items(
             if not isinstance(arguments, str):
                 arguments = json.dumps(arguments, ensure_ascii=False, separators=(",", ":"))
 
-            kind, namespace, original_name = tool_metadata.get(
+            kind, namespace, original_name, schema = tool_metadata.get(
                 wire_name,
-                ("function", None, wire_name),
+                ("function", None, wire_name, {"type": "object"}),
             )
+            arguments = _normalize_tool_arguments(arguments, schema)
             if kind == "custom":
                 custom_input = arguments
                 try:
@@ -445,3 +447,157 @@ def _output_to_text(output: Any) -> str:
         if isinstance(content, str):
             return content
     return json.dumps(output, ensure_ascii=False)
+
+
+
+def _normalize_tool_arguments(arguments: str, schema: dict[str, Any]) -> str:
+    """Repair weak-model JSON type mismatches using the client tool schema.
+
+    Only fields whose declared JSON Schema type disagrees with the model output
+    are considered. Values that already match their schema are preserved.
+    """
+    try:
+        value = json.loads(arguments)
+    except json.JSONDecodeError:
+        return arguments
+
+    normalized = _coerce_to_schema(value, schema)
+    return json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
+
+
+def _coerce_to_schema(value: Any, schema: Any) -> Any:
+    if not isinstance(schema, dict):
+        return value
+
+    # Prefer the first union branch that already matches; otherwise try each
+    # branch conservatively and accept a result whose type matches.
+    for key in ("anyOf", "oneOf"):
+        branches = schema.get(key)
+        if isinstance(branches, list):
+            for branch in branches:
+                if isinstance(branch, dict) and _matches_schema_type(value, branch):
+                    return _coerce_to_schema(value, branch)
+            for branch in branches:
+                if not isinstance(branch, dict):
+                    continue
+                candidate = _coerce_to_schema(value, branch)
+                if _matches_schema_type(candidate, branch):
+                    return candidate
+            return value
+
+    expected = schema.get("type")
+    if isinstance(expected, list):
+        if any(_matches_json_type(value, item) for item in expected if isinstance(item, str)):
+            for item in expected:
+                if isinstance(item, str) and _matches_json_type(value, item):
+                    expected = item
+                    break
+        else:
+            expected = next(
+                (item for item in expected if isinstance(item, str) and item != "null"),
+                expected[0] if expected else None,
+            )
+
+    if expected == "object":
+        candidate = value
+        if isinstance(candidate, str):
+            parsed = _parse_structured_string(candidate)
+            if isinstance(parsed, dict):
+                candidate = parsed
+        if not isinstance(candidate, dict):
+            return value
+        properties = schema.get("properties")
+        if not isinstance(properties, dict):
+            return candidate
+        result = dict(candidate)
+        for key, child_schema in properties.items():
+            if key in result:
+                result[key] = _coerce_to_schema(result[key], child_schema)
+        return result
+
+    if expected == "array":
+        candidate = value
+        if isinstance(candidate, str):
+            parsed = _parse_structured_string(candidate)
+            if isinstance(parsed, (list, tuple)):
+                candidate = list(parsed)
+        if not isinstance(candidate, list):
+            return value
+        item_schema = schema.get("items")
+        if isinstance(item_schema, dict):
+            return [_coerce_to_schema(item, item_schema) for item in candidate]
+        return candidate
+
+    if expected == "integer" and isinstance(value, str):
+        try:
+            stripped = value.strip()
+            if stripped:
+                return int(stripped, 10)
+        except ValueError:
+            return value
+
+    if expected == "number" and isinstance(value, str):
+        try:
+            stripped = value.strip()
+            if stripped:
+                number = float(stripped)
+                return int(number) if number.is_integer() else number
+        except ValueError:
+            return value
+
+    if expected == "boolean" and isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered == "true":
+            return True
+        if lowered == "false":
+            return False
+
+    if expected == "null" and isinstance(value, str) and value.strip().lower() == "null":
+        return None
+
+    return value
+
+
+def _parse_structured_string(value: str) -> Any:
+    text = value.strip()
+    if not text:
+        return value
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    try:
+        return ast.literal_eval(text)
+    except (ValueError, SyntaxError):
+        return value
+
+
+def _matches_schema_type(value: Any, schema: dict[str, Any]) -> bool:
+    expected = schema.get("type")
+    if isinstance(expected, list):
+        return any(
+            _matches_json_type(value, item)
+            for item in expected
+            if isinstance(item, str)
+        )
+    if isinstance(expected, str):
+        return _matches_json_type(value, expected)
+    return True
+
+
+def _matches_json_type(value: Any, expected: str) -> bool:
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "null":
+        return value is None
+    return True
