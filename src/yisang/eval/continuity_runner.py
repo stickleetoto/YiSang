@@ -19,6 +19,7 @@ from yisang.verification.base import PassThroughVerifier
 from .continuity import (
     ContinuityProbe,
     build_continuity_report,
+    evaluate_v05_closeout,
     run_continuity_case,
     write_continuity_report,
 )
@@ -91,11 +92,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source-base-url", required=True)
     parser.add_argument("--source-model", required=True)
     parser.add_argument("--source-engine-id", default="engine-source")
+    parser.add_argument("--source-family")
     parser.add_argument("--source-api-key")
 
     parser.add_argument("--target-base-url", required=True)
     parser.add_argument("--target-model", required=True)
     parser.add_argument("--target-engine-id", default="engine-target")
+    parser.add_argument("--target-family")
     parser.add_argument("--target-api-key")
 
     parser.add_argument("--repeats", type=int, default=3)
@@ -151,7 +154,22 @@ def main(argv: list[str] | None = None) -> int:
         )
         results.append(result)
 
-    report = build_continuity_report(results)
+    report = build_continuity_report(
+        results,
+        metadata={
+            "source_engine_id": args.source_engine_id,
+            "target_engine_id": args.target_engine_id,
+            "source_model": args.source_model,
+            "target_model": args.target_model,
+            "source_family": args.source_family,
+            "target_family": args.target_family,
+            "source_base_url": args.source_base_url,
+            "target_base_url": args.target_base_url,
+            "repeats": args.repeats,
+            "temperature": args.temperature,
+        },
+    )
+    closeout = evaluate_v05_closeout(report)
     output = write_continuity_report(report, args.output)
     payload = report.to_dict()
     print(output)
@@ -163,6 +181,12 @@ def main(argv: list[str] | None = None) -> int:
                 "all_passed": payload["all_passed"],
                 "source_engine": args.source_engine_id,
                 "target_engine": args.target_engine_id,
+                "source_model": args.source_model,
+                "target_model": args.target_model,
+                "source_family": args.source_family,
+                "target_family": args.target_family,
+                "closeout_ready": closeout.ready,
+                "closeout_errors": list(closeout.errors),
             },
             ensure_ascii=False,
         )
