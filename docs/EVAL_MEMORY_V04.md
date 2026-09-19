@@ -6,22 +6,37 @@ benchmarks.
 
 ## Built-in categories
 
-The initial baseline contains 12 cases across four categories:
+The baseline contains 40 cases: 10 cases in each of four categories:
 
 - `static_dynamic`
 - `workflow_gotcha`
 - `cross_session`
 - `poisoning`
 
-Each case seeds governed `MemoryProposal` objects, routes them through
+The default profile seeds governed `MemoryProposal` objects, routes them through
 `MemoryWritePipeline`, performs retrieval through a rebuildable projected
 MemoryPort, and records whether expected memories were retrieved and forbidden
 memories escaped quarantine.
+
+The harness also exposes five comparison profiles matching the roadmap:
+
+- `memory_disabled`
+- `session_only`
+- `retrieval_memory`
+- `retrieval_procedural`
+- `retrieval_procedural_provenance`
+
+The first two deliberately have no durable retrieval; the ungoverned retrieval
+profiles show what happens when provenance/quarantine policy is bypassed.
 
 ## Run
 
 ~~~powershell
 yisang-eval-memory --output ".\artifacts\memory-v04.json"
+
+yisang-eval-memory `
+  --profile retrieval_memory `
+  --output ".\artifacts\memory-v04-ungoverned.json"
 ~~~
 
 Selected cases:
