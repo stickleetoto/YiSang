@@ -24,8 +24,24 @@ def render_context(pack: ContextPack) -> str:
         for memory in pack.memories:
             lines.append(
                 f"- ({memory['memory_id']}, {memory['kind']}, "
-                f"confidence={memory['confidence']:.2f}) {memory['content']}"
+                f"confidence={memory['confidence']:.2f}, "
+                f"trust={memory.get('trust_class', 'unknown')}, "
+                f"source_type={memory.get('source_type', 'engine')}) "
+                f"{memory['content']}"
             )
+            provenance = []
+            if memory.get("source_id"):
+                provenance.append(f"source_id={memory['source_id']}")
+            evidence_refs = memory.get("evidence_refs") or []
+            if evidence_refs:
+                provenance.append(
+                    "evidence=" + json.dumps(
+                        evidence_refs,
+                        ensure_ascii=False,
+                    )
+                )
+            if provenance:
+                lines.append("  provenance: " + ", ".join(provenance))
     else:
         lines.append("- none")
 
