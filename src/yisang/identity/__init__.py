@@ -10,6 +10,7 @@ from .snapshot import (
     load_identity_snapshot,
     snapshot_payload_sha256,
     validate_identity_snapshot,
+    validate_snapshot_against_runtime,
     write_identity_snapshot,
 )
 
@@ -26,5 +27,6 @@ __all__ = [
     "load_identity_snapshot",
     "snapshot_payload_sha256",
     "validate_identity_snapshot",
+    "validate_snapshot_against_runtime",
     "write_identity_snapshot",
 ]
