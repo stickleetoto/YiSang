@@ -15,7 +15,7 @@ class InMemoryMemoryPort(MemoryPort):
         terms = {t.lower() for t in query.split() if t.strip()}
         ranked: list[tuple[float, MemoryRecord]] = []
         for record in self._records:
-            if record.invalidated:
+            if not record.is_active():
                 continue
             hay = record.content.lower()
             overlap = sum(1 for term in terms if term in hay)
@@ -28,7 +28,9 @@ class InMemoryMemoryPort(MemoryPort):
             )
             ranked.append((score, record))
         ranked.sort(key=lambda item: (-item[0], item[1].memory_id))
-        return [record for _, record in ranked[:limit]]
+        selected = [record for _, record in ranked[:limit]]
+        self.mark_retrieved([record.memory_id for record in selected])
+        return selected
 
     def commit(self, proposal: MemoryProposal) -> MemoryRecord:
         record = proposal.to_record()
@@ -117,6 +119,64 @@ class InMemoryMemoryPort(MemoryPort):
                 evidence_refs=evidence_refs,
                 before=current,
                 after=updated,
+            )
+        )
+        return updated
+
+    def mark_retrieved(self, memory_ids: list[str]) -> None:
+        if not memory_ids:
+            return
+        now = time.time()
+        wanted = set(memory_ids)
+        for index, record in enumerate(self._records):
+            if record.memory_id in wanted:
+                self._records[index] = replace(record, last_used_at=now)
+
+    def record_outcome(self, memory_ids: list[str], *, success: bool) -> None:
+        if not memory_ids:
+            return
+        wanted = set(memory_ids)
+        for index, record in enumerate(self._records):
+            if record.memory_id not in wanted:
+                continue
+            self._records[index] = replace(
+                record,
+                success_count=record.success_count + (1 if success else 0),
+                failure_count=record.failure_count + (0 if success else 1),
+            )
+
+    def supersede(
+        self,
+        memory_id: str,
+        *,
+        superseded_by_id: str,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        index, current = self._locate(memory_id)
+        if current.superseded_by_id == superseded_by_id:
+            return current
+        now = time.time()
+        updated = replace(
+            current,
+            invalidated=True,
+            validation_state="superseded",
+            updated_at=now,
+            valid_until=now,
+            superseded_by_id=superseded_by_id,
+        )
+        self._records[index] = updated
+        self._mutations.append(
+            new_memory_mutation(
+                memory_id=memory_id,
+                operation="supersede",
+                actor=actor,
+                reason=reason,
+                evidence_refs=evidence_refs,
+                before=current,
+                after=updated,
+                metadata={"superseded_by_id": superseded_by_id},
             )
         )
         return updated
