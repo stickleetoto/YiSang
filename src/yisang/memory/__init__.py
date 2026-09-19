@@ -1,3 +1,11 @@
+from .retrieval import (
+    ProjectionTrace,
+    RetrievalCandidateTrace,
+    RetrievalDiagnostics,
+    RetrievalPolicy,
+    RetrievalResult,
+    metadata_rerank_score,
+)
 from .vector import (
     EmbeddingProvider,
     InMemoryVectorProjection,
@@ -56,6 +64,11 @@ __all__ = [
     "QuarantinePort",
     "LexicalMemoryProjection",
     "ProjectedMemoryPort",
+    "ProjectionTrace",
+    "RetrievalCandidateTrace",
+    "RetrievalDiagnostics",
+    "RetrievalPolicy",
+    "RetrievalResult",
     "SQLiteFTSProjection",
     "SQLiteMemoryPort",
     "SQLiteQuarantinePort",
@@ -63,6 +76,7 @@ __all__ = [
     "export_memory_archive",
     "load_memory_archive",
     "new_memory_mutation",
+    "metadata_rerank_score",
     "record_fingerprint",
     "restore_memory_archive",
 ]
