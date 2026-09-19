@@ -5,6 +5,7 @@ from yisang.context.compiler import ContextCompiler
 from yisang.ego.registry import EgoRegistry
 from yisang.ego.router import CapabilityRouter
 from yisang.engines.router import EngineRouter
+from yisang.execution.failure import failure_from_gate_reason
 from yisang.execution.models import ActionResult
 from yisang.execution.runtime import ActionRuntime
 from yisang.identity.models import AgentState, IdentityCharter
@@ -84,6 +85,10 @@ class YiSangRuntime:
                         tool_id=proposal.action,
                         status="DENIED",
                         gate_reason="action_loop_limit",
+                        failure=failure_from_gate_reason(
+                            "action_loop_limit",
+                            tool_id=proposal.action,
+                        ),
                     )
                     action_results.append(denied)
                     action_history.append(_history_item(proposal, denied))
@@ -96,6 +101,10 @@ class YiSangRuntime:
                         tool_id=proposal.action,
                         status="DENIED",
                         gate_reason="action_runtime_not_configured",
+                        failure=failure_from_gate_reason(
+                            "action_runtime_not_configured",
+                            tool_id=proposal.action,
+                        ),
                     )
                 else:
                     executed = self.action_runtime.execute(
