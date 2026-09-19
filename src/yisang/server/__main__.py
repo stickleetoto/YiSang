@@ -35,6 +35,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ego-root", default="ego")
     parser.add_argument("--project", default=str(Path.cwd()))
     parser.add_argument(
+        "--tool-profile",
+        choices=("full", "codex-small"),
+        default="full",
+        help=(
+            "Tool exposure profile for Responses clients. "
+            "'codex-small' keeps only simple local coding tools and enables "
+            "conservative recovery of textual tool-call JSON for small models."
+        ),
+    )
+    parser.add_argument(
         "--allow-remote",
         action="store_true",
         help="Allow binding to a non-loopback host. No server auth/TLS is provided.",
@@ -80,11 +90,13 @@ def main(argv: list[str] | None = None) -> int:
         port=args.port,
         proxy=proxy,
         upstream=upstream,
+        tool_profile=args.tool_profile,
     )
 
     print(
         f"YiSang model server: http://{args.host}:{server.server_port}/v1 "
-        f"model={args.model} upstream={args.upstream_model}"
+        f"model={args.model} upstream={args.upstream_model} "
+        f"tool_profile={args.tool_profile}"
     )
     try:
         server.serve_forever()
