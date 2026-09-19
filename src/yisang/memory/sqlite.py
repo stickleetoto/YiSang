@@ -2,22 +2,16 @@ from __future__ import annotations
 
 from dataclasses import replace
 import json
-import re
 import sqlite3
 import time
 from pathlib import Path
 from threading import RLock
 from typing import Any
 
+from .lexical import lexical_terms
 from .lifecycle import MemoryMutation, new_memory_mutation
 from .models import MEMORY_SCHEMA_VERSION, MemoryProposal, MemoryRecord
 from .port import MemoryPort
-
-_TOKEN_RE = re.compile(r"[A-Za-z0-9_가-힣]+")
-
-
-def _terms(text: str) -> set[str]:
-    return {m.group(0).lower() for m in _TOKEN_RE.finditer(text)}
 
 
 class SQLiteMemoryPort(MemoryPort):
@@ -176,7 +170,7 @@ class SQLiteMemoryPort(MemoryPort):
             )
 
     def search(self, query: str, *, limit: int = 8) -> list[MemoryRecord]:
-        query_terms = _terms(query)
+        query_terms = lexical_terms(query)
         if not query_terms:
             return []
 
@@ -184,7 +178,7 @@ class SQLiteMemoryPort(MemoryPort):
         for record in self.all():
             if not record.is_active():
                 continue
-            record_terms = _terms(record.content)
+            record_terms = lexical_terms(record.content)
             overlap = len(query_terms & record_terms)
             if overlap == 0:
                 continue
