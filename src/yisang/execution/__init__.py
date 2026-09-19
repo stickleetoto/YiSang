@@ -1,4 +1,5 @@
 from .builtin import register_workspace_read_tools
+from .completion import ToolOutcome
 from .failure import ToolFailure, ToolFailureCategory
 from .gate import ActionGate
 from .models import ActionDecision, ActionProposal, ActionResult
@@ -12,6 +13,7 @@ __all__ = [
     "ActionResult",
     "ActionRuntime",
     "ToolFailure",
+    "ToolOutcome",
     "ToolFailureCategory",
     "ToolDefinition",
     "ToolRegistry",
