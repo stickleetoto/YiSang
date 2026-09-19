@@ -1,13 +1,29 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Callable
+import json
+import time
 
+from yisang.ego.models import EgoManifest
+from yisang.ego.registry import EgoRegistry
 from yisang.identity.models import AgentState, IdentityCharter
+from yisang.memory.pipeline import MemoryWritePipeline
+from yisang.memory.port import MemoryPort
+from yisang.memory.transfer import (
+    build_memory_archive,
+    restore_memory_archive,
+    validate_memory_archive,
+)
 
 from .snapshot import (
     IdentitySnapshot,
     build_identity_snapshot,
+    continuity_fingerprint,
+    ego_registry_digest,
     validate_identity_snapshot,
+    validate_snapshot_against_runtime,
 )
 
 
@@ -28,6 +44,45 @@ class RestorePlan:
     @property
     def can_apply_identity_state(self) -> bool:
         return not self.blockers
+
+
+@dataclass(frozen=True)
+class RestoreArtifacts:
+    memory_archive: dict | None = None
+    ego_manifests: tuple[EgoManifest, ...] | None = None
+
+
+@dataclass(frozen=True)
+class RestoreReport:
+    snapshot_id: str
+    target_engine: str
+    status: str
+    applied_at: float
+    identity_restored: bool
+    state_restored: bool
+    memory_restored: bool
+    ego_registry_restored: bool
+    pre_continuity_fingerprint: str
+    post_continuity_fingerprint: str
+    warnings: tuple[str, ...] = ()
+    evidence: dict[str, str | int | bool | None] = field(default_factory=dict)
+
+    @property
+    def continuity_preserved(self) -> bool:
+        return (
+            self.status == "applied"
+            and self.pre_continuity_fingerprint
+            == self.post_continuity_fingerprint
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            **asdict(self),
+            "continuity_preserved": self.continuity_preserved,
+        }
+
+
+MemoryFactory = Callable[[], MemoryPort]
 
 
 def plan_restore(
@@ -79,6 +134,176 @@ def plan_restore(
         blockers=tuple(blockers),
         warnings=tuple(dict.fromkeys(warnings)),
     )
+
+
+def apply_restore(
+    snapshot: IdentitySnapshot,
+    runtime,
+    *,
+    target_engine: str,
+    artifacts: RestoreArtifacts | None = None,
+    memory_factory: MemoryFactory | None = None,
+) -> RestoreReport:
+    """Stage, validate, then atomically swap runtime continuity components.
+
+    No runtime-owned state is mutated until all required restore artifacts are
+    validated and staged successfully.
+    """
+    plan = plan_restore(snapshot, runtime, target_engine=target_engine)
+    if plan.blockers:
+        raise ValueError(
+            "restore blocked: " + "; ".join(plan.blockers)
+        )
+
+    artifacts = artifacts or RestoreArtifacts()
+    staged_identity = identity_from_snapshot(snapshot)
+    staged_state = state_from_snapshot(
+        snapshot,
+        active_engine=target_engine,
+    )
+
+    staged_memory = runtime.memory
+    if plan.requires_memory_restore:
+        if artifacts.memory_archive is None:
+            raise ValueError(
+                "restore requires a memory archive artifact"
+            )
+        if memory_factory is None:
+            raise ValueError(
+                "restore requires memory_factory when authoritative memory differs"
+            )
+        validate_memory_archive(artifacts.memory_archive)
+        if artifacts.memory_archive.get("records_sha256") != snapshot.memory.sha256:
+            raise ValueError(
+                "memory archive digest does not match snapshot reference"
+            )
+
+        candidate_memory = memory_factory()
+        if candidate_memory.all():
+            raise ValueError(
+                "memory_factory must return an empty staging MemoryPort"
+            )
+        restore_memory_archive(
+            candidate_memory,
+            artifacts.memory_archive,
+            overwrite=False,
+        )
+        staged_archive = build_memory_archive(candidate_memory)
+        if staged_archive["records_sha256"] != snapshot.memory.sha256:
+            raise ValueError(
+                "staged memory digest does not match snapshot reference"
+            )
+        staged_memory = candidate_memory
+
+    staged_egos = runtime.ego_registry
+    if plan.requires_ego_restore:
+        if artifacts.ego_manifests is None:
+            raise ValueError(
+                "restore requires E.G.O manifest artifacts"
+            )
+        candidate_egos = EgoRegistry()
+        for manifest in artifacts.ego_manifests:
+            candidate_egos.register(manifest)
+        if ego_registry_digest(candidate_egos) != snapshot.ego_registry.sha256:
+            raise ValueError(
+                "staged E.G.O registry digest does not match snapshot reference"
+            )
+        staged_egos = candidate_egos
+
+    pre_snapshot = build_identity_snapshot(
+        runtime,
+        policy_version=snapshot.policy_version,
+        runtime_version=snapshot.runtime_version,
+        library=snapshot.library,
+    )
+    pre_fingerprint = continuity_fingerprint(snapshot)
+
+    old_identity = runtime.identity
+    old_state = runtime.state
+    old_memory = runtime.memory
+    old_egos = runtime.ego_registry
+    old_pipeline = runtime.memory_pipeline
+
+    try:
+        runtime.identity = staged_identity
+        runtime.state = staged_state
+        runtime.memory = staged_memory
+        runtime.ego_registry = staged_egos
+
+        # Keep the existing governor/quarantine object identities but redirect
+        # governed writes to the staged authoritative store.
+        runtime.memory_pipeline = MemoryWritePipeline(
+            memory=staged_memory,
+            governor=runtime.governor,
+            quarantine=runtime.memory_pipeline.quarantine,
+        )
+
+        validation = validate_snapshot_against_runtime(snapshot, runtime)
+        if not validation.valid:
+            raise ValueError(
+                "post-restore validation failed: "
+                + "; ".join(validation.errors)
+            )
+
+        post_snapshot = build_identity_snapshot(
+            runtime,
+            policy_version=snapshot.policy_version,
+            runtime_version=snapshot.runtime_version,
+            library=snapshot.library,
+        )
+        post_fingerprint = continuity_fingerprint(post_snapshot)
+        if post_fingerprint != pre_fingerprint:
+            raise ValueError(
+                "post-restore continuity fingerprint does not match snapshot"
+            )
+    except Exception:
+        runtime.identity = old_identity
+        runtime.state = old_state
+        runtime.memory = old_memory
+        runtime.ego_registry = old_egos
+        runtime.memory_pipeline = old_pipeline
+        raise
+
+    return RestoreReport(
+        snapshot_id=snapshot.snapshot_id,
+        target_engine=target_engine,
+        status="applied",
+        applied_at=time.time(),
+        identity_restored=not plan.identity_matches,
+        state_restored=plan.requires_state_restore,
+        memory_restored=plan.requires_memory_restore,
+        ego_registry_restored=plan.requires_ego_restore,
+        pre_continuity_fingerprint=pre_fingerprint,
+        post_continuity_fingerprint=post_fingerprint,
+        warnings=plan.warnings,
+        evidence={
+            "memory_record_count": len(runtime.memory.all()),
+            "ego_count": len(runtime.ego_registry.list_all()),
+            "memory_sha256": snapshot.memory.sha256,
+            "ego_registry_sha256": snapshot.ego_registry.sha256,
+            "target_engine_registered": True,
+            "pre_runtime_snapshot_id": pre_snapshot.snapshot_id,
+        },
+    )
+
+
+def write_restore_report(
+    report: RestoreReport,
+    path: str | Path,
+) -> Path:
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(
+            report.to_dict(),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return output
 
 
 def identity_from_snapshot(snapshot: IdentitySnapshot) -> IdentityCharter:

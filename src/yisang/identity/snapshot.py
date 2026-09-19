@@ -99,7 +99,7 @@ def build_identity_snapshot(
     migrations: tuple[MigrationRecord, ...] = (),
 ) -> IdentitySnapshot:
     memory_archive = build_memory_archive(runtime.memory)
-    ego_payload = _ego_payload(runtime)
+    ego_payload = ego_registry_payload(runtime.ego_registry)
 
     goal = runtime.state.current_goal
     active_goals = (goal,) if isinstance(goal, str) and goal.strip() else ()
@@ -259,7 +259,7 @@ def validate_snapshot_against_runtime(
     if snapshot.memory.sha256 != memory_archive["records_sha256"]:
         errors.append("authoritative memory digest does not match snapshot")
 
-    ego_digest = _sha256_json(_ego_payload(runtime))
+    ego_digest = ego_registry_digest(runtime.ego_registry)
     if snapshot.ego_registry.sha256 != ego_digest:
         errors.append("E.G.O registry digest does not match snapshot")
 
@@ -278,7 +278,7 @@ def validate_snapshot_against_runtime(
     )
 
 
-def _ego_payload(runtime) -> list[dict[str, Any]]:
+def ego_registry_payload(registry) -> list[dict[str, Any]]:
     return [
         {
             "ego_id": ego.ego_id,
@@ -289,10 +289,14 @@ def _ego_payload(runtime) -> list[dict[str, Any]]:
             "permissions": dict(ego.permissions),
         }
         for ego in sorted(
-            runtime.ego_registry.list_all(),
+            registry.list_all(),
             key=lambda item: item.ego_id,
         )
     ]
+
+
+def ego_registry_digest(registry) -> str:
+    return _sha256_json(ego_registry_payload(registry))
 
 
 def _snapshot_from_dict(raw: dict[str, Any]) -> IdentitySnapshot:
