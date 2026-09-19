@@ -6,6 +6,11 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from .proxy import YiSangModelProxy
+from .responses import (
+    chat_response_to_responses,
+    prepare_responses_request,
+    responses_sse_events,
+)
 from .upstream import OpenAIChatUpstream, UpstreamHTTPError
 
 _DEFAULT_MAX_BODY_BYTES = 8 * 1024 * 1024
@@ -54,33 +59,47 @@ def create_http_server(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlsplit(self.path).path.rstrip("/") or "/"
-            if path == "/v1/responses":
-                self._send_error(
-                    501,
-                    "responses_not_implemented",
-                    "YiSang v0.3 model server currently supports the Chat "
-                    "Completions wire protocol. Configure Codex with wire_api=\"chat\".",
-                )
-                return
-            if path != "/v1/chat/completions":
+            if path not in {"/v1/chat/completions", "/v1/responses"}:
                 self._send_error(404, "not_found", "route not found")
                 return
 
             try:
                 body = self._read_json_body()
-                prepared = proxy.prepare_chat_request(body)
-                if prepared.payload.get("stream"):
-                    self._stream_chat(prepared.payload)
+                if path == "/v1/responses":
+                    self._handle_responses(body)
                     return
-
-                response = upstream.complete(prepared.payload)
-                self._send_json(200, proxy.normalize_chat_response(response))
+                self._handle_chat(body)
             except ValueError as exc:
                 self._send_error(400, "invalid_request_error", str(exc))
             except UpstreamHTTPError as exc:
                 self._send_error(502, "upstream_error", str(exc))
             except Exception as exc:  # containment boundary for the local server
                 self._send_error(500, "internal_error", f"{type(exc).__name__}: {exc}")
+
+        def _handle_chat(self, body: dict[str, Any]) -> None:
+            prepared = proxy.prepare_chat_request(body)
+            if prepared.payload.get("stream"):
+                self._stream_chat(prepared.payload)
+                return
+
+            response = upstream.complete(prepared.payload)
+            self._send_json(200, proxy.normalize_chat_response(response))
+
+        def _handle_responses(self, body: dict[str, Any]) -> None:
+            prepared = prepare_responses_request(proxy, body)
+            # The bridge intentionally uses a completed upstream Chat response,
+            # then renders Responses events. This keeps Ollama compatibility
+            # while presenting the protocol current Codex expects.
+            chat_response = upstream.complete(prepared.chat_payload)
+            response = chat_response_to_responses(
+                proxy=proxy,
+                chat_response=chat_response,
+                tool_metadata=prepared.tool_metadata,
+            )
+            if prepared.stream:
+                self._send_responses_sse(response)
+            else:
+                self._send_json(200, response)
 
         def _read_json_body(self) -> dict[str, Any]:
             raw_length = self.headers.get("Content-Length")
@@ -111,13 +130,7 @@ def create_http_server(
             except StopIteration:
                 first = None
 
-            try:
-                self.send_response(200)
-                self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-                self.send_header("Cache-Control", "no-cache")
-                self.send_header("Connection", "close")
-                self.end_headers()
-            except _CLIENT_DISCONNECT_ERRORS:
+            if not self._start_sse():
                 return
 
             if first is not None and not self._write_response_bytes(
@@ -131,6 +144,24 @@ def create_http_server(
                     flush=True,
                 ):
                     return
+
+        def _send_responses_sse(self, response: dict[str, Any]) -> None:
+            if not self._start_sse():
+                return
+            for event in responses_sse_events(response):
+                if not self._write_response_bytes(event, flush=True):
+                    return
+
+        def _start_sse(self) -> bool:
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Connection", "close")
+                self.end_headers()
+                return True
+            except _CLIENT_DISCONNECT_ERRORS:
+                return False
 
         def _write_response_bytes(self, data: bytes, *, flush: bool = False) -> bool:
             try:
