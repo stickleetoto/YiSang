@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from yisang.ego.models import EgoManifest
 
+from .failure import failure_from_exception, failure_from_gate_reason
 from .gate import ActionGate
 from .models import ActionProposal, ActionResult
 from .tools import ToolRegistry
@@ -45,6 +46,10 @@ class ActionRuntime:
                 status="DENIED",
                 gate_reason=decision.reason,
                 ego_id=decision.ego_id,
+                failure=failure_from_gate_reason(
+                    decision.reason,
+                    tool_id=proposal.action,
+                ),
             )
 
         tool = self.tools.get(proposal.action)
@@ -58,6 +63,10 @@ class ActionRuntime:
                 error=f"{type(exc).__name__}: {exc}",
                 gate_reason=decision.reason,
                 ego_id=decision.ego_id,
+                failure=failure_from_exception(
+                    exc,
+                    tool_id=proposal.action,
+                ),
             )
 
         return ActionResult(
