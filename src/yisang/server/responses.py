@@ -9,6 +9,16 @@ from uuid import uuid4
 
 from .proxy import PreparedChatRequest, YiSangModelProxy
 
+_CODEX_SMALL_ALLOWED_TOOLS = frozenset({"exec_command", "apply_patch"})
+_CODEX_SMALL_SYSTEM_MESSAGE = (
+    "[YISANG CODEX SMALL-MODEL TOOL PROFILE]\n"
+    "Only tools present in the attached tools array are executable. Ignore tool "
+    "names mentioned elsewhere when they are not present. For local file and "
+    "shell work, prefer exec_command. Never print a tool call as JSON in normal "
+    "assistant text; issue a structured tool call instead.\n"
+    "[END YISANG CODEX SMALL-MODEL TOOL PROFILE]"
+)
+
 
 @dataclass(frozen=True)
 class PreparedResponsesRequest:
@@ -21,6 +31,8 @@ class PreparedResponsesRequest:
 def prepare_responses_request(
     proxy: YiSangModelProxy,
     payload: dict[str, Any],
+    *,
+    tool_profile: str = "full",
 ) -> PreparedResponsesRequest:
     if not isinstance(payload, dict):
         raise ValueError("request body must be a JSON object")
@@ -31,11 +43,23 @@ def prepare_responses_request(
     if model != proxy.model_id:
         raise ValueError(f"unknown YiSang model: {model}")
 
+    if tool_profile not in {"full", "codex-small"}:
+        raise ValueError(f"unknown tool profile: {tool_profile}")
+
     messages = _responses_input_to_chat_messages(payload)
     if not messages:
         raise ValueError("input must contain at least one message or tool result")
+    if tool_profile == "codex-small":
+        insert_at = 1 if messages and messages[0].get("role") == "system" else 0
+        messages.insert(
+            insert_at,
+            {"role": "system", "content": _CODEX_SMALL_SYSTEM_MESSAGE},
+        )
 
-    tools, tool_metadata = _responses_tools_to_chat(payload.get("tools"))
+    tools, tool_metadata = _responses_tools_to_chat(
+        payload.get("tools"),
+        tool_profile=tool_profile,
+    )
     chat_payload: dict[str, Any] = {
         "model": model,
         "messages": messages,
@@ -50,7 +74,9 @@ def prepare_responses_request(
     if tool_choice is not None:
         chat_payload["tool_choice"] = tool_choice
 
-    if isinstance(payload.get("parallel_tool_calls"), bool):
+    if tool_profile == "codex-small":
+        chat_payload["parallel_tool_calls"] = False
+    elif isinstance(payload.get("parallel_tool_calls"), bool):
         chat_payload["parallel_tool_calls"] = payload["parallel_tool_calls"]
     if isinstance(payload.get("temperature"), (int, float)):
         chat_payload["temperature"] = payload["temperature"]
@@ -73,12 +99,17 @@ def chat_response_to_responses(
     proxy: YiSangModelProxy,
     chat_response: dict[str, Any],
     tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]],
+    recover_text_tool_calls: bool = False,
 ) -> dict[str, Any]:
     if not isinstance(chat_response, dict):
         raise ValueError("upstream response must be a JSON object")
 
     response_id = f"resp_{uuid4().hex}"
-    items = _chat_response_items(chat_response, tool_metadata)
+    items = _chat_response_items(
+        chat_response,
+        tool_metadata,
+        recover_text_tool_calls=recover_text_tool_calls,
+    )
     usage = _responses_usage(chat_response.get("usage"))
 
     return {
@@ -218,6 +249,8 @@ def _responses_input_to_chat_messages(payload: dict[str, Any]) -> list[dict[str,
 
 def _responses_tools_to_chat(
     raw_tools: Any,
+    *,
+    tool_profile: str = "full",
 ) -> tuple[list[dict[str, Any]], dict[str, tuple[str, str | None, str, dict[str, Any]]]]:
     if raw_tools is None:
         return [], {}
@@ -236,6 +269,8 @@ def _responses_tools_to_chat(
         namespace: str | None = None,
         original_name: str | None = None,
     ) -> None:
+        if tool_profile == "codex-small" and name not in _CODEX_SMALL_ALLOWED_TOOLS:
+            return
         wire_name = _wire_tool_name(namespace, name)
         schema = parameters if isinstance(parameters, dict) else {"type": "object"}
         tools.append({
@@ -320,6 +355,8 @@ def _tool_choice_to_chat(
 def _chat_response_items(
     chat_response: dict[str, Any],
     tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]],
+    *,
+    recover_text_tool_calls: bool = False,
 ) -> list[dict[str, Any]]:
     choices = chat_response.get("choices")
     if not isinstance(choices, list) or not choices:
