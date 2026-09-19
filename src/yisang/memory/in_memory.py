@@ -1,5 +1,6 @@
+from .models import MemoryProposal, MemoryRecord
 from .port import MemoryPort
-from .models import MemoryRecord, MemoryProposal
+
 
 class InMemoryMemoryPort(MemoryPort):
     def __init__(self) -> None:
@@ -7,14 +8,22 @@ class InMemoryMemoryPort(MemoryPort):
 
     def search(self, query: str, *, limit: int = 8) -> list[MemoryRecord]:
         terms = {t.lower() for t in query.split() if t.strip()}
-        ranked = []
+        ranked: list[tuple[float, MemoryRecord]] = []
         for record in self._records:
+            if record.invalidated:
+                continue
             hay = record.content.lower()
-            score = sum(1 for t in terms if t in hay)
-            if score:
-                ranked.append((score, record))
-        ranked.sort(key=lambda item: item[0], reverse=True)
-        return [r for _, r in ranked[:limit]]
+            overlap = sum(1 for term in terms if term in hay)
+            if not overlap:
+                continue
+            score = (
+                float(overlap)
+                + max(0.0, min(1.0, record.confidence)) * 0.10
+                + max(0.0, min(1.0, record.importance)) * 0.05
+            )
+            ranked.append((score, record))
+        ranked.sort(key=lambda item: (-item[0], item[1].memory_id))
+        return [record for _, record in ranked[:limit]]
 
     def commit(self, proposal: MemoryProposal) -> MemoryRecord:
         record = proposal.to_record()
