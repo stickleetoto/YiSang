@@ -91,8 +91,12 @@ def test_continuity_case_restores_and_probes_replacement_engine():
     )
 
     assert result.passed is True
+    assert result.source_engine == "engine-a"
     assert result.target_engine == "engine-b"
+    assert result.source_engine_used is True
     assert result.target_engine_used is True
+    assert result.source_expected_memory_retrieved is True
+    assert result.source_expected_ego_selected is True
     assert result.continuity_fingerprint_preserved is True
     assert result.expected_memory_retrieved is True
     assert result.expected_ego_selected is True
@@ -136,6 +140,8 @@ def test_continuity_report_can_compare_multiple_replacement_engines(tmp_path):
     assert report.pass_rate == 1.0
     assert payload["case_count"] == 2
     assert payload["all_passed"] is True
+    assert payload["summary"]["mean_restore_latency_ms"] >= 0
+    assert payload["summary"]["p95_probe_latency_ms"] >= 0
     assert {case["target_engine"] for case in payload["cases"]} == {
         "engine-b",
         "engine-c",

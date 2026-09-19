@@ -362,7 +362,7 @@ Record:
 
 ## v0.5 — Identity Continuity
 
-> Status: **continuity evaluation harness implemented / real multi-engine validation pending**. See `docs/V05_PREP.md`.
+> Status: **live two-engine continuity runner implemented / real run pending**. See `docs/V05_PREP.md`.
 
 ### Objective
 
