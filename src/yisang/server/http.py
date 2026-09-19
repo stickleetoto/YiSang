@@ -34,6 +34,17 @@ def create_http_server(
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "YiSangModelServer/0.3"
+        # Windows PowerShell 5.1 uses HttpWebRequest, whose ServicePoint
+        # enables Expect: 100-continue by default for POST requests. Python
+        # BaseHTTPRequestHandler defaults to HTTP/1.0, which does not perform
+        # the HTTP/1.1 100-continue handshake and can deadlock with such clients
+        # while both sides wait for the other to proceed.
+        protocol_version = "HTTP/1.1"
+
+        def handle_expect_100(self) -> bool:
+            self.send_response_only(100)
+            self.end_headers()
+            return True
 
         def do_GET(self) -> None:  # noqa: N802
             path = urlsplit(self.path).path.rstrip("/") or "/"
@@ -159,6 +170,7 @@ def create_http_server(
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("Connection", "close")
                 self.end_headers()
+                self.close_connection = True
                 return True
             except _CLIENT_DISCONNECT_ERRORS:
                 return False
