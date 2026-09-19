@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from yisang.ego.models import EgoManifest
 
+from .completion import ToolOutcome
 from .failure import failure_from_exception, failure_from_gate_reason
 from .gate import ActionGate
 from .models import ActionProposal, ActionResult
@@ -55,7 +56,17 @@ class ActionRuntime:
         tool = self.tools.get(proposal.action)
         try:
             tool.validate_arguments(dict(proposal.arguments))
-            output = tool.handler(dict(proposal.arguments))
+            raw_output = tool.handler(dict(proposal.arguments))
+            if isinstance(raw_output, ToolOutcome):
+                output = raw_output.output
+                goal_satisfied = raw_output.goal_satisfied
+                completion_text = raw_output.completion_text
+                completion_evidence = dict(raw_output.evidence)
+            else:
+                output = raw_output
+                goal_satisfied = False
+                completion_text = None
+                completion_evidence = {}
         except Exception as exc:
             return ActionResult(
                 tool_id=proposal.action,
@@ -75,4 +86,7 @@ class ActionRuntime:
             output=output,
             gate_reason=decision.reason,
             ego_id=decision.ego_id,
+            goal_satisfied=goal_satisfied,
+            completion_text=completion_text,
+            completion_evidence=completion_evidence,
         )

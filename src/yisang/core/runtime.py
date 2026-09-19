@@ -62,6 +62,9 @@ class YiSangRuntime:
         action_results: list[ActionResult] = []
         action_history: list[dict] = []
         loop_exhausted = False
+        goal_satisfied = False
+        completion_text: str | None = None
+        completion_evidence: dict = {}
 
         for action_round in range(self.max_action_rounds + 1):
             context = self.context_compiler.compile(
@@ -117,8 +120,20 @@ class YiSangRuntime:
 
                 if executed.status != "EXECUTED":
                     round_failed = True
+                elif executed.goal_satisfied:
+                    goal_satisfied = True
+                    if executed.completion_text:
+                        completion_text = executed.completion_text
+                    completion_evidence.update(executed.completion_evidence)
 
             if round_failed:
+                break
+
+            if goal_satisfied:
+                result.text = completion_text or "Completed requested action."
+                result.metadata = dict(result.metadata)
+                result.metadata["goal_satisfied"] = True
+                result.metadata["completion_evidence"] = dict(completion_evidence)
                 break
 
             # Preserve one-shot behavior for legacy engines. Only engines that
