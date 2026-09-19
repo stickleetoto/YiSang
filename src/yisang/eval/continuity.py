@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from time import perf_counter
 from typing import Iterable
@@ -59,6 +59,7 @@ class ContinuityCaseResult:
 class ContinuityReport:
     schema_version: int
     cases: tuple[ContinuityCaseResult, ...]
+    metadata: dict[str, str | int | float | bool | None] = field(default_factory=dict)
 
     @property
     def pass_rate(self) -> float:
@@ -79,6 +80,7 @@ class ContinuityReport:
         ]
         return {
             "schema_version": self.schema_version,
+            "metadata": dict(self.metadata),
             "case_count": len(self.cases),
             "pass_rate": self.pass_rate,
             "all_passed": self.all_passed,
@@ -96,6 +98,12 @@ class ContinuityReport:
             },
             "cases": [asdict(case) for case in self.cases],
         }
+
+
+@dataclass(frozen=True)
+class ContinuityCloseoutCheck:
+    ready: bool
+    errors: tuple[str, ...]
 
 
 def run_continuity_case(
@@ -243,10 +251,67 @@ def run_continuity_case(
 
 def build_continuity_report(
     cases: Iterable[ContinuityCaseResult],
+    *,
+    metadata: dict[str, str | int | float | bool | None] | None = None,
 ) -> ContinuityReport:
     return ContinuityReport(
         schema_version=1,
         cases=tuple(cases),
+        metadata=dict(metadata or {}),
+    )
+
+
+def evaluate_v05_closeout(
+    report: ContinuityReport,
+    *,
+    min_repeats: int = 3,
+) -> ContinuityCloseoutCheck:
+    if min_repeats <= 0:
+        raise ValueError("min_repeats must be positive")
+
+    errors: list[str] = []
+    if len(report.cases) < min_repeats:
+        errors.append(
+            f"continuity report needs at least {min_repeats} repeated cases"
+        )
+    if not report.all_passed:
+        errors.append("not all continuity cases passed")
+
+    source_family = report.metadata.get("source_family")
+    target_family = report.metadata.get("target_family")
+    if not isinstance(source_family, str) or not source_family.strip():
+        errors.append("source_family evidence is missing")
+    if not isinstance(target_family, str) or not target_family.strip():
+        errors.append("target_family evidence is missing")
+    if (
+        isinstance(source_family, str)
+        and isinstance(target_family, str)
+        and source_family.strip()
+        and target_family.strip()
+        and source_family.strip().lower() == target_family.strip().lower()
+    ):
+        errors.append("source and target engine families must differ")
+
+    source_model = report.metadata.get("source_model")
+    target_model = report.metadata.get("target_model")
+    if not isinstance(source_model, str) or not source_model.strip():
+        errors.append("source_model evidence is missing")
+    if not isinstance(target_model, str) or not target_model.strip():
+        errors.append("target_model evidence is missing")
+
+    for case in report.cases:
+        if not case.source_engine_used:
+            errors.append(f"{case.case_id}: source engine was not exercised")
+        if not case.target_engine_used:
+            errors.append(f"{case.case_id}: target engine was not exercised")
+        if not case.continuity_fingerprint_preserved:
+            errors.append(
+                f"{case.case_id}: continuity fingerprint was not preserved"
+            )
+
+    return ContinuityCloseoutCheck(
+        ready=not errors,
+        errors=tuple(dict.fromkeys(errors)),
     )
 
 
