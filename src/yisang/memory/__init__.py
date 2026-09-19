@@ -17,6 +17,7 @@ from .quarantine import (
     QuarantinedMemory,
     QuarantinePort,
 )
+from .quarantine_sqlite import SQLiteQuarantinePort
 from .projected import ProjectedMemoryPort
 from .projection import LexicalMemoryProjection, MemoryHit, MemoryProjection
 from .sqlite import SQLiteMemoryPort
@@ -45,6 +46,7 @@ __all__ = [
     "LexicalMemoryProjection",
     "ProjectedMemoryPort",
     "SQLiteMemoryPort",
+    "SQLiteQuarantinePort",
     "build_memory_archive",
     "export_memory_archive",
     "load_memory_archive",
