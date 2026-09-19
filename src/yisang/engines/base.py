@@ -1,16 +1,22 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+
+from yisang.execution.models import ActionProposal
 from yisang.memory.models import MemoryProposal
+
 
 @dataclass
 class EngineResult:
     engine_id: str
     text: str
     memory_proposals: list[MemoryProposal] = field(default_factory=list)
+    action_proposals: list[ActionProposal] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
+
 
 class LLMEngine(ABC):
     engine_id: str
+    supports_action_feedback: bool = False
 
     @abstractmethod
     def generate(self, context) -> EngineResult:
