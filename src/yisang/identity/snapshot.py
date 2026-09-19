@@ -99,20 +99,7 @@ def build_identity_snapshot(
     migrations: tuple[MigrationRecord, ...] = (),
 ) -> IdentitySnapshot:
     memory_archive = build_memory_archive(runtime.memory)
-    ego_payload = [
-        {
-            "ego_id": ego.ego_id,
-            "name": ego.name,
-            "provides": list(ego.provides),
-            "keywords": list(ego.keywords),
-            "instructions": ego.instructions,
-            "permissions": dict(ego.permissions),
-        }
-        for ego in sorted(
-            runtime.ego_registry.list_all(),
-            key=lambda item: item.ego_id,
-        )
-    ]
+    ego_payload = _ego_payload(runtime)
 
     goal = runtime.state.current_goal
     active_goals = (goal,) if isinstance(goal, str) and goal.strip() else ()
@@ -255,6 +242,57 @@ def validate_identity_snapshot(
         errors=tuple(errors),
         warnings=tuple(warnings),
     )
+
+
+def validate_snapshot_against_runtime(
+    snapshot: IdentitySnapshot,
+    runtime,
+) -> SnapshotValidationReport:
+    base = validate_identity_snapshot(snapshot)
+    errors = list(base.errors)
+    warnings = list(base.warnings)
+
+    if runtime.identity.agent_id != snapshot.agent_id:
+        errors.append("runtime agent_id does not match snapshot")
+
+    memory_archive = build_memory_archive(runtime.memory)
+    if snapshot.memory.sha256 != memory_archive["records_sha256"]:
+        errors.append("authoritative memory digest does not match snapshot")
+
+    ego_digest = _sha256_json(_ego_payload(runtime))
+    if snapshot.ego_registry.sha256 != ego_digest:
+        errors.append("E.G.O registry digest does not match snapshot")
+
+    runtime_state = {
+        "active_project": runtime.state.active_project,
+        "current_goal": runtime.state.current_goal,
+        "tags": dict(runtime.state.tags),
+    }
+    if runtime_state != snapshot.state:
+        errors.append("engine-independent runtime state does not match snapshot")
+
+    return SnapshotValidationReport(
+        valid=not errors,
+        errors=tuple(errors),
+        warnings=tuple(warnings),
+    )
+
+
+def _ego_payload(runtime) -> list[dict[str, Any]]:
+    return [
+        {
+            "ego_id": ego.ego_id,
+            "name": ego.name,
+            "provides": list(ego.provides),
+            "keywords": list(ego.keywords),
+            "instructions": ego.instructions,
+            "permissions": dict(ego.permissions),
+        }
+        for ego in sorted(
+            runtime.ego_registry.list_all(),
+            key=lambda item: item.ego_id,
+        )
+    ]
 
 
 def _snapshot_from_dict(raw: dict[str, Any]) -> IdentitySnapshot:
