@@ -362,7 +362,7 @@ Record:
 
 ## v0.5 — Identity Continuity
 
-> Status: **preparation starting**.
+> Status: **snapshot foundation implemented / restore pipeline pending**. See `docs/V05_PREP.md`.
 
 ### Objective
 
