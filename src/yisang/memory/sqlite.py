@@ -168,6 +168,28 @@ class SQLiteMemoryPort(MemoryPort):
             self._conn.commit()
         return record
 
+    def import_record(
+        self,
+        record: MemoryRecord,
+        *,
+        overwrite: bool = False,
+    ) -> MemoryRecord:
+        with self._lock:
+            exists = self._conn.execute(
+                "SELECT 1 FROM memories WHERE memory_id = ?",
+                (record.memory_id,),
+            ).fetchone()
+            if exists is not None:
+                if not overwrite:
+                    raise ValueError(f"memory already exists: {record.memory_id}")
+                self._conn.execute(
+                    "DELETE FROM memories WHERE memory_id = ?",
+                    (record.memory_id,),
+                )
+            self._insert_record(record)
+            self._conn.commit()
+        return record
+
     def _insert_record(self, record: MemoryRecord) -> None:
         self._conn.execute(
             """
