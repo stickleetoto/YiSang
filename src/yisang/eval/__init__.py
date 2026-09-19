@@ -1,8 +1,10 @@
 from .continuity import (
     ContinuityCaseResult,
+    ContinuityCloseoutCheck,
     ContinuityProbe,
     ContinuityReport,
     build_continuity_report,
+    evaluate_v05_closeout,
     run_continuity_case,
     write_continuity_report,
 )
@@ -46,6 +48,7 @@ __all__ = [
     "DEFAULT_CODEX_V031_MATRIX",
     "CaseMetrics",
     "ContinuityCaseResult",
+    "ContinuityCloseoutCheck",
     "ContinuityProbe",
     "ContinuityReport",
     "RepeatabilityReport",
@@ -54,6 +57,7 @@ __all__ = [
     "build_continuity_report",
     "build_report",
     "evaluate_baseline",
+    "evaluate_v05_closeout",
     "matrix_case_ids",
     "run_case",
     "run_continuity_case",
