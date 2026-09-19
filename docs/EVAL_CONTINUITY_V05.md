@@ -31,9 +31,11 @@ yisang-eval-continuity `
   --source-base-url http://127.0.0.1:11434/v1 `
   --source-model "<source-model>" `
   --source-engine-id source `
+  --source-family llama `
   --target-base-url http://127.0.0.1:11434/v1 `
   --target-model "<target-model>" `
   --target-engine-id target `
+  --target-family qwen `
   --repeats 5 `
   --output ".\artifacts\continuity-v05.json"
 ~~~
@@ -57,9 +59,26 @@ The JSON report includes:
 - combined source/target probe latency
 - source and target responses for inspection
 - mean and p95 latency summaries
+- source/target model ids
+- explicit source/target engine-family evidence
 
 ## Exit-criterion rule
 
 Passing deterministic EchoEngine tests proves the harness logic, not the v0.5
 product claim. v0.5 still requires successful runs across at least two genuinely
 different reasoning-engine families.
+
+
+## Closeout check
+
+After a real run:
+
+~~~powershell
+yisang-eval-continuity-check `
+  --input ".\artifacts\continuity-v05.json" `
+  --min-repeats 3
+~~~
+
+The checker will not call deterministic fixture success a product closeout. It
+requires saved evidence for distinct source/target engine families in addition
+to continuity success.
