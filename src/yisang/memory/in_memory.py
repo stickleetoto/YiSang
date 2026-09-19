@@ -1,3 +1,7 @@
+from dataclasses import replace
+import time
+
+from .lifecycle import MemoryMutation, new_memory_mutation
 from .models import MemoryProposal, MemoryRecord
 from .port import MemoryPort
 
@@ -5,6 +9,7 @@ from .port import MemoryPort
 class InMemoryMemoryPort(MemoryPort):
     def __init__(self) -> None:
         self._records: list[MemoryRecord] = []
+        self._mutations: list[MemoryMutation] = []
 
     def search(self, query: str, *, limit: int = 8) -> list[MemoryRecord]:
         terms = {t.lower() for t in query.split() if t.strip()}
@@ -28,10 +33,93 @@ class InMemoryMemoryPort(MemoryPort):
     def commit(self, proposal: MemoryProposal) -> MemoryRecord:
         record = proposal.to_record()
         self._records.append(record)
+        self._mutations.append(
+            new_memory_mutation(
+                memory_id=record.memory_id,
+                operation="commit",
+                actor=record.writer or record.source,
+                reason="governed_commit",
+                evidence_refs=record.evidence_refs,
+                after=record,
+            )
+        )
         return record
 
     def all(self) -> list[MemoryRecord]:
         return list(self._records)
+
+    def mutations(self, memory_id: str | None = None) -> list[MemoryMutation]:
+        if memory_id is None:
+            return list(self._mutations)
+        return [
+            mutation
+            for mutation in self._mutations
+            if mutation.memory_id == memory_id
+        ]
+
+    def invalidate(
+        self,
+        memory_id: str,
+        *,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        index, current = self._locate(memory_id)
+        if current.invalidated:
+            return current
+
+        updated = replace(
+            current,
+            invalidated=True,
+            validation_state="invalidated",
+            updated_at=time.time(),
+        )
+        self._records[index] = updated
+        self._mutations.append(
+            new_memory_mutation(
+                memory_id=memory_id,
+                operation="invalidate",
+                actor=actor,
+                reason=reason,
+                evidence_refs=evidence_refs,
+                before=current,
+                after=updated,
+            )
+        )
+        return updated
+
+    def revalidate(
+        self,
+        memory_id: str,
+        *,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        index, current = self._locate(memory_id)
+        if not current.invalidated:
+            return current
+
+        updated = replace(
+            current,
+            invalidated=False,
+            validation_state="committed",
+            updated_at=time.time(),
+        )
+        self._records[index] = updated
+        self._mutations.append(
+            new_memory_mutation(
+                memory_id=memory_id,
+                operation="revalidate",
+                actor=actor,
+                reason=reason,
+                evidence_refs=evidence_refs,
+                before=current,
+                after=updated,
+            )
+        )
+        return updated
 
     def import_record(
         self,
@@ -45,6 +133,33 @@ class InMemoryMemoryPort(MemoryPort):
             if not overwrite:
                 raise ValueError(f"memory already exists: {record.memory_id}")
             self._records[index] = record
+            self._mutations.append(
+                new_memory_mutation(
+                    memory_id=record.memory_id,
+                    operation="import_overwrite",
+                    actor=record.writer or "restore",
+                    reason="authoritative_restore",
+                    evidence_refs=record.evidence_refs,
+                    before=existing,
+                    after=record,
+                )
+            )
             return record
         self._records.append(record)
+        self._mutations.append(
+            new_memory_mutation(
+                memory_id=record.memory_id,
+                operation="import",
+                actor=record.writer or "restore",
+                reason="authoritative_restore",
+                evidence_refs=record.evidence_refs,
+                after=record,
+            )
+        )
         return record
+
+    def _locate(self, memory_id: str) -> tuple[int, MemoryRecord]:
+        for index, record in enumerate(self._records):
+            if record.memory_id == memory_id:
+                return index, record
+        raise KeyError(f"memory not found: {memory_id}")

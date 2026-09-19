@@ -122,5 +122,37 @@ class MemoryWritePipeline:
             risk_flags=decision.risk_flags,
         )
 
+    def revoke(
+        self,
+        memory_id: str,
+        *,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        """Revoke a durable memory without deleting its audit trail."""
+        return self.memory.invalidate(
+            memory_id,
+            actor=actor,
+            reason=reason,
+            evidence_refs=evidence_refs,
+        )
+
+    def revalidate(
+        self,
+        memory_id: str,
+        *,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        """Restore a previously revoked memory after external review."""
+        return self.memory.revalidate(
+            memory_id,
+            actor=actor,
+            reason=reason,
+            evidence_refs=evidence_refs,
+        )
+
     def discard(self, quarantine_id: str) -> QuarantinedMemory | None:
         return self.quarantine.remove(quarantine_id)

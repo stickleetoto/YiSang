@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from .lifecycle import MemoryMutation
 from .models import MemoryProposal, MemoryRecord
 from .port import MemoryPort
 from .projection import MemoryProjection
@@ -95,3 +96,42 @@ class ProjectedMemoryPort(MemoryPort):
 
     def all(self) -> list[MemoryRecord]:
         return self.authoritative.all()
+
+    def mutations(self, memory_id: str | None = None) -> list[MemoryMutation]:
+        return self.authoritative.mutations(memory_id)
+
+    def invalidate(
+        self,
+        memory_id: str,
+        *,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        record = self.authoritative.invalidate(
+            memory_id,
+            actor=actor,
+            reason=reason,
+            evidence_refs=evidence_refs,
+        )
+        for projection in self.projections:
+            projection.upsert(record)
+        return record
+
+    def revalidate(
+        self,
+        memory_id: str,
+        *,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        record = self.authoritative.revalidate(
+            memory_id,
+            actor=actor,
+            reason=reason,
+            evidence_refs=evidence_refs,
+        )
+        for projection in self.projections:
+            projection.upsert(record)
+        return record
