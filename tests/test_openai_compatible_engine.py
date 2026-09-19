@@ -60,3 +60,27 @@ def test_openai_compatible_engine_rejects_bad_response():
         assert "response shape" in str(exc)
     else:
         raise AssertionError("bad response was accepted")
+
+
+def test_openai_compatible_engine_includes_max_tokens_when_bounded():
+    seen = {}
+
+    def fake_transport(url, headers, payload, timeout):
+        seen["payload"] = payload
+        return {
+            "model": "llama",
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {},
+        }
+
+    engine = OpenAICompatibleEngine(
+        engine_id="local",
+        base_url="http://127.0.0.1:11434/v1",
+        model="llama3.2:3b",
+        max_tokens=64,
+        transport=fake_transport,
+    )
+
+    engine.generate(make_pack())
+
+    assert seen["payload"]["max_tokens"] == 64
