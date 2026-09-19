@@ -190,7 +190,7 @@ Run each case multiple times and record:
 
 ## v0.4 — Governed Memory
 
-> Status: **implementation frozen / integrated validation pending**. See `docs/V04_CLOSEOUT.md` and `docs/IMPLEMENTATION_FREEZE.md`.
+> Status: **VALIDATED**. See `docs/V04_CLOSEOUT.md`, `docs/IMPLEMENTATION_FREEZE.md`, and `docs/VALIDATION_2026-09-19.md`.
 
 ### Objective
 
@@ -362,7 +362,7 @@ Record:
 
 ## v0.5 — Identity Continuity
 
-> Status: **implementation frozen / real two-engine validation pending**. See `docs/V05_CLOSEOUT.md` and `docs/IMPLEMENTATION_FREEZE.md`.
+> Status: **live two-engine validation passed / saved-report closeout check pending**. See `docs/V05_CLOSEOUT.md` and `docs/VALIDATION_2026-09-19.md`.
 
 ### Objective
 
@@ -1054,16 +1054,11 @@ Do not move to the next phase only because code exists. Move when the exit crite
 
 # 6. Immediate next work
 
-The v0.4 and v0.5 implementation baselines are now **frozen**. The current task is deferred validation before normal v0.6 feature work.
+v0.4 is validated. v0.5 has passed the real cross-family continuity run; the current task is the final saved-report closeout check before promotion from `0.5.0rc1`.
 
 Order:
 
-1. pull and run the deferred full repository test suite
-2. run the v0.4 memory benchmark and audit checks
-3. run repeated v0.5 continuity against at least two real local engine families
-4. validate the saved report with `yisang-eval-continuity-check`
-5. mark v0.5 validated only when the real-engine closeout check passes
-6. begin v0.6 Roland after the continuity evidence is recorded
-
-v0.4 remains implementation-complete but integrated-validation-pending until the
-deferred full repository/memory benchmark pass is executed.
+1. run `yisang-eval-continuity-check` against the saved `artifacts/continuity-v05.json`
+2. if ready, promote package version from `0.5.0rc1` to `0.5.0`
+3. create the validated v0.5 baseline
+4. begin v0.6 Roland
