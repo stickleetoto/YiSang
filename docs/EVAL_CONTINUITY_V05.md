@@ -37,6 +37,7 @@ yisang-eval-continuity `
   --target-engine-id target `
   --target-family qwen `
   --repeats 5 `
+  --max-tokens 64 `
   --output ".\artifacts\continuity-v05.json"
 ~~~
 
@@ -82,3 +83,12 @@ yisang-eval-continuity-check `
 The checker will not call deterministic fixture success a product closeout. It
 requires saved evidence for distinct source/target engine families in addition
 to continuity success.
+
+
+## Local-model warmup
+
+Before a real continuity run, ensure both model selections are installed and can
+answer independently. The live runner bounds each probe response with
+`--max-tokens` (default: 64) so an unconstrained local generation cannot consume
+the entire request timeout. If a cold model load still exceeds the request
+budget, warm the model first or raise `--timeout`.
