@@ -688,9 +688,15 @@ def _coerce_to_schema(value: Any, schema: Any) -> Any:
         if not isinstance(properties, dict):
             return candidate
         result = dict(candidate)
+        required = schema.get("required")
+        required_keys = set(required) if isinstance(required, list) else set()
         for key, child_schema in properties.items():
-            if key in result:
-                result[key] = _coerce_to_schema(result[key], child_schema)
+            if key not in result:
+                continue
+            if key not in required_keys and _is_textual_null(result[key]):
+                result.pop(key, None)
+                continue
+            result[key] = _coerce_to_schema(result[key], child_schema)
         return result
 
     if expected == "array":
@@ -734,6 +740,10 @@ def _coerce_to_schema(value: Any, schema: Any) -> Any:
         return None
 
     return value
+
+
+def _is_textual_null(value: Any) -> bool:
+    return isinstance(value, str) and value.strip().lower() in {"null", "none"}
 
 
 def _parse_structured_string(value: str) -> Any:
