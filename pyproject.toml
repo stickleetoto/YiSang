@@ -15,6 +15,7 @@ dev = ["pytest>=8"]
 [project.scripts]
 yisang-model-server = "yisang.server.__main__:main"
 yisang-codex-catalog = "yisang.integrations.codex:main"
+yisang-eval-repeatability = "yisang.eval.repeatability:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
