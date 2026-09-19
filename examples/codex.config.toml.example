@@ -1,8 +1,22 @@
-model = "yisang-qwen"
+model = "yisang-llama"
 model_provider = "yisang"
+model_catalog_json = "yisang-models.json"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+[windows]
+sandbox = "unelevated"
+
+[agents]
+enabled = false
+
+[features]
+goals = false
+multi_agent = false
+multi_agent_v2 = false
 
 [model_providers.yisang]
 name = "YiSang Local"
 base_url = "http://127.0.0.1:18731/v1"
-wire_api = "chat"
+wire_api = "responses"
 requires_openai_auth = false
