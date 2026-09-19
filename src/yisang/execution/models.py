@@ -34,6 +34,9 @@ class ActionResult:
     gate_reason: str = ""
     ego_id: str | None = None
     failure: ToolFailure | None = None
+    goal_satisfied: bool = False
+    completion_text: str | None = None
+    completion_evidence: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -44,4 +47,7 @@ class ActionResult:
             "gate_reason": self.gate_reason,
             "ego_id": self.ego_id,
             "failure": self.failure.to_dict() if self.failure is not None else None,
+            "goal_satisfied": self.goal_satisfied,
+            "completion_text": self.completion_text,
+            "completion_evidence": dict(self.completion_evidence),
         }
