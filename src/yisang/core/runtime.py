@@ -10,7 +10,9 @@ from yisang.execution.models import ActionResult
 from yisang.execution.runtime import ActionRuntime
 from yisang.identity.models import AgentState, IdentityCharter
 from yisang.memory.governor import MemoryGovernor
+from yisang.memory.pipeline import MemoryWritePipeline
 from yisang.memory.port import MemoryPort
+from yisang.memory.quarantine import InMemoryQuarantinePort
 from yisang.verification.base import Verifier
 
 
@@ -28,6 +30,7 @@ class YiSangRuntime:
         engine_router: EngineRouter,
         verifier: Verifier,
         action_runtime: ActionRuntime | None = None,
+        memory_pipeline: MemoryWritePipeline | None = None,
         max_action_rounds: int = 3,
     ) -> None:
         if max_action_rounds < 0:
@@ -43,6 +46,11 @@ class YiSangRuntime:
         self.engine_router = engine_router
         self.verifier = verifier
         self.action_runtime = action_runtime
+        self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
+            memory=memory,
+            governor=governor,
+            quarantine=InMemoryQuarantinePort(),
+        )
         self.max_action_rounds = max_action_rounds
 
     def run(self, request: YiSangRequest) -> YiSangResponse:
@@ -154,11 +162,25 @@ class YiSangRuntime:
             engine_result=result,
         )
 
+        memory_write_results: list[dict] = []
         if verification.status == "PASS" and result.memory_proposals:
             for proposal in result.memory_proposals:
-                decision = self.governor.evaluate(proposal, self.memory)
-                if decision.accepted:
-                    self.memory.commit(proposal)
+                write_result = self.memory_pipeline.submit(proposal)
+                memory_write_results.append({
+                    "status": write_result.status.value,
+                    "reason": write_result.reason,
+                    "memory_id": (
+                        write_result.record.memory_id
+                        if write_result.record is not None
+                        else None
+                    ),
+                    "quarantine_id": (
+                        write_result.quarantine.quarantine_id
+                        if write_result.quarantine is not None
+                        else None
+                    ),
+                    "risk_flags": list(write_result.risk_flags),
+                })
 
         return YiSangResponse(
             request_id=request.request_id,
@@ -168,6 +190,7 @@ class YiSangRuntime:
             used_memory_ids=[m.memory_id for m in memories],
             used_ego_ids=[e.ego_id for e in selected_egos],
             action_results=[item.to_dict() for item in action_results],
+            memory_write_results=memory_write_results,
         )
 
 
