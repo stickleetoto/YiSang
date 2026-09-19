@@ -1,11 +1,10 @@
 # YiSang v0.4 Governed Memory — Implementation Closeout
 
-Status: **implementation frozen / integrated validation pending**
+Status: **VALIDATED**
 
-Frozen baseline: `freeze/v0.4-implementation` at `d10409dff9701b3450d2b506e5ac98e186f951ee`.\n\nThis closeout does not claim the local Codex/Ollama stack or the full repository
-test suite has been revalidated after the rapid development batch. It records
-that the planned v0.4 implementation surfaces now exist and are ready for the
-later verification pass.
+Frozen baseline: `freeze/v0.4-implementation` at `d10409dff9701b3450d2b506e5ac98e186f951ee`.
+
+Validation completed on 2026-09-19 after freeze-permitted fixes. Evidence is recorded in `docs/VALIDATION_2026-09-19.md`.
 
 ## Implemented
 
@@ -111,22 +110,6 @@ grant permissions, create tools, or override policy.
 | poisoned memory cannot gain authority | quarantine + context policy boundary |
 | reproducible internal benchmark | 40-case deterministic benchmark |
 
-## Deferred verification pass
+## Validation evidence
 
-Before declaring v0.4 validated, run:
-
-~~~powershell
-git pull
-python -m pip install -e ".[dev]"
-pytest -q
-
-yisang-eval-memory --output ".\artifacts\memory-v04.json"
-
-yisang-memory-audit `
-  --db ".\yisang.db" `
-  --require-current-schema `
-  --output ".\artifacts\memory-audit.json"
-~~~
-
-The v0.5 implementation may proceed before that pass, but v0.4 should remain
-labelled validation-pending until these checks are completed.
+The validated run produced 199/199 repository tests passing, a 40/40 deterministic memory benchmark with 1.0 recall and zero poison escape, and a representative SQLite authoritative-memory audit with schema v3, provenance, mutation history, and supersession checks passing.
