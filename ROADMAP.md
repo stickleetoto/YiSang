@@ -362,7 +362,7 @@ Record:
 
 ## v0.5 — Identity Continuity
 
-> Status: **snapshot + restore-planning foundation implemented / restore application pending**. See `docs/V05_PREP.md`.
+> Status: **staged restore application implemented / real multi-engine validation pending**. See `docs/V05_PREP.md`.
 
 ### Objective
 
