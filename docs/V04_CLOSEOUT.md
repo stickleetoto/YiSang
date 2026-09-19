@@ -1,8 +1,8 @@
 # YiSang v0.4 Governed Memory — Implementation Closeout
 
-Status: **implementation complete / integrated validation pending**
+Status: **implementation frozen / integrated validation pending**
 
-This closeout does not claim the local Codex/Ollama stack or the full repository
+Frozen baseline: `freeze/v0.4-implementation` at `d10409dff9701b3450d2b506e5ac98e186f951ee`.\n\nThis closeout does not claim the local Codex/Ollama stack or the full repository
 test suite has been revalidated after the rapid development batch. It records
 that the planned v0.4 implementation surfaces now exist and are ready for the
 later verification pass.

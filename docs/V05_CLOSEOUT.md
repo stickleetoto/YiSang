@@ -1,8 +1,8 @@
 # YiSang v0.5 Identity Continuity — Implementation Closeout
 
-Status: **implementation complete / real two-engine validation pending**
+Status: **implementation frozen / real two-engine validation pending**
 
-This closeout records implementation coverage only. It does not claim that the
+Frozen branch: `freeze/v0.5-implementation` (created from the freeze merge commit).\n\nThis closeout records implementation coverage only. It does not claim that the
 deferred repository test pass, v0.4 integrated memory validation, or the real
 Llama/Qwen continuity run has already passed.
 
