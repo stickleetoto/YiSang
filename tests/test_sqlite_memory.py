@@ -1,3 +1,5 @@
+from threading import Thread
+
 from yisang.memory.models import MemoryProposal
 from yisang.memory.sqlite import SQLiteMemoryPort
 
@@ -46,4 +48,32 @@ def test_empty_query_returns_nothing(tmp_path):
         confidence=1.0,
     ))
     assert memory.search("   ") == []
+    memory.close()
+
+def test_sqlite_memory_can_be_read_from_worker_thread(tmp_path):
+    memory = SQLiteMemoryPort(tmp_path / "memory.db")
+    memory.commit(MemoryProposal(
+        content="worker thread memory lookup",
+        source_engine="test",
+        confidence=1.0,
+        evidence=["thread-regression"],
+    ))
+
+    found = []
+    errors = []
+
+    def worker():
+        try:
+            found.extend(memory.search("worker thread"))
+        except Exception as exc:  # pragma: no cover - asserted below
+            errors.append(exc)
+
+    thread = Thread(target=worker)
+    thread.start()
+    thread.join(timeout=2)
+
+    assert not thread.is_alive()
+    assert errors == []
+    assert found
+    assert found[0].content == "worker thread memory lookup"
     memory.close()
