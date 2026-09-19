@@ -327,3 +327,57 @@ def test_responses_tool_call_round_trip_back_to_codex():
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_http11_expect_100_continue_does_not_deadlock():
+    server, thread, upstream = _server()
+    sock = socket.create_connection(("127.0.0.1", server.server_port), timeout=2)
+    sock.settimeout(2)
+    try:
+        body = json.dumps(
+            {
+                "model": "yisang-qwen",
+                "input": [
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "hello"}],
+                    }
+                ],
+                "stream": False,
+            }
+        ).encode("utf-8")
+        headers = (
+            "POST /v1/responses HTTP/1.1\r\n"
+            "Host: 127.0.0.1\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
+            f"Content-Length: {len(body)}\r\n"
+            "Expect: 100-continue\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+        ).encode("ascii")
+
+        # Reproduce HttpWebRequest's handshake: send headers first and do not
+        # send the JSON body until the server grants 100 Continue.
+        sock.sendall(headers)
+        interim = sock.recv(4096)
+        assert interim.startswith(b"HTTP/1.1 100 Continue\r\n")
+
+        sock.sendall(body)
+        chunks = []
+        while True:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        final = b"".join(chunks)
+
+        assert final.startswith(b"HTTP/1.1 200 OK\r\n")
+        assert b'"status": "completed"' in final
+        assert b'"text": "ok"' in final
+        assert len(upstream.seen) == 1
+    finally:
+        sock.close()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
