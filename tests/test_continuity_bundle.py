@@ -206,3 +206,77 @@ def _payload_sha(payload):
         default=str,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def test_bundle_rejects_missing_memory_artifact_after_valid_envelope(tmp_path):
+    source = _runtime()
+    bundle = build_continuity_bundle(
+        source,
+        policy_version="policy-v1",
+        runtime_version="0.5-prep",
+    )
+    path = write_continuity_bundle(bundle, tmp_path / "continuity.json")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+
+    del raw["payload"]["memory_archive"]
+    raw["payload_sha256"] = _payload_sha(raw["payload"])
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="memory_archive must be an object"):
+        load_continuity_bundle(path)
+
+
+def test_bundle_rejects_memory_schema_reference_mismatch(tmp_path):
+    source = _runtime()
+    bundle = build_continuity_bundle(
+        source,
+        policy_version="policy-v1",
+        runtime_version="0.5-prep",
+    )
+    path = write_continuity_bundle(bundle, tmp_path / "continuity.json")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+
+    raw["payload"]["snapshot"]["memory"]["schema_version"] = 999
+    raw["payload_sha256"] = _payload_sha(raw["payload"])
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="memory schema"):
+        load_continuity_bundle(path)
+
+
+def test_bundle_rejects_wrong_snapshot_reference_kind(tmp_path):
+    source = _runtime()
+    bundle = build_continuity_bundle(
+        source,
+        policy_version="policy-v1",
+        runtime_version="0.5-prep",
+    )
+    path = write_continuity_bundle(bundle, tmp_path / "continuity.json")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+
+    raw["payload"]["snapshot"]["memory"]["kind"] = "library"
+    raw["payload_sha256"] = _payload_sha(raw["payload"])
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="memory reference kind"):
+        load_continuity_bundle(path)
+
+
+def test_bundle_rejects_duplicate_ego_ids(tmp_path):
+    source = _runtime()
+    bundle = build_continuity_bundle(
+        source,
+        policy_version="policy-v1",
+        runtime_version="0.5-prep",
+    )
+    path = write_continuity_bundle(bundle, tmp_path / "continuity.json")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+
+    raw["payload"]["ego_manifests"].append(
+        dict(raw["payload"]["ego_manifests"][0])
+    )
+    raw["payload_sha256"] = _payload_sha(raw["payload"])
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="duplicate E.G.O id"):
+        load_continuity_bundle(path)
