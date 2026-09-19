@@ -11,6 +11,8 @@ from .models import (
     MemoryRecord,
 )
 from .port import MemoryPort
+from .projected import ProjectedMemoryPort
+from .projection import LexicalMemoryProjection, MemoryHit, MemoryProjection
 from .sqlite import SQLiteMemoryPort
 
 __all__ = [
@@ -23,9 +25,13 @@ __all__ = [
     "GovernanceDecision",
     "InMemoryMemoryPort",
     "MemoryGovernor",
+    "MemoryHit",
     "MemoryPort",
+    "MemoryProjection",
     "MemoryProposal",
     "MemoryRecord",
+    "LexicalMemoryProjection",
+    "ProjectedMemoryPort",
     "SQLiteMemoryPort",
     "build_memory_archive",
     "export_memory_archive",
