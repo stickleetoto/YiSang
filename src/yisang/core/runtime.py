@@ -13,6 +13,7 @@ from yisang.memory.governor import MemoryGovernor
 from yisang.memory.pipeline import MemoryWritePipeline
 from yisang.memory.port import MemoryPort
 from yisang.memory.quarantine import InMemoryQuarantinePort
+from yisang.session.port import SessionPort
 from yisang.verification.base import Verifier
 
 
@@ -31,6 +32,7 @@ class YiSangRuntime:
         verifier: Verifier,
         action_runtime: ActionRuntime | None = None,
         memory_pipeline: MemoryWritePipeline | None = None,
+        session_port: SessionPort | None = None,
         max_action_rounds: int = 3,
     ) -> None:
         if max_action_rounds < 0:
@@ -46,6 +48,7 @@ class YiSangRuntime:
         self.engine_router = engine_router
         self.verifier = verifier
         self.action_runtime = action_runtime
+        self.session_port = session_port
         self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
             memory=memory,
             governor=governor,
@@ -54,6 +57,16 @@ class YiSangRuntime:
         self.max_action_rounds = max_action_rounds
 
     def run(self, request: YiSangRequest) -> YiSangResponse:
+        session_id = _session_id(request)
+        session_history = (
+            self.session_port.history(
+                session_id,
+                limit=self.context_compiler.budget.max_session_messages,
+            )
+            if self.session_port is not None and session_id is not None
+            else []
+        )
+
         memories = self.memory.search(request.text, limit=8)
         selected_egos = self.capability_router.route(
             request.text,
@@ -83,6 +96,7 @@ class YiSangRuntime:
                 egos=selected_egos,
                 tools=available_tools,
                 action_history=action_history,
+                session_history=session_history,
             )
             result = engine.generate(context)
 
@@ -188,6 +202,24 @@ class YiSangRuntime:
                     "risk_flags": list(write_result.risk_flags),
                 })
 
+        if self.session_port is not None and session_id is not None:
+            self.session_port.append(
+                session_id,
+                role="user",
+                content=request.text,
+                metadata={"request_id": request.request_id},
+            )
+            self.session_port.append(
+                session_id,
+                role="assistant",
+                content=result.text,
+                metadata={
+                    "request_id": request.request_id,
+                    "engine_id": result.engine_id,
+                    "verification_status": verification.status,
+                },
+            )
+
         return YiSangResponse(
             request_id=request.request_id,
             text=result.text,
@@ -209,3 +241,11 @@ def _history_item(proposal, result: ActionResult) -> dict:
         },
         "result": result.to_dict(),
     }
+
+
+def _session_id(request: YiSangRequest) -> str | None:
+    value = request.metadata.get("session_id")
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
