@@ -190,7 +190,7 @@ Run each case multiple times and record:
 
 ## v0.4 — Governed Memory
 
-> Status: **implementation complete / integrated validation pending**. See `docs/V04_CLOSEOUT.md`.
+> Status: **implementation frozen / integrated validation pending**. See `docs/V04_CLOSEOUT.md` and `docs/IMPLEMENTATION_FREEZE.md`.
 
 ### Objective
 
@@ -362,7 +362,7 @@ Record:
 
 ## v0.5 — Identity Continuity
 
-> Status: **implementation complete / real two-engine validation pending**. See `docs/V05_CLOSEOUT.md`.
+> Status: **implementation frozen / real two-engine validation pending**. See `docs/V05_CLOSEOUT.md` and `docs/IMPLEMENTATION_FREEZE.md`.
 
 ### Objective
 
@@ -1054,7 +1054,7 @@ Do not move to the next phase only because code exists. Move when the exit crite
 
 # 6. Immediate next work
 
-The current implementation milestone is **v0.5 Identity Continuity**.
+The v0.4 and v0.5 implementation baselines are now **frozen**. The current task is deferred validation before normal v0.6 feature work.
 
 Order:
 
