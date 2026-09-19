@@ -8,6 +8,7 @@ from yisang.context.compiler import ContextCompiler
 from yisang.ego.registry import EgoRegistry
 from yisang.ego.router import CapabilityRouter
 from yisang.identity.models import AgentState, IdentityCharter
+from yisang.integrations.codex import DEFAULT_CODEX_CONTEXT_WINDOW
 from yisang.memory.sqlite import SQLiteMemoryPort
 
 from .http import create_http_server
@@ -34,6 +35,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--memory", default="data/yisang-model.db")
     parser.add_argument("--ego-root", default="ego")
     parser.add_argument("--project", default=str(Path.cwd()))
+    parser.add_argument(
+        "--codex-context-window",
+        type=int,
+        default=DEFAULT_CODEX_CONTEXT_WINDOW,
+        help="Context window advertised by /v1/codex/models.",
+    )
     parser.add_argument(
         "--tool-profile",
         choices=("full", "codex-small"),
@@ -91,12 +98,14 @@ def main(argv: list[str] | None = None) -> int:
         proxy=proxy,
         upstream=upstream,
         tool_profile=args.tool_profile,
+        codex_context_window=args.codex_context_window,
     )
 
     print(
         f"YiSang model server: http://{args.host}:{server.server_port}/v1 "
         f"model={args.model} upstream={args.upstream_model} "
-        f"tool_profile={args.tool_profile}"
+        f"tool_profile={args.tool_profile} "
+        f"codex_context_window={args.codex_context_window}"
     )
     try:
         server.serve_forever()
