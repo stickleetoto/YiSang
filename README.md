@@ -51,7 +51,7 @@ compatibility is the next protocol milestone.
 
 ## Existing v0.2 foundation
 
-The v0.3 model-server branch is based on the v0.2 development line, which
+The v0.3 model-server branch is based on the integrated v0.2 line, which
 already provides:
 
 - persistent `SQLiteMemoryPort`
@@ -124,5 +124,10 @@ See `docs/CODEX_MODEL_SERVER.md` for the full flow.
 11. In Codex model-server mode, Codex retains client-tool execution authority.
 12. Core depends on interfaces, not model providers.
 
-See `docs/ARCHITECTURE.md`, `docs/EXECUTION.md`, `docs/CODEX_MODEL_SERVER.md`,
-and `docs/HANDOFF.md`.
+## Documentation
+
+- `docs/ARCHITECTURE.md`
+- `docs/EXECUTION.md`
+- `docs/CODEX_MODEL_SERVER.md`
+- `docs/HANDOFF.md`
+- `docs/TECH_RADAR_2026-09-17.md`
