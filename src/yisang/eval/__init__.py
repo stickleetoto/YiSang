@@ -5,6 +5,7 @@ from .continuity import (
     ContinuityReport,
     build_continuity_report,
     evaluate_v05_closeout,
+    load_continuity_report,
     run_continuity_case,
     write_continuity_report,
 )
@@ -58,6 +59,7 @@ __all__ = [
     "build_report",
     "evaluate_baseline",
     "evaluate_v05_closeout",
+    "load_continuity_report",
     "matrix_case_ids",
     "run_case",
     "run_continuity_case",
