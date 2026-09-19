@@ -16,6 +16,7 @@ from yisang.identity import (
     apply_restore,
     build_identity_snapshot,
     continuity_fingerprint,
+    load_restore_report,
     write_restore_report,
 )
 from yisang.memory.governor import MemoryGovernor
@@ -226,9 +227,59 @@ def test_restore_report_can_be_persisted(tmp_path):
         target_engine="engine-b",
     )
     path = write_restore_report(report, tmp_path / "restore-report.json")
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    envelope = json.loads(path.read_text(encoding="utf-8"))
+    payload = load_restore_report(path)
 
+    assert envelope["restore_report_schema_version"] == 1
+    assert len(envelope["payload_sha256"]) == 64
     assert payload["status"] == "applied"
     assert payload["continuity_preserved"] is True
     assert payload["target_engine"] == "engine-b"
     assert payload["evidence"]["memory_record_count"] == 1
+    assert payload["evidence"]["source_snapshot_sha256"]
+    assert payload["evidence"]["post_memory_sha256"]
+    assert payload["evidence"]["post_ego_registry_sha256"]
+
+
+def test_restore_report_tampering_is_detected(tmp_path):
+    runtime = _runtime()
+    snapshot, _ = _snapshot_and_artifacts(runtime)
+    report = apply_restore(
+        snapshot,
+        runtime,
+        target_engine="engine-b",
+    )
+    path = write_restore_report(report, tmp_path / "restore-report.json")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw["payload"]["target_engine"] = "tampered"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        load_restore_report(path)
+
+
+def test_restore_report_rejects_non_continuity_claim_even_with_valid_checksum(tmp_path):
+    import hashlib
+
+    runtime = _runtime()
+    snapshot, _ = _snapshot_and_artifacts(runtime)
+    report = apply_restore(
+        snapshot,
+        runtime,
+        target_engine="engine-b",
+    )
+    path = write_restore_report(report, tmp_path / "restore-report.json")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw["payload"]["continuity_preserved"] = False
+    encoded = json.dumps(
+        raw["payload"],
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    raw["payload_sha256"] = hashlib.sha256(encoded).hexdigest()
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="does not prove continuity"):
+        load_restore_report(path)
