@@ -1,5 +1,6 @@
 from .governor import MemoryGovernor
 from .in_memory import InMemoryMemoryPort
+from .lifecycle import MemoryMutation, new_memory_mutation, record_fingerprint
 from .models import (
     DURABLE_MEMORY_KINDS,
     MEMORY_KINDS,
@@ -33,6 +34,7 @@ __all__ = [
     "InMemoryMemoryPort",
     "MemoryGovernor",
     "MemoryHit",
+    "MemoryMutation",
     "MemoryPort",
     "MemoryWritePipeline",
     "MemoryWriteResult",
@@ -50,6 +52,8 @@ __all__ = [
     "build_memory_archive",
     "export_memory_archive",
     "load_memory_archive",
+    "new_memory_mutation",
+    "record_fingerprint",
     "restore_memory_archive",
 ]
 
