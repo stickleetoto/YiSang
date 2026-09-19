@@ -319,7 +319,7 @@ def _tool_choice_to_chat(
 
 def _chat_response_items(
     chat_response: dict[str, Any],
-    tool_metadata: dict[str, tuple[str, str | None, str]],
+    tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]],
 ) -> list[dict[str, Any]]:
     choices = chat_response.get("choices")
     if not isinstance(choices, list) or not choices:
