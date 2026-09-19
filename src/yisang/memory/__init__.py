@@ -10,7 +10,13 @@ from .models import (
     MemoryProposal,
     MemoryRecord,
 )
+from .pipeline import MemoryWritePipeline, MemoryWriteResult, MemoryWriteStatus
 from .port import MemoryPort
+from .quarantine import (
+    InMemoryQuarantinePort,
+    QuarantinedMemory,
+    QuarantinePort,
+)
 from .projected import ProjectedMemoryPort
 from .projection import LexicalMemoryProjection, MemoryHit, MemoryProjection
 from .sqlite import SQLiteMemoryPort
@@ -27,9 +33,15 @@ __all__ = [
     "MemoryGovernor",
     "MemoryHit",
     "MemoryPort",
+    "MemoryWritePipeline",
+    "MemoryWriteResult",
+    "MemoryWriteStatus",
     "MemoryProjection",
     "MemoryProposal",
     "MemoryRecord",
+    "InMemoryQuarantinePort",
+    "QuarantinedMemory",
+    "QuarantinePort",
     "LexicalMemoryProjection",
     "ProjectedMemoryPort",
     "SQLiteMemoryPort",
