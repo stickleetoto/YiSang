@@ -1,3 +1,11 @@
+from .memory_benchmark import (
+    DEFAULT_MEMORY_CASES,
+    MemoryBenchmarkCase,
+    MemoryBenchmarkReport,
+    MemoryCaseResult,
+    MemorySeed,
+    run_memory_benchmark,
+)
 from .codex_matrix import (
     DEFAULT_CODEX_V031_MATRIX,
     CodexEvalCase,
@@ -16,6 +24,11 @@ from .repeatability import (
 
 __all__ = [
     "BaselineGate",
+    "DEFAULT_MEMORY_CASES",
+    "MemoryBenchmarkCase",
+    "MemoryBenchmarkReport",
+    "MemoryCaseResult",
+    "MemorySeed",
     "CodexEvalCase",
     "DEFAULT_CODEX_V031_MATRIX",
     "CaseMetrics",
@@ -26,4 +39,5 @@ __all__ = [
     "evaluate_baseline",
     "matrix_case_ids",
     "run_case",
+    "run_memory_benchmark",
 ]
