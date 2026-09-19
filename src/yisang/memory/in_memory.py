@@ -1,6 +1,7 @@
 from dataclasses import replace
 import time
 
+from .lexical import lexical_terms
 from .lifecycle import MemoryMutation, new_memory_mutation
 from .models import MemoryProposal, MemoryRecord
 from .port import MemoryPort
@@ -12,13 +13,12 @@ class InMemoryMemoryPort(MemoryPort):
         self._mutations: list[MemoryMutation] = []
 
     def search(self, query: str, *, limit: int = 8) -> list[MemoryRecord]:
-        terms = {t.lower() for t in query.split() if t.strip()}
+        terms = lexical_terms(query)
         ranked: list[tuple[float, MemoryRecord]] = []
         for record in self._records:
             if not record.is_active():
                 continue
-            hay = record.content.lower()
-            overlap = sum(1 for term in terms if term in hay)
+            overlap = len(terms & lexical_terms(record.content))
             if not overlap:
                 continue
             score = (
