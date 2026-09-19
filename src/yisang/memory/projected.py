@@ -21,11 +21,22 @@ class ProjectedMemoryPort(MemoryPort):
         projections: list[MemoryProjection],
         *,
         rebuild_on_start: bool = True,
+        projection_weights: dict[str, float] | None = None,
+        rrf_k: int = 60,
     ) -> None:
         if not projections:
             raise ValueError("at least one projection is required")
+        if rrf_k < 0:
+            raise ValueError("rrf_k must be non-negative")
         self.authoritative = authoritative
         self.projections = list(projections)
+        self.rrf_k = rrf_k
+        self.projection_weights = dict(projection_weights or {})
+        for projection_id, weight in self.projection_weights.items():
+            if weight <= 0:
+                raise ValueError(
+                    f"projection weight must be positive: {projection_id}"
+                )
         if rebuild_on_start:
             self.rebuild_projections()
 
@@ -56,10 +67,12 @@ class ProjectedMemoryPort(MemoryPort):
         scores: dict[str, float] = defaultdict(float)
         for projection in self.projections:
             hits = projection.search(query, limit=max(limit * 4, limit))
+            weight = self.projection_weights.get(projection.projection_id, 1.0)
             for rank, hit in enumerate(hits, start=1):
-                # Preserve projection score while lightly rewarding agreement
-                # among projections through reciprocal-rank accumulation.
-                scores[hit.memory_id] += hit.score + (1.0 / rank)
+                # Reciprocal-rank fusion deliberately ignores raw projection
+                # score scales so BM25, lexical, vector, and future indexes can
+                # be combined without pretending their scores are comparable.
+                scores[hit.memory_id] += weight / (self.rrf_k + rank)
 
         ranked_ids = sorted(
             (
