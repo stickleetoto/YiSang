@@ -1,6 +1,6 @@
 # YiSang v0.5 Identity Continuity — Preparation
 
-Status: **staged restore application implemented / real multi-engine validation pending**
+Status: **portable continuity bundle implemented / real multi-engine validation pending**
 
 v0.5 must prove that changing the reasoning engine changes reasoning quality but
 does not create a new YiSang identity.
@@ -84,13 +84,28 @@ An engine swap by itself must not fail this check. Persistent state drift must.
 - post-restore continuity fingerprint validation
 - persistent RestoreReport evidence
 
+## Portable continuity bundle now present
+
+A v0.5 continuity bundle packages:
+
+- the checksummed identity snapshot payload
+- the authoritative memory archive
+- the E.G.O manifest set
+
+The bundle has its own envelope checksum and then independently verifies that
+the embedded memory and E.G.O artifacts match the snapshot references. A valid
+envelope therefore cannot silently substitute a different persistent store.
+
+A fresh runtime with the same YiSang agent id can be rehydrated from the bundle
+onto a different registered reasoning engine through the staged restore path.
+
 ## Next v0.5 implementation steps
 
-1. add a portable continuity bundle that packages snapshot + memory + E.G.O artifacts
+1. add a repeatable engine-swap continuity evaluation harness
 2. validate concrete Library references when Roland exists
-3. extend the engine-swap suite to two real local engine families
-4. add stale-schema migration fixtures and partial/corrupt bundle cases
-5. benchmark restore latency
+3. add stale-schema migration fixtures and partial/corrupt bundle cases
+4. benchmark restore latency
+5. test two real local engine families
 6. build the release-level continuity report
 
 ## Restore rule
