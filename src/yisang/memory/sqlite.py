@@ -4,6 +4,7 @@ import json
 import re
 import sqlite3
 from pathlib import Path
+from threading import RLock
 
 from .port import MemoryPort
 from .models import MemoryRecord, MemoryProposal
@@ -18,28 +19,34 @@ class SQLiteMemoryPort(MemoryPort):
 
     This is intentionally simple. BIO can later implement the same MemoryPort
     contract without changing YiSang Core.
+
+    The model server is threaded, so one SQLite connection may be used from
+    request-handler threads different from the thread that created the port.
+    SQLite access is serialized through an RLock.
     """
 
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
-        self._conn = sqlite3.connect(self.path)
+        self._lock = RLock()
+        self._conn = sqlite3.connect(self.path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._ensure_schema()
 
     def _ensure_schema(self) -> None:
-        self._conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS memories (
-                memory_id TEXT PRIMARY KEY,
-                kind TEXT NOT NULL,
-                content TEXT NOT NULL,
-                source TEXT NOT NULL,
-                confidence REAL NOT NULL,
-                metadata_json TEXT NOT NULL
+        with self._lock:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS memories (
+                    memory_id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    metadata_json TEXT NOT NULL
+                )
+                """
             )
-            """
-        )
-        self._conn.commit()
+            self._conn.commit()
 
     def search(self, query: str, *, limit: int = 8) -> list[MemoryRecord]:
         query_terms = _terms(query)
@@ -60,32 +67,34 @@ class SQLiteMemoryPort(MemoryPort):
 
     def commit(self, proposal: MemoryProposal) -> MemoryRecord:
         record = proposal.to_record()
-        self._conn.execute(
-            """
-            INSERT INTO memories (
-                memory_id, kind, content, source, confidence, metadata_json
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                record.memory_id,
-                record.kind,
-                record.content,
-                record.source,
-                record.confidence,
-                json.dumps(record.metadata, ensure_ascii=False, sort_keys=True),
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO memories (
+                    memory_id, kind, content, source, confidence, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record.memory_id,
+                    record.kind,
+                    record.content,
+                    record.source,
+                    record.confidence,
+                    json.dumps(record.metadata, ensure_ascii=False, sort_keys=True),
+                ),
+            )
+            self._conn.commit()
         return record
 
     def all(self) -> list[MemoryRecord]:
-        rows = self._conn.execute(
-            """
-            SELECT memory_id, kind, content, source, confidence, metadata_json
-            FROM memories
-            ORDER BY rowid ASC
-            """
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT memory_id, kind, content, source, confidence, metadata_json
+                FROM memories
+                ORDER BY rowid ASC
+                """
+            ).fetchall()
 
         return [
             MemoryRecord(
@@ -100,7 +109,8 @@ class SQLiteMemoryPort(MemoryPort):
         ]
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     def __enter__(self) -> "SQLiteMemoryPort":
         return self
