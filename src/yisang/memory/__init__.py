@@ -1,3 +1,8 @@
+from .vector import (
+    EmbeddingProvider,
+    InMemoryVectorProjection,
+    OpenAICompatibleEmbeddingProvider,
+)
 from .fts import SQLiteFTSProjection
 from .governor import MemoryGovernor
 from .in_memory import InMemoryMemoryPort
@@ -31,8 +36,10 @@ __all__ = [
     "MEMORY_SCHEMA_VERSION",
     "TRUST_CLASSES",
     "VALIDATION_STATES",
+    "EmbeddingProvider",
     "GovernanceDecision",
     "InMemoryMemoryPort",
+    "InMemoryVectorProjection",
     "MemoryGovernor",
     "MemoryHit",
     "MemoryMutation",
@@ -40,6 +47,7 @@ __all__ = [
     "MemoryWritePipeline",
     "MemoryWriteResult",
     "MemoryWriteStatus",
+    "OpenAICompatibleEmbeddingProvider",
     "MemoryProjection",
     "MemoryProposal",
     "MemoryRecord",
