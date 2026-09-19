@@ -28,6 +28,7 @@ class ContinuityProbe:
 @dataclass(frozen=True)
 class ContinuityCaseResult:
     case_id: str
+    source_engine: str
     target_engine: str
     passed: bool
     identity_preserved: bool
@@ -36,15 +37,21 @@ class ContinuityCaseResult:
     memory_preserved: bool
     capabilities_preserved: bool
     continuity_fingerprint_preserved: bool
+    source_engine_used: bool
     target_engine_used: bool
+    source_expected_memory_retrieved: bool
+    source_expected_ego_selected: bool
     expected_memory_retrieved: bool
     expected_ego_selected: bool
     restore_latency_ms: float
     probe_latency_ms: float
     source_fingerprint: str
     restored_fingerprint: str
+    source_used_memory_ids: tuple[str, ...]
+    source_used_ego_ids: tuple[str, ...]
     used_memory_ids: tuple[str, ...]
     used_ego_ids: tuple[str, ...]
+    source_response_text: str
     response_text: str
 
 
@@ -88,6 +95,28 @@ def run_continuity_case(
         raise ValueError("case_id must be non-empty")
 
     probe = probe or ContinuityProbe()
+    source_engine = source_runtime.state.active_engine
+
+    source_probe_started = perf_counter()
+    source_response = source_runtime.run(
+        YiSangRequest(
+            request_id=f"continuity-source-{case_id}",
+            text=probe.request_text,
+            metadata={"continuity_probe": True, "continuity_side": "source"},
+        )
+    )
+    source_probe_latency_ms = (perf_counter() - source_probe_started) * 1000
+
+    source_used_memory_ids = tuple(source_response.used_memory_ids)
+    source_used_ego_ids = tuple(source_response.used_ego_ids)
+    source_engine_used = source_response.engine_id == source_engine
+    source_expected_memory_retrieved = set(
+        probe.expected_memory_ids
+    ).issubset(source_used_memory_ids)
+    source_expected_ego_selected = set(
+        probe.expected_ego_ids
+    ).issubset(source_used_ego_ids)
+
     bundle = build_continuity_bundle(
         source_runtime,
         policy_version=policy_version,
@@ -155,7 +184,10 @@ def run_continuity_case(
             memory_preserved,
             capabilities_preserved,
             continuity_preserved,
+            source_engine_used,
             target_engine_used,
+            source_expected_memory_retrieved,
+            source_expected_ego_selected,
             expected_memory_retrieved,
             expected_ego_selected,
         )
@@ -163,6 +195,7 @@ def run_continuity_case(
 
     return ContinuityCaseResult(
         case_id=case_id,
+        source_engine=source_engine,
         target_engine=target_engine,
         passed=passed,
         identity_preserved=identity_preserved,
@@ -171,15 +204,21 @@ def run_continuity_case(
         memory_preserved=memory_preserved,
         capabilities_preserved=capabilities_preserved,
         continuity_fingerprint_preserved=continuity_preserved,
+        source_engine_used=source_engine_used,
         target_engine_used=target_engine_used,
+        source_expected_memory_retrieved=source_expected_memory_retrieved,
+        source_expected_ego_selected=source_expected_ego_selected,
         expected_memory_retrieved=expected_memory_retrieved,
         expected_ego_selected=expected_ego_selected,
         restore_latency_ms=restore_latency_ms,
-        probe_latency_ms=probe_latency_ms,
+        probe_latency_ms=source_probe_latency_ms + probe_latency_ms,
         source_fingerprint=source_fingerprint,
         restored_fingerprint=restored_fingerprint,
+        source_used_memory_ids=source_used_memory_ids,
+        source_used_ego_ids=source_used_ego_ids,
         used_memory_ids=used_memory_ids,
         used_ego_ids=used_ego_ids,
+        source_response_text=source_response.text,
         response_text=response.text,
     )
 
