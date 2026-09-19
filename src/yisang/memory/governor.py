@@ -67,9 +67,26 @@ class MemoryGovernor:
                 risk_flags=("untrusted_source",),
             )
 
+        if proposal.supersedes_id is not None:
+            previous = memory.get(proposal.supersedes_id)
+            if previous is None:
+                return GovernanceDecision(
+                    False,
+                    "supersedes_not_found",
+                    risk_flags=("invalid_reference",),
+                )
+            if not previous.is_active():
+                return GovernanceDecision(
+                    False,
+                    "supersedes_inactive",
+                    risk_flags=("invalid_reference",),
+                )
+
         normalized = proposal.content.strip().lower()
         for record in memory.all():
-            if getattr(record, "invalidated", False):
+            if not record.is_active():
+                continue
+            if proposal.supersedes_id == record.memory_id:
                 continue
             if record.content.strip().lower() == normalized:
                 return GovernanceDecision(False, "duplicate")

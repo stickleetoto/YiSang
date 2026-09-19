@@ -43,6 +43,14 @@ class MemoryWritePipeline:
 
         if decision.accepted:
             record = self.memory.commit(proposal)
+            if proposal.supersedes_id is not None:
+                self.memory.supersede(
+                    proposal.supersedes_id,
+                    superseded_by_id=record.memory_id,
+                    actor=proposal.writer or proposal.source_engine,
+                    reason="superseded_by_new_memory",
+                    evidence_refs=tuple(proposal.evidence),
+                )
             return MemoryWriteResult(
                 status=MemoryWriteStatus.COMMITTED,
                 reason=decision.reason,

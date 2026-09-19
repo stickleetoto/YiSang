@@ -44,6 +44,23 @@ class MemoryPort(ABC):
     ) -> MemoryRecord:
         raise NotImplementedError("memory backend does not support revalidation")
 
+    def mark_retrieved(self, memory_ids: list[str]) -> None:
+        raise NotImplementedError("memory backend does not support retrieval usage tracking")
+
+    def record_outcome(self, memory_ids: list[str], *, success: bool) -> None:
+        raise NotImplementedError("memory backend does not support outcome tracking")
+
+    def supersede(
+        self,
+        memory_id: str,
+        *,
+        superseded_by_id: str,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        raise NotImplementedError("memory backend does not support supersession")
+
     def import_record(
         self,
         record: MemoryRecord,

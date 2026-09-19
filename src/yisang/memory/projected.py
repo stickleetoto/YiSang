@@ -61,7 +61,7 @@ class ProjectedMemoryPort(MemoryPort):
         records_by_id = {
             record.memory_id: record
             for record in self.authoritative.all()
-            if not record.invalidated
+            if record.is_active()
         }
 
         scores: dict[str, float] = defaultdict(float)
@@ -82,13 +82,43 @@ class ProjectedMemoryPort(MemoryPort):
             ),
             key=lambda item: (-item[0], item[1]),
         )
-        return [
+        selected = [
             records_by_id[memory_id]
             for _, memory_id in ranked_ids[:limit]
         ]
+        self.authoritative.mark_retrieved(
+            [record.memory_id for record in selected]
+        )
+        return selected
 
     def commit(self, proposal: MemoryProposal) -> MemoryRecord:
         record = self.authoritative.commit(proposal)
+        for projection in self.projections:
+            projection.upsert(record)
+        return record
+
+    def mark_retrieved(self, memory_ids: list[str]) -> None:
+        self.authoritative.mark_retrieved(memory_ids)
+
+    def record_outcome(self, memory_ids: list[str], *, success: bool) -> None:
+        self.authoritative.record_outcome(memory_ids, success=success)
+
+    def supersede(
+        self,
+        memory_id: str,
+        *,
+        superseded_by_id: str,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        record = self.authoritative.supersede(
+            memory_id,
+            superseded_by_id=superseded_by_id,
+            actor=actor,
+            reason=reason,
+            evidence_refs=evidence_refs,
+        )
         for projection in self.projections:
             projection.upsert(record)
         return record

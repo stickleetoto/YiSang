@@ -162,6 +162,12 @@ class YiSangRuntime:
             engine_result=result,
         )
 
+        if memories:
+            self.memory.record_outcome(
+                [memory.memory_id for memory in memories],
+                success=(verification.status == "PASS"),
+            )
+
         memory_write_results: list[dict] = []
         if verification.status == "PASS" and result.memory_proposals:
             for proposal in result.memory_proposals:

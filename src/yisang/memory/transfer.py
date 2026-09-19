@@ -53,6 +53,29 @@ def record_from_dict(raw: dict[str, Any]) -> MemoryRecord:
             validation_state=str(raw.get("validation_state", "committed")),
             created_at=float(raw.get("created_at", 0.0)),
             updated_at=float(raw.get("updated_at", 0.0)),
+            valid_from=float(raw.get("valid_from", raw.get("created_at", 0.0))),
+            valid_until=(
+                float(raw["valid_until"])
+                if raw.get("valid_until") is not None
+                else None
+            ),
+            supersedes_id=(
+                str(raw["supersedes_id"])
+                if raw.get("supersedes_id") is not None
+                else None
+            ),
+            superseded_by_id=(
+                str(raw["superseded_by_id"])
+                if raw.get("superseded_by_id") is not None
+                else None
+            ),
+            last_used_at=(
+                float(raw["last_used_at"])
+                if raw.get("last_used_at") is not None
+                else None
+            ),
+            success_count=int(raw.get("success_count", 0)),
+            failure_count=int(raw.get("failure_count", 0)),
             schema_version=int(raw.get("schema_version", MEMORY_SCHEMA_VERSION)),
             invalidated=bool(raw.get("invalidated", False)),
         )

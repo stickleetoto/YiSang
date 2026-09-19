@@ -78,6 +78,12 @@ class ContextCompiler:
                 "source_type": getattr(m, "source_type", "engine"),
                 "trust_class": getattr(m, "trust_class", "unknown"),
                 "validation_state": getattr(m, "validation_state", "committed"),
+                "valid_from": getattr(m, "valid_from", 0.0),
+                "valid_until": getattr(m, "valid_until", None),
+                "supersedes_id": getattr(m, "supersedes_id", None),
+                "last_used_at": getattr(m, "last_used_at", None),
+                "success_count": getattr(m, "success_count", 0),
+                "failure_count": getattr(m, "failure_count", 0),
                 "evidence_refs": list(getattr(m, "evidence_refs", ()))[:4],
             }
             for m in selected_memories
