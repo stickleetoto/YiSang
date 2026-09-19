@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 import re
 import sqlite3
+import time
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -19,16 +21,7 @@ def _terms(text: str) -> set[str]:
 
 
 class SQLiteMemoryPort(MemoryPort):
-    """Standalone authoritative memory backend.
-
-    Read-side indexes may be added later, but this table remains the durable
-    source of truth. Schema upgrades are additive so existing v0.3 databases
-    can be opened in place.
-
-    The model server is threaded, so one SQLite connection may be used from
-    request-handler threads different from the thread that created the port.
-    SQLite access is serialized through an RLock.
-    """
+    """Standalone authoritative memory backend with additive schema upgrades."""
 
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
@@ -57,17 +50,24 @@ class SQLiteMemoryPort(MemoryPort):
                     validation_state TEXT NOT NULL DEFAULT 'committed',
                     created_at REAL NOT NULL DEFAULT 0,
                     updated_at REAL NOT NULL DEFAULT 0,
-                    schema_version INTEGER NOT NULL DEFAULT 2,
+                    valid_from REAL NOT NULL DEFAULT 0,
+                    valid_until REAL,
+                    supersedes_id TEXT,
+                    superseded_by_id TEXT,
+                    last_used_at REAL,
+                    success_count INTEGER NOT NULL DEFAULT 0,
+                    failure_count INTEGER NOT NULL DEFAULT 0,
+                    schema_version INTEGER NOT NULL DEFAULT 3,
                     invalidated INTEGER NOT NULL DEFAULT 0
                 )
                 """
             )
-            self._ensure_v2_columns()
+            self._ensure_columns()
             self._ensure_mutation_schema()
             self._migrate_legacy_rows()
             self._conn.commit()
 
-    def _ensure_v2_columns(self) -> None:
+    def _ensure_columns(self) -> None:
         existing = {
             row["name"]
             for row in self._conn.execute("PRAGMA table_info(memories)").fetchall()
@@ -82,6 +82,13 @@ class SQLiteMemoryPort(MemoryPort):
             "validation_state": "TEXT NOT NULL DEFAULT 'committed'",
             "created_at": "REAL NOT NULL DEFAULT 0",
             "updated_at": "REAL NOT NULL DEFAULT 0",
+            "valid_from": "REAL NOT NULL DEFAULT 0",
+            "valid_until": "REAL",
+            "supersedes_id": "TEXT",
+            "superseded_by_id": "TEXT",
+            "last_used_at": "REAL",
+            "success_count": "INTEGER NOT NULL DEFAULT 0",
+            "failure_count": "INTEGER NOT NULL DEFAULT 0",
             "schema_version": (
                 f"INTEGER NOT NULL DEFAULT {MEMORY_SCHEMA_VERSION}"
             ),
@@ -121,7 +128,7 @@ class SQLiteMemoryPort(MemoryPort):
         rows = self._conn.execute(
             """
             SELECT memory_id, source, metadata_json, evidence_json,
-                   writer, created_at, updated_at
+                   writer, created_at, updated_at, valid_from
             FROM memories
             """
         ).fetchall()
@@ -140,10 +147,12 @@ class SQLiteMemoryPort(MemoryPort):
             )
             created_at = float(row["created_at"] or 0.0)
             updated_at = float(row["updated_at"] or 0.0)
+            valid_from = float(row["valid_from"] or 0.0)
             writer = str(row["writer"] or "unknown")
             if writer == "unknown":
                 writer = str(row["source"])
 
+            base_time = created_at or timestamp
             self._conn.execute(
                 """
                 UPDATE memories
@@ -151,14 +160,16 @@ class SQLiteMemoryPort(MemoryPort):
                     writer = ?,
                     created_at = ?,
                     updated_at = ?,
+                    valid_from = ?,
                     schema_version = ?
                 WHERE memory_id = ?
                 """,
                 (
                     json.dumps(evidence, ensure_ascii=False),
                     writer,
-                    created_at or timestamp,
-                    updated_at or timestamp,
+                    base_time,
+                    updated_at or base_time,
+                    valid_from or base_time,
                     MEMORY_SCHEMA_VERSION,
                     row["memory_id"],
                 ),
@@ -171,7 +182,7 @@ class SQLiteMemoryPort(MemoryPort):
 
         ranked: list[tuple[float, MemoryRecord]] = []
         for record in self.all():
-            if record.invalidated:
+            if not record.is_active():
                 continue
             record_terms = _terms(record.content)
             overlap = len(query_terms & record_terms)
@@ -185,7 +196,9 @@ class SQLiteMemoryPort(MemoryPort):
             ranked.append((score, record))
 
         ranked.sort(key=lambda item: (-item[0], item[1].memory_id))
-        return [record for _, record in ranked[:limit]]
+        selected = [record for _, record in ranked[:limit]]
+        self.mark_retrieved([record.memory_id for record in selected])
+        return selected
 
     def commit(self, proposal: MemoryProposal) -> MemoryRecord:
         record = proposal.to_record()
@@ -211,17 +224,7 @@ class SQLiteMemoryPort(MemoryPort):
         overwrite: bool = False,
     ) -> MemoryRecord:
         with self._lock:
-            row = self._conn.execute(
-                """
-                SELECT memory_id, kind, content, source, confidence, metadata_json,
-                       source_id, source_type, evidence_json, trust_class,
-                       importance, writer, validation_state, created_at, updated_at,
-                       schema_version, invalidated
-                FROM memories
-                WHERE memory_id = ?
-                """,
-                (record.memory_id,),
-            ).fetchone()
+            row = self._select_record(record.memory_id)
             existing = _record_from_row(row) if row is not None else None
             if existing is not None:
                 if not overwrite:
@@ -271,6 +274,29 @@ class SQLiteMemoryPort(MemoryPort):
                 ).fetchall()
         return [_mutation_from_row(row) for row in rows]
 
+    def mark_retrieved(self, memory_ids: list[str]) -> None:
+        if not memory_ids:
+            return
+        now = time.time()
+        with self._lock:
+            self._conn.executemany(
+                "UPDATE memories SET last_used_at = ? WHERE memory_id = ?",
+                [(now, memory_id) for memory_id in dict.fromkeys(memory_ids)],
+            )
+            self._conn.commit()
+
+    def record_outcome(self, memory_ids: list[str], *, success: bool) -> None:
+        if not memory_ids:
+            return
+        field = "success_count" if success else "failure_count"
+        with self._lock:
+            for memory_id in dict.fromkeys(memory_ids):
+                self._conn.execute(
+                    f"UPDATE memories SET {field} = {field} + 1 WHERE memory_id = ?",
+                    (memory_id,),
+                )
+            self._conn.commit()
+
     def invalidate(
         self,
         memory_id: str,
@@ -303,6 +329,51 @@ class SQLiteMemoryPort(MemoryPort):
             evidence_refs=evidence_refs,
         )
 
+    def supersede(
+        self,
+        memory_id: str,
+        *,
+        superseded_by_id: str,
+        actor: str,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> MemoryRecord:
+        if not actor.strip():
+            raise ValueError("actor must be non-empty")
+        if not reason.strip():
+            raise ValueError("reason must be non-empty")
+        with self._lock:
+            row = self._select_record(memory_id)
+            if row is None:
+                raise KeyError(f"memory not found: {memory_id}")
+            current = _record_from_row(row)
+            if current.superseded_by_id == superseded_by_id:
+                return current
+            now = time.time()
+            updated = replace(
+                current,
+                invalidated=True,
+                validation_state="superseded",
+                updated_at=now,
+                valid_until=now,
+                superseded_by_id=superseded_by_id,
+            )
+            self._update_record(updated)
+            self._insert_mutation(
+                new_memory_mutation(
+                    memory_id=memory_id,
+                    operation="supersede",
+                    actor=actor,
+                    reason=reason,
+                    evidence_refs=evidence_refs,
+                    before=current,
+                    after=updated,
+                    metadata={"superseded_by_id": superseded_by_id},
+                )
+            )
+            self._conn.commit()
+            return updated
+
     def _set_invalidated(
         self,
         memory_id: str,
@@ -318,17 +389,7 @@ class SQLiteMemoryPort(MemoryPort):
             raise ValueError("reason must be non-empty")
 
         with self._lock:
-            row = self._conn.execute(
-                """
-                SELECT memory_id, kind, content, source, confidence, metadata_json,
-                       source_id, source_type, evidence_json, trust_class,
-                       importance, writer, validation_state, created_at, updated_at,
-                       schema_version, invalidated
-                FROM memories
-                WHERE memory_id = ?
-                """,
-                (memory_id,),
-            ).fetchone()
+            row = self._select_record(memory_id)
             if row is None:
                 raise KeyError(f"memory not found: {memory_id}")
 
@@ -336,39 +397,18 @@ class SQLiteMemoryPort(MemoryPort):
             if current.invalidated == invalidated:
                 return current
 
-            import time
-            updated = MemoryRecord(
-                memory_id=current.memory_id,
-                kind=current.kind,
-                content=current.content,
-                source=current.source,
-                confidence=current.confidence,
-                metadata=dict(current.metadata),
-                source_id=current.source_id,
-                source_type=current.source_type,
-                evidence_refs=tuple(current.evidence_refs),
-                trust_class=current.trust_class,
-                importance=current.importance,
-                writer=current.writer,
-                validation_state="invalidated" if invalidated else "committed",
-                created_at=current.created_at,
-                updated_at=time.time(),
-                schema_version=current.schema_version,
+            updated = replace(
+                current,
                 invalidated=invalidated,
-            )
-            self._conn.execute(
-                """
-                UPDATE memories
-                SET validation_state = ?, updated_at = ?, invalidated = ?
-                WHERE memory_id = ?
-                """,
-                (
-                    updated.validation_state,
-                    updated.updated_at,
-                    int(updated.invalidated),
-                    memory_id,
+                validation_state="invalidated" if invalidated else "committed",
+                updated_at=time.time(),
+                valid_until=(
+                    current.valid_until
+                    if not invalidated
+                    else current.valid_until
                 ),
             )
+            self._update_record(updated)
             self._insert_mutation(
                 new_memory_mutation(
                     memory_id=memory_id,
@@ -382,6 +422,62 @@ class SQLiteMemoryPort(MemoryPort):
             )
             self._conn.commit()
             return updated
+
+    def _select_record(self, memory_id: str) -> sqlite3.Row | None:
+        return self._conn.execute(
+            """
+            SELECT memory_id, kind, content, source, confidence, metadata_json,
+                   source_id, source_type, evidence_json, trust_class,
+                   importance, writer, validation_state, created_at, updated_at,
+                   valid_from, valid_until, supersedes_id, superseded_by_id,
+                   last_used_at, success_count, failure_count,
+                   schema_version, invalidated
+            FROM memories
+            WHERE memory_id = ?
+            """,
+            (memory_id,),
+        ).fetchone()
+
+    def _update_record(self, record: MemoryRecord) -> None:
+        self._conn.execute(
+            """
+            UPDATE memories SET
+                kind = ?, content = ?, source = ?, confidence = ?,
+                metadata_json = ?, source_id = ?, source_type = ?,
+                evidence_json = ?, trust_class = ?, importance = ?,
+                writer = ?, validation_state = ?, created_at = ?, updated_at = ?,
+                valid_from = ?, valid_until = ?, supersedes_id = ?,
+                superseded_by_id = ?, last_used_at = ?, success_count = ?,
+                failure_count = ?, schema_version = ?, invalidated = ?
+            WHERE memory_id = ?
+            """,
+            (
+                record.kind,
+                record.content,
+                record.source,
+                record.confidence,
+                json.dumps(record.metadata, ensure_ascii=False, sort_keys=True),
+                record.source_id,
+                record.source_type,
+                json.dumps(list(record.evidence_refs), ensure_ascii=False),
+                record.trust_class,
+                record.importance,
+                record.writer,
+                record.validation_state,
+                record.created_at,
+                record.updated_at,
+                record.valid_from,
+                record.valid_until,
+                record.supersedes_id,
+                record.superseded_by_id,
+                record.last_used_at,
+                record.success_count,
+                record.failure_count,
+                record.schema_version,
+                int(record.invalidated),
+                record.memory_id,
+            ),
+        )
 
     def _insert_mutation(self, mutation: MemoryMutation) -> None:
         self._conn.execute(
@@ -412,8 +508,10 @@ class SQLiteMemoryPort(MemoryPort):
                 memory_id, kind, content, source, confidence, metadata_json,
                 source_id, source_type, evidence_json, trust_class,
                 importance, writer, validation_state, created_at, updated_at,
+                valid_from, valid_until, supersedes_id, superseded_by_id,
+                last_used_at, success_count, failure_count,
                 schema_version, invalidated
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 record.memory_id,
@@ -424,17 +522,20 @@ class SQLiteMemoryPort(MemoryPort):
                 json.dumps(record.metadata, ensure_ascii=False, sort_keys=True),
                 record.source_id,
                 record.source_type,
-                json.dumps(
-                    list(record.evidence_refs),
-                    ensure_ascii=False,
-                    sort_keys=True,
-                ),
+                json.dumps(list(record.evidence_refs), ensure_ascii=False),
                 record.trust_class,
                 record.importance,
                 record.writer,
                 record.validation_state,
                 record.created_at,
                 record.updated_at,
+                record.valid_from,
+                record.valid_until,
+                record.supersedes_id,
+                record.superseded_by_id,
+                record.last_used_at,
+                record.success_count,
+                record.failure_count,
                 record.schema_version,
                 int(record.invalidated),
             ),
@@ -447,12 +548,13 @@ class SQLiteMemoryPort(MemoryPort):
                 SELECT memory_id, kind, content, source, confidence, metadata_json,
                        source_id, source_type, evidence_json, trust_class,
                        importance, writer, validation_state, created_at, updated_at,
+                       valid_from, valid_until, supersedes_id, superseded_by_id,
+                       last_used_at, success_count, failure_count,
                        schema_version, invalidated
                 FROM memories
                 ORDER BY rowid ASC
                 """
             ).fetchall()
-
         return [_record_from_row(row) for row in rows]
 
     def close(self) -> None:
@@ -483,6 +585,23 @@ def _record_from_row(row: sqlite3.Row) -> MemoryRecord:
         validation_state=str(row["validation_state"]),
         created_at=float(row["created_at"]),
         updated_at=float(row["updated_at"]),
+        valid_from=float(row["valid_from"]),
+        valid_until=(
+            float(row["valid_until"]) if row["valid_until"] is not None else None
+        ),
+        supersedes_id=(
+            str(row["supersedes_id"]) if row["supersedes_id"] is not None else None
+        ),
+        superseded_by_id=(
+            str(row["superseded_by_id"])
+            if row["superseded_by_id"] is not None
+            else None
+        ),
+        last_used_at=(
+            float(row["last_used_at"]) if row["last_used_at"] is not None else None
+        ),
+        success_count=int(row["success_count"]),
+        failure_count=int(row["failure_count"]),
         schema_version=int(row["schema_version"]),
         invalidated=bool(row["invalidated"]),
     )
