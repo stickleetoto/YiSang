@@ -7,6 +7,11 @@ import time
 from typing import Any
 from uuid import uuid4
 
+from .completion import (
+    ToolFeedbackSummary,
+    completion_feedback_message,
+    summarize_tool_feedback,
+)
 from .proxy import PreparedChatRequest, YiSangModelProxy
 
 _CODEX_SMALL_ALLOWED_TOOLS = frozenset({"exec_command", "apply_patch"})
@@ -15,7 +20,8 @@ _CODEX_SMALL_SYSTEM_MESSAGE = (
     "Only tools present in the attached tools array are executable. Ignore tool "
     "names mentioned elsewhere when they are not present. For local file and "
     "shell work, prefer exec_command. Never print a tool call as JSON in normal "
-    "assistant text; issue a structured tool call instead.\n"
+    "assistant text; issue a structured tool call instead. After tool feedback, "
+    "do not invent unrelated skills, installers, or extra work.\n"
     "[END YISANG CODEX SMALL-MODEL TOOL PROFILE]"
 )
 
@@ -26,6 +32,7 @@ class PreparedResponsesRequest:
     chat_payload: dict[str, Any]
     stream: bool
     tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]]
+    tool_feedback: ToolFeedbackSummary
 
 
 def prepare_responses_request(
@@ -46,6 +53,7 @@ def prepare_responses_request(
     if tool_profile not in {"full", "codex-small"}:
         raise ValueError(f"unknown tool profile: {tool_profile}")
 
+    tool_feedback = summarize_tool_feedback(payload)
     messages = _responses_input_to_chat_messages(payload)
     if not messages:
         raise ValueError("input must contain at least one message or tool result")
@@ -55,6 +63,12 @@ def prepare_responses_request(
             insert_at,
             {"role": "system", "content": _CODEX_SMALL_SYSTEM_MESSAGE},
         )
+        feedback_message = completion_feedback_message(tool_feedback)
+        if feedback_message is not None:
+            messages.insert(
+                insert_at + 1,
+                {"role": "system", "content": feedback_message},
+            )
 
     tools, tool_metadata = _responses_tools_to_chat(
         payload.get("tools"),
@@ -91,6 +105,7 @@ def prepare_responses_request(
         chat_payload=prepared.payload,
         stream=bool(payload.get("stream", False)),
         tool_metadata=tool_metadata,
+        tool_feedback=tool_feedback,
     )
 
 
