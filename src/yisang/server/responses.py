@@ -366,17 +366,9 @@ def _chat_response_items(
     if not isinstance(message, dict):
         raise ValueError("upstream chat response is missing assistant message")
 
-    items: list[dict[str, Any]] = []
     content = message.get("content")
-    if isinstance(content, str) and content:
-        items.append({
-            "type": "message",
-            "role": "assistant",
-            "id": f"msg_{uuid4().hex}",
-            "content": [{"type": "output_text", "text": content}],
-        })
-
     tool_calls = message.get("tool_calls")
+    native_items: list[dict[str, Any]] = []
     if isinstance(tool_calls, list):
         for call in tool_calls:
             if not isinstance(call, dict):
@@ -390,39 +382,161 @@ def _chat_response_items(
             call_id = str(call.get("id") or f"call_{uuid4().hex}")
             arguments = function.get("arguments", "{}")
             if not isinstance(arguments, str):
-                arguments = json.dumps(arguments, ensure_ascii=False, separators=(",", ":"))
-
-            kind, namespace, original_name, schema = tool_metadata.get(
-                wire_name,
-                ("function", None, wire_name, {"type": "object"}),
+                arguments = json.dumps(
+                    arguments,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            item = _tool_call_item(
+                wire_name=wire_name,
+                arguments=arguments,
+                call_id=call_id,
+                tool_metadata=tool_metadata,
+                require_known=recover_text_tool_calls,
             )
-            arguments = _normalize_tool_arguments(arguments, schema)
-            if kind == "custom":
-                custom_input = arguments
-                try:
-                    decoded = json.loads(arguments)
-                    if isinstance(decoded, dict) and isinstance(decoded.get("input"), str):
-                        custom_input = decoded["input"]
-                except json.JSONDecodeError:
-                    pass
-                items.append({
-                    "type": "custom_tool_call",
-                    "call_id": call_id,
-                    "name": original_name,
-                    "input": custom_input,
-                })
-            else:
-                item: dict[str, Any] = {
-                    "type": "function_call",
-                    "call_id": call_id,
-                    "name": original_name,
-                    "arguments": arguments,
-                }
-                if namespace:
-                    item["namespace"] = namespace
-                items.append(item)
+            if item is not None:
+                native_items.append(item)
 
+    if (
+        recover_text_tool_calls
+        and not native_items
+        and isinstance(content, str)
+        and content.strip()
+    ):
+        recovered = _recover_text_tool_calls(content, tool_metadata)
+        if recovered is not None:
+            return recovered
+
+    items: list[dict[str, Any]] = []
+    if isinstance(content, str) and content:
+        items.append({
+            "type": "message",
+            "role": "assistant",
+            "id": f"msg_{uuid4().hex}",
+            "content": [{"type": "output_text", "text": content}],
+        })
+    items.extend(native_items)
     return items
+
+
+def _tool_call_item(
+    *,
+    wire_name: str,
+    arguments: str,
+    call_id: str,
+    tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]],
+    require_known: bool,
+) -> dict[str, Any] | None:
+    metadata = tool_metadata.get(wire_name)
+    if metadata is None:
+        if require_known:
+            return None
+        metadata = ("function", None, wire_name, {"type": "object"})
+
+    kind, namespace, original_name, schema = metadata
+    arguments = _normalize_tool_arguments(arguments, schema)
+    if kind == "custom":
+        custom_input = arguments
+        try:
+            decoded = json.loads(arguments)
+            if isinstance(decoded, dict) and isinstance(decoded.get("input"), str):
+                custom_input = decoded["input"]
+        except json.JSONDecodeError:
+            pass
+        return {
+            "type": "custom_tool_call",
+            "call_id": call_id,
+            "name": original_name,
+            "input": custom_input,
+        }
+
+    item: dict[str, Any] = {
+        "type": "function_call",
+        "call_id": call_id,
+        "name": original_name,
+        "arguments": arguments,
+    }
+    if namespace:
+        item["namespace"] = namespace
+    return item
+
+
+def _recover_text_tool_calls(
+    content: str,
+    tool_metadata: dict[str, tuple[str, str | None, str, dict[str, Any]]],
+) -> list[dict[str, Any]] | None:
+    """Promote pure textual tool-call JSON only when every call is allowed.
+
+    Small local models sometimes print the tool invocation object instead of
+    emitting a structured tool call. Recovery is intentionally all-or-nothing:
+    prose, malformed JSON, or any tool not in the filtered metadata leaves the
+    assistant text untouched.
+    """
+
+    decoded_calls = _decode_text_tool_call_sequence(content)
+    if not decoded_calls:
+        return None
+
+    recovered: list[dict[str, Any]] = []
+    for raw_call in decoded_calls:
+        name = raw_call.get("name")
+        if not isinstance(name, str) or name not in tool_metadata:
+            return None
+
+        raw_arguments = raw_call.get("parameters", raw_call.get("arguments", {}))
+        kind = tool_metadata[name][0]
+        if kind == "custom" and "input" in raw_call and "parameters" not in raw_call:
+            raw_arguments = {"input": raw_call["input"]}
+
+        if isinstance(raw_arguments, str):
+            arguments = raw_arguments
+        else:
+            arguments = json.dumps(
+                raw_arguments,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+
+        item = _tool_call_item(
+            wire_name=name,
+            arguments=arguments,
+            call_id=f"call_{uuid4().hex}",
+            tool_metadata=tool_metadata,
+            require_known=True,
+        )
+        if item is None:
+            return None
+        recovered.append(item)
+
+    return recovered
+
+
+def _decode_text_tool_call_sequence(content: str) -> list[dict[str, Any]] | None:
+    text = content.strip()
+    if text.startswith("```") and text.endswith("```"):
+        lines = text.splitlines()
+        if len(lines) >= 3:
+            text = "\n".join(lines[1:-1]).strip()
+
+    decoder = json.JSONDecoder()
+    calls: list[dict[str, Any]] = []
+    position = 0
+    while position < len(text):
+        while position < len(text) and (
+            text[position].isspace() or text[position] == ";"
+        ):
+            position += 1
+        if position >= len(text):
+            break
+        try:
+            value, position = decoder.raw_decode(text, position)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(value, dict):
+            return None
+        calls.append(value)
+
+    return calls or None
 
 
 def _responses_usage(raw_usage: Any) -> dict[str, Any]:
