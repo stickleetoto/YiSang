@@ -121,13 +121,56 @@ class MalformedTypedToolUpstream(FakeUpstream):
         }
 
 
+class TextualToolCallUpstream(FakeUpstream):
+    def complete(self, payload):
+        self.seen.append(payload)
+        return {
+            "id": "chatcmpl-text-tool",
+            "object": "chat.completion",
+            "model": payload["model"],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": (
+                            '{"name":"exec_command","parameters":'
+                            '{"cmd":"Get-Content test.txt"}}'
+                        ),
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+
+
+class TextualUnknownToolUpstream(FakeUpstream):
+    def complete(self, payload):
+        self.seen.append(payload)
+        return {
+            "id": "chatcmpl-text-unknown",
+            "object": "chat.completion",
+            "model": payload["model"],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": '{"name":"read_stdin","parameters":{"chars":"x"}}',
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+
+
 class FailingStreamUpstream(FakeUpstream):
     def stream(self, payload):
         raise UpstreamHTTPError(503, "model unavailable")
         yield b""  # pragma: no cover
 
 
-def _server(upstream=None):
+def _server(upstream=None, *, tool_profile="full"):
     proxy = YiSangModelProxy(
         model_id="yisang-qwen",
         upstream_model="qwen",
@@ -143,6 +186,7 @@ def _server(upstream=None):
         port=0,
         proxy=proxy,
         upstream=upstream,  # type: ignore[arg-type]
+        tool_profile=tool_profile,
     )
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -421,6 +465,126 @@ def test_responses_repairs_tool_argument_types_from_schema():
         assert arguments["ratio"] == 1.5
         assert arguments["enabled"] is False
         assert arguments["options"] == {"mode": "fast"}
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_codex_small_profile_filters_tools_and_recovers_textual_tool_call():
+    server, thread, upstream = _server(
+        TextualToolCallUpstream(),
+        tool_profile="codex-small",
+    )
+    try:
+        _, _, raw = _post_json(
+            server,
+            "/v1/responses",
+            {
+                "model": "yisang-qwen",
+                "instructions": "Use local coding tools.",
+                "input": [
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "read test.txt"}],
+                    }
+                ],
+                "tools": [
+                    {
+                        "type": "function",
+                        "name": "exec_command",
+                        "description": "Run a command",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"cmd": {"type": "string"}},
+                            "required": ["cmd"],
+                        },
+                    },
+                    {
+                        "type": "function",
+                        "name": "read_stdin",
+                        "description": "Read a terminal",
+                        "parameters": {"type": "object"},
+                    },
+                    {
+                        "type": "function",
+                        "name": "write_stdin",
+                        "description": "Write to a terminal",
+                        "parameters": {"type": "object"},
+                    },
+                    {
+                        "type": "custom",
+                        "name": "apply_patch",
+                        "description": "Apply a patch",
+                    },
+                ],
+                "stream": False,
+            },
+        )
+        response = json.loads(raw)
+        forwarded = upstream.seen[0]
+        forwarded_names = [
+            tool["function"]["name"]
+            for tool in forwarded["tools"]
+        ]
+
+        assert forwarded_names == ["exec_command", "apply_patch"]
+        assert forwarded["parallel_tool_calls"] is False
+        assert any(
+            "YISANG CODEX SMALL-MODEL TOOL PROFILE" in str(message.get("content"))
+            for message in forwarded["messages"]
+        )
+
+        item = response["output"][0]
+        assert item["type"] == "function_call"
+        assert item["name"] == "exec_command"
+        assert json.loads(item["arguments"]) == {"cmd": "Get-Content test.txt"}
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_codex_small_profile_does_not_promote_unknown_textual_tool():
+    server, thread, _ = _server(
+        TextualUnknownToolUpstream(),
+        tool_profile="codex-small",
+    )
+    try:
+        _, _, raw = _post_json(
+            server,
+            "/v1/responses",
+            {
+                "model": "yisang-qwen",
+                "input": [
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "read test.txt"}],
+                    }
+                ],
+                "tools": [
+                    {
+                        "type": "function",
+                        "name": "exec_command",
+                        "description": "Run a command",
+                        "parameters": {"type": "object"},
+                    },
+                    {
+                        "type": "function",
+                        "name": "read_stdin",
+                        "description": "Read a terminal",
+                        "parameters": {"type": "object"},
+                    },
+                ],
+                "stream": False,
+            },
+        )
+        response = json.loads(raw)
+        item = response["output"][0]
+        assert item["type"] == "message"
+        assert "read_stdin" in item["content"][0]["text"]
     finally:
         server.shutdown()
         server.server_close()
