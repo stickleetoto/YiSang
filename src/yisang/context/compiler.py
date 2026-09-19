@@ -161,8 +161,13 @@ class ContextCompiler:
 
         if pack.approx_chars() > b.max_total_chars:
             overflow = pack.approx_chars() - b.max_total_chars
-            new_limit = max(1, len(pack.user_text) - overflow)
+            new_limit = max(0, len(pack.user_text) - overflow)
             pack.user_text = trim_text(pack.user_text, new_limit)
+
+        if pack.approx_chars() > b.max_total_chars:
+            raise ValueError(
+                "context budget is smaller than the irreducible context envelope"
+            )
 
         report = ContextBudgetReport(
             max_total_chars=b.max_total_chars,
