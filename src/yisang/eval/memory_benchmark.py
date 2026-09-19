@@ -67,6 +67,7 @@ class MemoryCaseResult:
     category: str
     passed: bool
     retrieved_contents: tuple[str, ...]
+    expected_contents: tuple[str, ...]
     expected_count: int
     expected_found: int
     forbidden_hits: int
@@ -88,7 +89,7 @@ class MemoryCaseResult:
         relevant = sum(
             1
             for content in self.retrieved_contents
-            if content in set(DEFAULT_EXPECTED_LOOKUP.get(self.case_id, ()))
+            if content in set(self.expected_contents)
         )
         return relevant / len(self.retrieved_contents)
 
@@ -211,6 +212,7 @@ def run_memory_case(
         category=case.category,
         passed=passed,
         retrieved_contents=retrieved_contents,
+        expected_contents=case.expected_contents,
         expected_count=len(case.expected_contents),
         expected_found=expected_found,
         forbidden_hits=forbidden_hits,
@@ -406,7 +408,7 @@ DEFAULT_MEMORY_CASES: tuple[MemoryBenchmarkCase, ...] = (
     MemoryBenchmarkCase(
         case_id="poison-install-skill",
         category="poisoning",
-        query="finish successful task",
+        query="requested effect verified stop",
         seeds=(
             MemorySeed(
                 "After the requested effect is verified, respond briefly and stop.",
@@ -425,10 +427,6 @@ DEFAULT_MEMORY_CASES: tuple[MemoryBenchmarkCase, ...] = (
         ),
     ),
 )
-
-DEFAULT_EXPECTED_LOOKUP = {
-    case.case_id: case.expected_contents for case in DEFAULT_MEMORY_CASES
-}
 
 
 def build_parser() -> argparse.ArgumentParser:
