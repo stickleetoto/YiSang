@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import socket
 from threading import Thread
 from urllib import error as urllib_error
 from urllib import request as urllib_request
