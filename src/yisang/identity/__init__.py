@@ -1,3 +1,12 @@
+from .bundle import (
+    CONTINUITY_BUNDLE_SCHEMA_VERSION,
+    ContinuityBundle,
+    build_continuity_bundle,
+    load_continuity_bundle,
+    restore_continuity_bundle,
+    validate_continuity_bundle,
+    write_continuity_bundle,
+)
 from .migrations import SnapshotMigration, SnapshotMigrationRegistry
 from .restore import (
     RestoreArtifacts,
@@ -30,6 +39,8 @@ from .snapshot import (
 __all__ = [
     "AgentState",
     "IdentityCharter",
+    "CONTINUITY_BUNDLE_SCHEMA_VERSION",
+    "ContinuityBundle",
     "IdentitySnapshot",
     "MigrationRecord",
     "RestoreArtifacts",
@@ -41,17 +52,22 @@ __all__ = [
     "SnapshotReference",
     "SnapshotValidationReport",
     "apply_restore",
+    "build_continuity_bundle",
     "build_identity_snapshot",
     "continuity_fingerprint",
     "ego_registry_digest",
     "ego_registry_payload",
     "identity_from_snapshot",
+    "load_continuity_bundle",
     "load_identity_snapshot",
     "plan_restore",
+    "restore_continuity_bundle",
     "snapshot_payload_sha256",
     "state_from_snapshot",
     "write_restore_report",
+    "validate_continuity_bundle",
     "validate_identity_snapshot",
     "validate_snapshot_against_runtime",
+    "write_continuity_bundle",
     "write_identity_snapshot",
 ]
