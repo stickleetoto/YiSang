@@ -190,6 +190,8 @@ Run each case multiple times and record:
 
 ## v0.4 — Governed Memory
 
+> Status: **implementation complete / integrated validation pending**. See `docs/V04_CLOSEOUT.md`.
+
 ### Objective
 
 Move from "persistent database exists" to "the agent has a durable, inspectable, and governed memory system."
@@ -359,6 +361,8 @@ Record:
 # Phase C — Make identity survive engine changes
 
 ## v0.5 — Identity Continuity
+
+> Status: **preparation starting**.
 
 ### Objective
 
