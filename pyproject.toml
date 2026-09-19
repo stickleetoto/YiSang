@@ -17,6 +17,7 @@ yisang-model-server = "yisang.server.__main__:main"
 yisang-codex-catalog = "yisang.integrations.codex:main"
 yisang-eval-repeatability = "yisang.eval.repeatability:main"
 yisang-eval-codex = "yisang.eval.codex_runner:main"
+yisang-eval-memory = "yisang.eval.memory_benchmark:main"
 yisang-memory-archive = "yisang.memory.transfer:main"
 
 [tool.setuptools.packages.find]
