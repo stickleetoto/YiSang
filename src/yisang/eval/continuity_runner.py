@@ -103,6 +103,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=120.0)
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=64,
+        help="Bound each continuity probe response to avoid runaway local generations.",
+    )
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--output", required=True)
     return parser
@@ -112,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.repeats <= 0:
         raise SystemExit("--repeats must be positive")
+    if args.max_tokens <= 0:
+        raise SystemExit("--max-tokens must be positive")
 
     results = []
     for index in range(args.repeats):
@@ -122,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
             api_key=args.source_api_key,
             timeout=args.timeout,
             temperature=args.temperature,
+            max_tokens=args.max_tokens,
             structured_actions=False,
         )
         target_engine = OpenAICompatibleEngine(
@@ -131,6 +140,7 @@ def main(argv: list[str] | None = None) -> int:
             api_key=args.target_api_key,
             timeout=args.timeout,
             temperature=args.temperature,
+            max_tokens=args.max_tokens,
             structured_actions=False,
         )
 
@@ -138,20 +148,27 @@ def main(argv: list[str] | None = None) -> int:
         target = _build_runtime(engine=target_engine, populated=False)
         memory_id = source.memory.all()[0].memory_id
 
-        result = run_continuity_case(
-            case_id=f"live-{index + 1}",
-            source_runtime=source,
-            target_runtime=target,
-            target_engine=args.target_engine_id,
-            memory_factory=InMemoryMemoryPort,
-            policy_version="memory-governance-v1",
-            runtime_version="0.5-live",
-            probe=ContinuityProbe(
-                request_text="continuity alpha debug",
-                expected_memory_ids=(memory_id,),
-                expected_ego_ids=("ego.continuity",),
-            ),
-        )
+        try:
+            result = run_continuity_case(
+                case_id=f"live-{index + 1}",
+                source_runtime=source,
+                target_runtime=target,
+                target_engine=args.target_engine_id,
+                memory_factory=InMemoryMemoryPort,
+                policy_version="memory-governance-v1",
+                runtime_version="0.5-live",
+                probe=ContinuityProbe(
+                    request_text="continuity alpha debug",
+                    expected_memory_ids=(memory_id,),
+                    expected_ego_ids=("ego.continuity",),
+                ),
+            )
+        except TimeoutError as exc:
+            raise SystemExit(
+                "continuity probe timed out. Warm both models first, "
+                "or increase --timeout. The runner now bounds probe output "
+                "with --max-tokens."
+            ) from exc
         results.append(result)
 
     report = build_continuity_report(
@@ -167,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             "target_base_url": args.target_base_url,
             "repeats": args.repeats,
             "temperature": args.temperature,
+            "max_tokens": args.max_tokens,
         },
     )
     closeout = evaluate_v05_closeout(report)
