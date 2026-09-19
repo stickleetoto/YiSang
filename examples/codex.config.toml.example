@@ -1,0 +1,8 @@
+model = "yisang-qwen"
+model_provider = "yisang"
+
+[model_providers.yisang]
+name = "YiSang Local"
+base_url = "http://127.0.0.1:18731/v1"
+wire_api = "chat"
+requires_openai_auth = false

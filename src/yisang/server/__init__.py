@@ -1,10 +1,11 @@
-from .gateway import YiSangModelGateway
-from .http import create_server, serve
-from .protocol import ProtocolError
+from .http import create_http_server
+from .proxy import PreparedChatRequest, YiSangModelProxy
+from .upstream import OpenAIChatUpstream, UpstreamHTTPError
 
 __all__ = [
-    "ProtocolError",
-    "YiSangModelGateway",
-    "create_server",
-    "serve",
+    "PreparedChatRequest",
+    "YiSangModelProxy",
+    "OpenAIChatUpstream",
+    "UpstreamHTTPError",
+    "create_http_server",
 ]

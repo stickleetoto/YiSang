@@ -1,99 +1,179 @@
+from __future__ import annotations
+
 import json
-import threading
+from threading import Thread
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 from yisang.context.compiler import ContextCompiler
 from yisang.ego.registry import EgoRegistry
-from yisang.ego.router import CapabilityRouter
-from yisang.engines.base import EngineResult, LLMEngine
-from yisang.engines.router import EngineRouter
 from yisang.identity.models import AgentState, IdentityCharter
 from yisang.memory.in_memory import InMemoryMemoryPort
-from yisang.server.gateway import YiSangModelGateway
-from yisang.server.http import create_server
+from yisang.server.http import create_http_server
+from yisang.server.proxy import YiSangModelProxy
+from yisang.server.upstream import UpstreamHTTPError
 
 
-class TextEngine(LLMEngine):
-    engine_id = "text"
+class FakeUpstream:
+    def __init__(self):
+        self.seen = []
 
-    def generate(self, context):
-        return EngineResult(engine_id=self.engine_id, text="server-ok")
+    def complete(self, payload):
+        self.seen.append(payload)
+        return {
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "model": payload["model"],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "ok"},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+
+    def stream(self, payload):
+        self.seen.append(payload)
+        yield b'data: {"id":"c1","model":"qwen","choices":[{"index":0,"delta":{"content":"o"}}]}\n\n'
+        yield b"data: [DONE]\n\n"
 
 
-def _gateway():
-    engines = EngineRouter()
-    engines.register(TextEngine())
-    return YiSangModelGateway(
+class FailingStreamUpstream(FakeUpstream):
+    def stream(self, payload):
+        raise UpstreamHTTPError(503, "model unavailable")
+        yield b""  # pragma: no cover
+
+
+def _server(upstream=None):
+    proxy = YiSangModelProxy(
         model_id="yisang-qwen",
-        identity=IdentityCharter("server-test", "YiSang"),
-        state=AgentState(active_engine="text"),
+        upstream_model="qwen",
+        identity=IdentityCharter("yisang-model", "YiSang"),
+        state=AgentState(active_engine="qwen"),
         memory=InMemoryMemoryPort(),
         ego_registry=EgoRegistry(),
-        capability_router=CapabilityRouter(),
         context_compiler=ContextCompiler(),
-        engine_router=engines,
     )
-
-
-def _json_request(url, payload=None):
-    data = None if payload is None else json.dumps(payload).encode("utf-8")
-    req = urllib_request.Request(
-        url,
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="GET" if payload is None else "POST",
+    upstream = upstream or FakeUpstream()
+    server = create_http_server(
+        host="127.0.0.1",
+        port=0,
+        proxy=proxy,
+        upstream=upstream,  # type: ignore[arg-type]
     )
-    with urllib_request.urlopen(req, timeout=3) as response:
-        return response.status, json.loads(response.read().decode("utf-8"))
-
-
-def test_http_model_server_routes_models_chat_and_responses():
-    server = create_server(_gateway(), host="127.0.0.1", port=0)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    host, port = server.server_address
-    base = f"http://{host}:{port}"
+    return server, thread, upstream
+
+
+def _url(server, path):
+    return f"http://127.0.0.1:{server.server_port}{path}"
+
+
+def test_models_and_chat_completion_endpoints():
+    server, thread, upstream = _server()
     try:
-        status, models = _json_request(base + "/v1/models")
-        assert status == 200
+        with urllib_request.urlopen(_url(server, "/v1/models/")) as response:
+            models = json.loads(response.read())
         assert models["data"][0]["id"] == "yisang-qwen"
 
-        _, chat = _json_request(base + "/v1/chat/completions", {
-            "model": "yisang-qwen",
-            "messages": [{"role": "user", "content": "hi"}],
-        })
-        assert chat["choices"][0]["message"]["content"] == "server-ok"
+        request = urllib_request.Request(
+            _url(server, "/v1/chat/completions"),
+            data=json.dumps(
+                {
+                    "model": "yisang-qwen",
+                    "messages": [{"role": "user", "content": "hello"}],
+                }
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib_request.urlopen(request) as response:
+            result = json.loads(response.read())
 
-        _, response = _json_request(base + "/v1/responses", {
-            "model": "yisang-qwen",
-            "input": "hi",
-        })
-        assert response["output_text"] == "server-ok"
+        assert result["model"] == "yisang-qwen"
+        assert result["choices"][0]["message"]["content"] == "ok"
+        assert upstream.seen[0]["model"] == "qwen"
+        assert upstream.seen[0]["messages"][0]["role"] == "system"
     finally:
         server.shutdown()
         server.server_close()
-        thread.join(timeout=3)
+        thread.join(timeout=2)
 
 
-def test_http_errors_use_openai_style_error_envelope():
-    server = create_server(_gateway(), host="127.0.0.1", port=0)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    host, port = server.server_address
+def test_stream_passthrough_rewrites_model():
+    server, thread, _ = _server()
     try:
-        try:
-            _json_request(f"http://{host}:{port}/v1/responses", {
-                "model": "wrong",
-                "input": "hi",
-            })
-        except urllib_error.HTTPError as exc:
-            body = json.loads(exc.read().decode("utf-8"))
-            assert exc.code == 404
-            assert body["error"]["code"] == "model_not_found"
-        else:
-            raise AssertionError("invalid model did not return an HTTP error")
+        request = urllib_request.Request(
+            _url(server, "/v1/chat/completions"),
+            data=json.dumps(
+                {
+                    "model": "yisang-qwen",
+                    "messages": [{"role": "user", "content": "hello"}],
+                    "stream": True,
+                }
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib_request.urlopen(request) as response:
+            text = response.read().decode()
+        assert '"model":"yisang-qwen"' in text
+        assert "data: [DONE]" in text
     finally:
         server.shutdown()
         server.server_close()
-        thread.join(timeout=3)
+        thread.join(timeout=2)
+
+
+def test_stream_upstream_failure_is_clean_502_before_sse_headers():
+    server, thread, _ = _server(FailingStreamUpstream())
+    try:
+        request = urllib_request.Request(
+            _url(server, "/v1/chat/completions"),
+            data=json.dumps(
+                {
+                    "model": "yisang-qwen",
+                    "messages": [{"role": "user", "content": "hello"}],
+                    "stream": True,
+                }
+            ).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib_request.urlopen(request)
+        except urllib_error.HTTPError as exc:
+            body = json.loads(exc.read())
+            assert exc.code == 502
+            assert body["error"]["type"] == "upstream_error"
+        else:
+            raise AssertionError("failing upstream unexpectedly returned 200")
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_responses_endpoint_fails_with_actionable_error():
+    server, thread, _ = _server()
+    try:
+        request = urllib_request.Request(
+            _url(server, "/v1/responses/"),
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib_request.urlopen(request)
+        except urllib_error.HTTPError as exc:
+            body = json.loads(exc.read())
+            assert exc.code == 501
+            assert "wire_api" in body["error"]["message"]
+        else:
+            raise AssertionError("responses endpoint unexpectedly succeeded")
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)

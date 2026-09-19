@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yisang"
-version = "0.2.0"
+version = "0.3.0"
 description = "Model-independent LLM enhancement layer with externalized memory and capabilities."
 requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+
+[project.scripts]
+yisang-model-server = "yisang.server.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

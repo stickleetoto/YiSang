@@ -1,56 +1,100 @@
 from __future__ import annotations
 
+import argparse
 import os
 from pathlib import Path
 
 from yisang.context.compiler import ContextCompiler
 from yisang.ego.registry import EgoRegistry
 from yisang.ego.router import CapabilityRouter
-from yisang.engines.openai_compatible import OpenAICompatibleEngine
-from yisang.engines.router import EngineRouter
 from yisang.identity.models import AgentState, IdentityCharter
 from yisang.memory.sqlite import SQLiteMemoryPort
 
-from .gateway import YiSangModelGateway
-from .http import serve
+from .http import create_http_server
+from .proxy import YiSangModelProxy
+from .upstream import OpenAIChatUpstream
+
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
-def main() -> None:
-    model_id = os.getenv("YISANG_MODEL_ID", "yisang-qwen")
-    upstream_model = os.getenv("YISANG_UPSTREAM_MODEL", "qwen")
-    upstream_base = os.getenv("YISANG_UPSTREAM_BASE_URL", "http://127.0.0.1:1234/v1")
-    host = os.getenv("YISANG_HOST", "127.0.0.1")
-    port = int(os.getenv("YISANG_PORT", "18731"))
-    memory_path = Path(os.getenv("YISANG_MEMORY_DB", "data/yisang-model-server.db"))
-    ego_path = Path(os.getenv("YISANG_EGO_DIR", "ego"))
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="yisang-model-server",
+        description="Expose YiSang as an OpenAI-compatible local model proxy.",
+    )
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=18731)
+    parser.add_argument("--model", default="yisang-qwen")
+    parser.add_argument("--upstream-base-url", default="http://127.0.0.1:1234/v1")
+    parser.add_argument("--upstream-model", required=True)
+    parser.add_argument(
+        "--upstream-api-key",
+        default=os.environ.get("YISANG_UPSTREAM_API_KEY"),
+    )
+    parser.add_argument("--memory", default="data/yisang-model.db")
+    parser.add_argument("--ego-root", default="ego")
+    parser.add_argument("--project", default=str(Path.cwd()))
+    parser.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="Allow binding to a non-loopback host. No server auth/TLS is provided.",
+    )
+    return parser
 
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.host not in _LOOPBACK_HOSTS and not args.allow_remote:
+        parser.error(
+            "refusing non-loopback bind without --allow-remote; "
+            "the built-in model server has no authentication or TLS"
+        )
+
+    memory_path = Path(args.memory)
     memory_path.parent.mkdir(parents=True, exist_ok=True)
     memory = SQLiteMemoryPort(memory_path)
-    egos = EgoRegistry.from_directory(ego_path) if ego_path.exists() else EgoRegistry()
 
-    engines = EngineRouter()
-    engines.register(OpenAICompatibleEngine(
-        engine_id="upstream-qwen",
-        base_url=upstream_base,
-        model=upstream_model,
-        structured_actions=True,
-    ))
+    ego_root = Path(args.ego_root)
+    registry = EgoRegistry.from_directory(ego_root) if ego_root.exists() else EgoRegistry()
 
-    gateway = YiSangModelGateway(
-        model_id=model_id,
-        identity=IdentityCharter("yisang-model-server", "YiSang"),
-        state=AgentState(active_engine="upstream-qwen", active_project="model-server"),
+    proxy = YiSangModelProxy(
+        model_id=args.model,
+        upstream_model=args.upstream_model,
+        identity=IdentityCharter(agent_id="yisang-model", name="YiSang"),
+        state=AgentState(
+            active_engine=args.upstream_model,
+            active_project=args.project,
+        ),
         memory=memory,
-        ego_registry=egos,
+        ego_registry=registry,
         capability_router=CapabilityRouter(),
         context_compiler=ContextCompiler(),
-        engine_router=engines,
+    )
+    upstream = OpenAIChatUpstream(
+        base_url=args.upstream_base_url,
+        api_key=args.upstream_api_key,
+    )
+    server = create_http_server(
+        host=args.host,
+        port=args.port,
+        proxy=proxy,
+        upstream=upstream,
     )
 
-    print(f"YiSang model server: http://{host}:{port}/v1")
-    print(f"model: {model_id} -> {upstream_model} @ {upstream_base}")
-    serve(gateway, host=host, port=port)
+    print(
+        f"YiSang model server: http://{args.host}:{server.server_port}/v1 "
+        f"model={args.model} upstream={args.upstream_model}"
+    )
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+        memory.close()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
