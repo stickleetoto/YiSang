@@ -16,6 +16,7 @@ from yisang.identity import (
     continuity_fingerprint,
     load_identity_snapshot,
     validate_identity_snapshot,
+    validate_snapshot_against_runtime,
     write_identity_snapshot,
 )
 from yisang.memory.governor import MemoryGovernor
@@ -153,3 +154,21 @@ def test_snapshot_validation_rejects_engine_as_authoritative_state():
 
     assert report.valid is False
     assert any("active_engine" in error for error in report.errors)
+
+
+def test_snapshot_runtime_validation_ignores_engine_swap_but_detects_state_drift():
+    runtime = _runtime()
+    snapshot = build_identity_snapshot(
+        runtime,
+        policy_version="memory-governance-v1",
+        runtime_version="0.5-prep",
+    )
+
+    runtime.state.active_engine = "engine-b"
+    after_swap = validate_snapshot_against_runtime(snapshot, runtime)
+    assert after_swap.valid is True
+
+    runtime.state.current_goal = "different goal"
+    drifted = validate_snapshot_against_runtime(snapshot, runtime)
+    assert drifted.valid is False
+    assert any("state" in error for error in drifted.errors)
