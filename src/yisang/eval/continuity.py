@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from time import perf_counter
 from typing import Iterable
@@ -59,6 +59,7 @@ class ContinuityCaseResult:
 class ContinuityReport:
     schema_version: int
     cases: tuple[ContinuityCaseResult, ...]
+    metadata: dict[str, str | int | float | bool | None] = field(default_factory=dict)
 
     @property
     def pass_rate(self) -> float:
@@ -79,6 +80,7 @@ class ContinuityReport:
         ]
         return {
             "schema_version": self.schema_version,
+            "metadata": dict(self.metadata),
             "case_count": len(self.cases),
             "pass_rate": self.pass_rate,
             "all_passed": self.all_passed,
@@ -96,6 +98,12 @@ class ContinuityReport:
             },
             "cases": [asdict(case) for case in self.cases],
         }
+
+
+@dataclass(frozen=True)
+class ContinuityCloseoutCheck:
+    ready: bool
+    errors: tuple[str, ...]
 
 
 def run_continuity_case(
@@ -243,10 +251,157 @@ def run_continuity_case(
 
 def build_continuity_report(
     cases: Iterable[ContinuityCaseResult],
+    *,
+    metadata: dict[str, str | int | float | bool | None] | None = None,
 ) -> ContinuityReport:
     return ContinuityReport(
         schema_version=1,
         cases=tuple(cases),
+        metadata=dict(metadata or {}),
+    )
+
+
+def evaluate_v05_closeout(
+    report: ContinuityReport,
+    *,
+    min_repeats: int = 3,
+) -> ContinuityCloseoutCheck:
+    if min_repeats <= 0:
+        raise ValueError("min_repeats must be positive")
+
+    errors: list[str] = []
+    if len(report.cases) < min_repeats:
+        errors.append(
+            f"continuity report needs at least {min_repeats} repeated cases"
+        )
+    if not report.all_passed:
+        errors.append("not all continuity cases passed")
+
+    source_family = report.metadata.get("source_family")
+    target_family = report.metadata.get("target_family")
+    if not isinstance(source_family, str) or not source_family.strip():
+        errors.append("source_family evidence is missing")
+    if not isinstance(target_family, str) or not target_family.strip():
+        errors.append("target_family evidence is missing")
+    if (
+        isinstance(source_family, str)
+        and isinstance(target_family, str)
+        and source_family.strip()
+        and target_family.strip()
+        and source_family.strip().lower() == target_family.strip().lower()
+    ):
+        errors.append("source and target engine families must differ")
+
+    source_model = report.metadata.get("source_model")
+    target_model = report.metadata.get("target_model")
+    if not isinstance(source_model, str) or not source_model.strip():
+        errors.append("source_model evidence is missing")
+    if not isinstance(target_model, str) or not target_model.strip():
+        errors.append("target_model evidence is missing")
+
+    for case in report.cases:
+        if not case.source_engine_used:
+            errors.append(f"{case.case_id}: source engine was not exercised")
+        if not case.target_engine_used:
+            errors.append(f"{case.case_id}: target engine was not exercised")
+        if not case.continuity_fingerprint_preserved:
+            errors.append(
+                f"{case.case_id}: continuity fingerprint was not preserved"
+            )
+
+    return ContinuityCloseoutCheck(
+        ready=not errors,
+        errors=tuple(dict.fromkeys(errors)),
+    )
+
+
+def load_continuity_report(path: str | Path) -> ContinuityReport:
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("continuity report is not valid JSON") from exc
+
+    if not isinstance(raw, dict):
+        raise ValueError("continuity report root must be an object")
+    if raw.get("schema_version") != 1:
+        raise ValueError("unsupported continuity report schema")
+
+    metadata = raw.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise ValueError("continuity report metadata must be an object")
+
+    case_items = raw.get("cases")
+    if not isinstance(case_items, list):
+        raise ValueError("continuity report cases must be a list")
+
+    cases: list[ContinuityCaseResult] = []
+    for item in case_items:
+        if not isinstance(item, dict):
+            raise ValueError("continuity report case must be an object")
+        try:
+            cases.append(
+                ContinuityCaseResult(
+                    case_id=str(item["case_id"]),
+                    source_engine=str(item["source_engine"]),
+                    target_engine=str(item["target_engine"]),
+                    passed=bool(item["passed"]),
+                    identity_preserved=bool(item["identity_preserved"]),
+                    goal_preserved=bool(item["goal_preserved"]),
+                    state_preserved=bool(item["state_preserved"]),
+                    memory_preserved=bool(item["memory_preserved"]),
+                    capabilities_preserved=bool(item["capabilities_preserved"]),
+                    continuity_fingerprint_preserved=bool(
+                        item["continuity_fingerprint_preserved"]
+                    ),
+                    source_engine_used=bool(item["source_engine_used"]),
+                    target_engine_used=bool(item["target_engine_used"]),
+                    source_expected_memory_retrieved=bool(
+                        item["source_expected_memory_retrieved"]
+                    ),
+                    source_expected_ego_selected=bool(
+                        item["source_expected_ego_selected"]
+                    ),
+                    expected_memory_retrieved=bool(
+                        item["expected_memory_retrieved"]
+                    ),
+                    expected_ego_selected=bool(item["expected_ego_selected"]),
+                    restore_latency_ms=float(item["restore_latency_ms"]),
+                    probe_latency_ms=float(item["probe_latency_ms"]),
+                    source_fingerprint=str(item["source_fingerprint"]),
+                    restored_fingerprint=str(item["restored_fingerprint"]),
+                    source_used_memory_ids=tuple(
+                        str(value)
+                        for value in item.get("source_used_memory_ids", [])
+                    ),
+                    source_used_ego_ids=tuple(
+                        str(value)
+                        for value in item.get("source_used_ego_ids", [])
+                    ),
+                    used_memory_ids=tuple(
+                        str(value) for value in item.get("used_memory_ids", [])
+                    ),
+                    used_ego_ids=tuple(
+                        str(value) for value in item.get("used_ego_ids", [])
+                    ),
+                    source_response_text=str(
+                        item.get("source_response_text", "")
+                    ),
+                    response_text=str(item.get("response_text", "")),
+                )
+            )
+        except KeyError as exc:
+            raise ValueError(
+                f"continuity report case missing field: {exc.args[0]}"
+            ) from exc
+
+    return ContinuityReport(
+        schema_version=1,
+        cases=tuple(cases),
+        metadata={
+            str(key): value
+            for key, value in metadata.items()
+            if isinstance(value, (str, int, float, bool)) or value is None
+        },
     )
 
 

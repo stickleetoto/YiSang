@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from hashlib import sha256
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 import json
 import time
 
@@ -22,6 +23,7 @@ from .snapshot import (
     build_identity_snapshot,
     continuity_fingerprint,
     ego_registry_digest,
+    snapshot_payload_sha256,
     validate_identity_snapshot,
     validate_snapshot_against_runtime,
 )
@@ -81,6 +83,8 @@ class RestoreReport:
             "continuity_preserved": self.continuity_preserved,
         }
 
+
+RESTORE_REPORT_SCHEMA_VERSION = 1
 
 MemoryFactory = Callable[[], MemoryPort]
 
@@ -210,6 +214,7 @@ def apply_restore(
             )
         staged_egos = candidate_egos
 
+    restore_started_at = time.time()
     pre_snapshot = build_identity_snapshot(
         runtime,
         policy_version=snapshot.policy_version,
@@ -282,20 +287,35 @@ def apply_restore(
             "memory_sha256": snapshot.memory.sha256,
             "ego_registry_sha256": snapshot.ego_registry.sha256,
             "target_engine_registered": True,
+            "source_snapshot_sha256": snapshot_payload_sha256(snapshot),
             "pre_runtime_snapshot_id": pre_snapshot.snapshot_id,
+            "post_runtime_snapshot_id": post_snapshot.snapshot_id,
+            "post_memory_sha256": post_snapshot.memory.sha256,
+            "post_ego_registry_sha256": post_snapshot.ego_registry.sha256,
+            "restore_started_at": restore_started_at,
         },
     )
+
+
+def restore_report_sha256(report: RestoreReport) -> str:
+    return _sha256_json(report.to_dict())
 
 
 def write_restore_report(
     report: RestoreReport,
     path: str | Path,
 ) -> Path:
+    payload = report.to_dict()
+    envelope = {
+        "restore_report_schema_version": RESTORE_REPORT_SCHEMA_VERSION,
+        "payload_sha256": _sha256_json(payload),
+        "payload": payload,
+    }
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(
-            report.to_dict(),
+            envelope,
             ensure_ascii=False,
             indent=2,
             sort_keys=True,
@@ -304,6 +324,35 @@ def write_restore_report(
         encoding="utf-8",
     )
     return output
+
+
+def load_restore_report(path: str | Path) -> dict[str, Any]:
+    try:
+        envelope = json.loads(Path(path).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("restore report is not valid JSON") from exc
+
+    if not isinstance(envelope, dict):
+        raise ValueError("restore report envelope must be an object")
+    if envelope.get("restore_report_schema_version") != RESTORE_REPORT_SCHEMA_VERSION:
+        raise ValueError("unsupported restore report schema")
+
+    payload = envelope.get("payload")
+    if not isinstance(payload, dict):
+        raise ValueError("restore report payload must be an object")
+
+    expected = envelope.get("payload_sha256")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise ValueError("restore report payload_sha256 is invalid")
+    if _sha256_json(payload) != expected:
+        raise ValueError("restore report checksum mismatch")
+
+    if payload.get("status") != "applied":
+        raise ValueError("restore report status is not applied")
+    if payload.get("continuity_preserved") is not True:
+        raise ValueError("restore report does not prove continuity preservation")
+
+    return payload
 
 
 def identity_from_snapshot(snapshot: IdentitySnapshot) -> IdentityCharter:
@@ -355,3 +404,14 @@ def state_from_snapshot(
         ),
         tags={str(key): str(value) for key, value in tags.items()},
     )
+
+
+def _sha256_json(value: Any) -> str:
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return sha256(encoded).hexdigest()

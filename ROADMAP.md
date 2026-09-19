@@ -362,7 +362,7 @@ Record:
 
 ## v0.5 — Identity Continuity
 
-> Status: **live two-engine continuity runner implemented / real run pending**. See `docs/V05_PREP.md`.
+> Status: **implementation complete / real two-engine validation pending**. See `docs/V05_CLOSEOUT.md`.
 
 ### Objective
 
@@ -1058,12 +1058,12 @@ The current implementation milestone is **v0.5 Identity Continuity**.
 
 Order:
 
-1. validate stale-schema migration and corrupt/partial continuity bundles
-2. run repeated restore benchmarks and record latency variance
-3. perform the continuity suite against at least two real local engine families
-4. verify restart + restore resumes the same goal/state
-5. freeze the v0.5 continuity report once the real-engine exit criteria pass
-6. begin v0.6 Roland only after v0.5 continuity is demonstrated
+1. pull and run the deferred full repository test suite
+2. run the v0.4 memory benchmark and audit checks
+3. run repeated v0.5 continuity against at least two real local engine families
+4. validate the saved report with `yisang-eval-continuity-check`
+5. mark v0.5 validated only when the real-engine closeout check passes
+6. begin v0.6 Roland after the continuity evidence is recorded
 
 v0.4 remains implementation-complete but integrated-validation-pending until the
 deferred full repository/memory benchmark pass is executed.

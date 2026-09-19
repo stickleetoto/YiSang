@@ -10,6 +10,8 @@ from yisang.engines.router import EngineRouter
 from yisang.eval.continuity import (
     ContinuityProbe,
     build_continuity_report,
+    evaluate_v05_closeout,
+    load_continuity_report,
     run_continuity_case,
     write_continuity_report,
 )
@@ -169,3 +171,133 @@ def test_continuity_case_fails_when_probe_expectation_is_missing():
     assert result.passed is False
     assert result.expected_memory_retrieved is False
     assert result.continuity_fingerprint_preserved is True
+
+
+def test_v05_closeout_requires_distinct_real_engine_family_evidence():
+    source = _runtime(active_engine="engine-a", populated=True)
+    memory_id = source.memory.all()[0].memory_id
+    target = _runtime(active_engine="engine-a", populated=False)
+    result = run_continuity_case(
+        case_id="closeout",
+        source_runtime=source,
+        target_runtime=target,
+        target_engine="engine-b",
+        memory_factory=InMemoryMemoryPort,
+        policy_version="policy-v1",
+        runtime_version="0.5-prep",
+        probe=ContinuityProbe(
+            request_text="continuity debug alpha",
+            expected_memory_ids=(memory_id,),
+            expected_ego_ids=("ego.debug",),
+        ),
+    )
+
+    report = build_continuity_report(
+        [result, result, result],
+        metadata={
+            "source_model": "model-a",
+            "target_model": "model-b",
+            "source_family": "llama",
+            "target_family": "qwen",
+        },
+    )
+    check = evaluate_v05_closeout(report)
+
+    assert check.ready is True
+    assert check.errors == ()
+
+
+def test_v05_closeout_rejects_same_family_or_missing_repeats():
+    source = _runtime(active_engine="engine-a", populated=True)
+    memory_id = source.memory.all()[0].memory_id
+    target = _runtime(active_engine="engine-a", populated=False)
+    result = run_continuity_case(
+        case_id="closeout-short",
+        source_runtime=source,
+        target_runtime=target,
+        target_engine="engine-b",
+        memory_factory=InMemoryMemoryPort,
+        policy_version="policy-v1",
+        runtime_version="0.5-prep",
+        probe=ContinuityProbe(
+            request_text="continuity debug alpha",
+            expected_memory_ids=(memory_id,),
+            expected_ego_ids=("ego.debug",),
+        ),
+    )
+
+    report = build_continuity_report(
+        [result],
+        metadata={
+            "source_model": "model-a",
+            "target_model": "model-b",
+            "source_family": "llama",
+            "target_family": "llama",
+        },
+    )
+    check = evaluate_v05_closeout(report)
+
+    assert check.ready is False
+    assert any("at least 3" in error for error in check.errors)
+    assert any("families must differ" in error for error in check.errors)
+
+
+def test_saved_continuity_report_round_trip_preserves_closeout_metadata(tmp_path):
+    source = _runtime(active_engine="engine-a", populated=True)
+    memory_id = source.memory.all()[0].memory_id
+    target = _runtime(active_engine="engine-a", populated=False)
+    result = run_continuity_case(
+        case_id="saved-report",
+        source_runtime=source,
+        target_runtime=target,
+        target_engine="engine-b",
+        memory_factory=InMemoryMemoryPort,
+        policy_version="policy-v1",
+        runtime_version="0.5-prep",
+        probe=ContinuityProbe(
+            request_text="continuity debug alpha",
+            expected_memory_ids=(memory_id,),
+            expected_ego_ids=("ego.debug",),
+        ),
+    )
+    report = build_continuity_report(
+        [result, result, result],
+        metadata={
+            "source_model": "llama-model",
+            "target_model": "qwen-model",
+            "source_family": "llama",
+            "target_family": "qwen",
+            "repeats": 3,
+        },
+    )
+    path = write_continuity_report(
+        report,
+        tmp_path / "continuity-report.json",
+    )
+
+    loaded = load_continuity_report(path)
+    check = evaluate_v05_closeout(loaded)
+
+    assert loaded.metadata["source_family"] == "llama"
+    assert loaded.metadata["target_family"] == "qwen"
+    assert len(loaded.cases) == 3
+    assert check.ready is True
+
+
+def test_saved_continuity_report_rejects_missing_case_field(tmp_path):
+    path = tmp_path / "bad-report.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {},
+                "cases": [{"case_id": "broken"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    import pytest
+
+    with pytest.raises(ValueError, match="missing field"):
+        load_continuity_report(path)

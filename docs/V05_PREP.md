@@ -1,6 +1,6 @@
 # YiSang v0.5 Identity Continuity — Preparation
 
-Status: **live two-engine continuity runner implemented / real run pending**
+Status: **implementation complete / real two-engine validation pending**. See `docs/V05_CLOSEOUT.md`.
 
 v0.5 must prove that changing the reasoning engine changes reasoning quality but
 does not create a new YiSang identity.
@@ -129,13 +129,26 @@ probe latency alongside continuity invariants.
 
 See `docs/EVAL_CONTINUITY_V05.md`.
 
-## Next v0.5 implementation steps
+## Closeout hardening now present
 
-1. run the live suite against at least two real local engine families
-2. add stale-schema migration fixtures when snapshot schema v2 is introduced
-3. add more partial/corrupt continuity-bundle fixtures
-4. validate concrete Library references when Roland exists
-5. freeze a v0.5 closeout report after real validation
+- partial continuity-bundle rejection
+- contradictory memory schema/reference rejection
+- reference-kind validation
+- duplicate E.G.O id rejection
+- checksummed RestoreReport persistence and tamper detection
+- saved continuity-report loader
+- explicit source/target model + engine-family evidence
+- v0.5 closeout checker with minimum-repeat and distinct-family gates
+
+See `docs/V05_CLOSEOUT.md`.
+
+## Remaining validation work
+
+1. run the deferred full repository tests
+2. run the v0.4 memory benchmark/closeout checks
+3. run the live continuity suite against at least two real local engine families
+4. pass `yisang-eval-continuity-check` on the saved report
+5. only then mark v0.5 validated
 
 ## Restore rule
 
