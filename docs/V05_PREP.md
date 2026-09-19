@@ -1,6 +1,6 @@
 # YiSang v0.5 Identity Continuity — Preparation
 
-Status: **continuity evaluation harness implemented / real multi-engine validation pending**
+Status: **live two-engine continuity runner implemented / real run pending**
 
 v0.5 must prove that changing the reasoning engine changes reasoning quality but
 does not create a new YiSang identity.
@@ -120,11 +120,20 @@ Multiple target engines can be collected into one JSON continuity report. Unit
 fixtures currently use deterministic EchoEngine replacements only; this does
 not satisfy the real two-engine exit criterion.
 
+## Live two-engine runner now present
+
+`yisang-eval-continuity` accepts two OpenAI-compatible model endpoints/model
+selections and exercises both the source and replacement engine around the
+continuity-bundle restore boundary. Repeated runs emit mean/p95 restore and
+probe latency alongside continuity invariants.
+
+See `docs/EVAL_CONTINUITY_V05.md`.
+
 ## Next v0.5 implementation steps
 
-1. add stale-schema migration fixtures and partial/corrupt bundle cases
-2. benchmark repeated restore latency and variance
-3. test at least two real local engine families
+1. run the live suite against at least two real local engine families
+2. add stale-schema migration fixtures when snapshot schema v2 is introduced
+3. add more partial/corrupt continuity-bundle fixtures
 4. validate concrete Library references when Roland exists
 5. freeze a v0.5 closeout report after real validation
 
