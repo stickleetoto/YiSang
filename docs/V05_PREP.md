@@ -1,6 +1,6 @@
 # YiSang v0.5 Identity Continuity — Preparation
 
-Status: **snapshot foundation implemented / restore pipeline pending**
+Status: **snapshot + restore-planning foundation implemented / restore application pending**
 
 v0.5 must prove that changing the reasoning engine changes reasoning quality but
 does not create a new YiSang identity.
@@ -60,18 +60,27 @@ This gives the v0.5 engine-swap suite a stable comparison target.
 
 An engine swap by itself must not fail this check. Persistent state drift must.
 
+## Restore-planning foundation now present
+
+- explicit SnapshotMigrationRegistry
+- unambiguous migration-path planning
+- pure migration transforms with MigrationRecord evidence
+- RestorePlan before mutation
+- target-engine registration check
+- memory / E.G.O / engine-independent-state drift detection
+- pure IdentityCharter reconstruction
+- pure AgentState reconstruction with the replacement engine supplied externally
+
 ## Next v0.5 implementation steps
 
-1. add a migration registry for snapshot schema transitions
-2. add restore planning before mutation
-3. validate every referenced store before applying restore
-4. reconstruct IdentityCharter + AgentState from a snapshot
-5. make restore atomic enough that partial state is rejected
-6. persist restore evidence / restore report
-7. add Library reference validation when Roland exists
-8. extend the engine-swap suite to two real local engine families
-9. add corruption / partial-store / stale-schema restore cases
-10. build the release-level continuity report
+1. validate concrete referenced store locations before applying restore
+2. add atomic/staged restore application
+3. persist restore evidence / restore report
+4. reject partial restore after any failed dependency validation
+5. add Library reference validation when Roland exists
+6. extend the engine-swap suite to two real local engine families
+7. add corruption / partial-store / stale-schema restore cases
+8. build the release-level continuity report
 
 ## Restore rule
 
