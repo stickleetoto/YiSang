@@ -207,7 +207,7 @@ class FailingStreamUpstream(FakeUpstream):
         yield b""  # pragma: no cover
 
 
-def _server(upstream=None, *, tool_profile="full"):
+def _server(upstream=None, *, tool_profile="full", codex_context_window=4096):
     proxy = YiSangModelProxy(
         model_id="yisang-qwen",
         upstream_model="qwen",
@@ -224,6 +224,7 @@ def _server(upstream=None, *, tool_profile="full"):
         proxy=proxy,
         upstream=upstream,  # type: ignore[arg-type]
         tool_profile=tool_profile,
+        codex_context_window=codex_context_window,
     )
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -266,6 +267,25 @@ def test_models_and_chat_completion_endpoints():
         assert result["choices"][0]["message"]["content"] == "ok"
         assert upstream.seen[0]["model"] == "qwen"
         assert upstream.seen[0]["messages"][0]["role"] == "system"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_codex_native_model_catalog_endpoint():
+    server, thread, _ = _server(codex_context_window=8192)
+    try:
+        with urllib_request.urlopen(_url(server, "/v1/codex/models")) as response:
+            catalog = json.loads(response.read())
+
+        model = catalog["models"][0]
+        assert model["slug"] == "yisang-qwen"
+        assert model["shell_type"] == "unified_exec"
+        assert model["context_window"] == 8192
+        assert model["max_context_window"] == 8192
+        assert model["input_modalities"] == ["text"]
+        assert "base_instructions" in model
     finally:
         server.shutdown()
         server.server_close()

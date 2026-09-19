@@ -4,10 +4,10 @@
 
 Run Codex with YiSang as the configured model provider:
 
-```text
+~~~text
 Codex agent harness
       |
-      | OpenAI-compatible Chat Completions
+      | OpenAI Responses API
       v
 YiSang model server
       |
@@ -15,162 +15,205 @@ YiSang model server
       +-- Memory retrieval
       +-- E.G.O routing
       +-- Context compilation
+      +-- small-model tool-call repair
       |
       v
-Qwen / other OpenAI-compatible local model
-```
+Llama / Qwen / other OpenAI-compatible local model
+~~~
 
-Codex remains responsible for its own repository tools, shell, sandbox, approvals,
-and agent loop. YiSang is the model-compatible cognitive layer in front of Qwen.
+Codex keeps shell execution, sandboxing, approvals, and client-tool dispatch.
+YiSang is the persistent cognitive layer in front of the replaceable model.
 
-## Tool ownership
+## Current verified path
 
-This integration intentionally does **not** execute Codex tools inside YiSang.
+The following path has been manually verified on Windows with Codex 0.154.0,
+YiSang, Ollama, and Llama 3.2 3B:
 
-```text
-Codex tool schema
-      |
-      v
-YiSang preserves it
-      |
-      v
-Qwen emits tool_calls
-      |
-      v
-YiSang preserves them
-      |
-      v
-Codex executes the tool
-```
-
-This keeps Codex's existing agent harness intact while changing only the model
-backend.
+~~~text
+Codex
+ -> /v1/responses
+ -> YiSang
+ -> Ollama Chat Completions
+ -> Llama 3.2 3B
+ -> YiSang tool-call normalization/recovery
+ -> Codex exec_command
+ -> workspace-write Windows sandbox
+ -> PowerShell 7
+ -> real file write
+~~~
 
 ## 1. Start the upstream local model
 
-Example target: LM Studio on its usual OpenAI-compatible endpoint:
+Example Ollama endpoint:
 
-```text
-http://127.0.0.1:1234/v1
-```
+~~~text
+http://127.0.0.1:11434/v1
+~~~
 
-Load the desired Qwen model and note the exact served model id.
+Example model:
 
-## 2. Start YiSang model server
+~~~text
+llama3.2:3b
+~~~
 
-Install the branch:
+## 2. Start YiSang
 
-```powershell
+Install the checkout:
+
+~~~powershell
 python -m pip install -e .[dev]
-```
+~~~
 
 Then run:
 
-```powershell
+~~~powershell
 yisang-model-server `
-  --upstream-base-url http://127.0.0.1:1234/v1 `
-  --upstream-model YOUR_LM_STUDIO_MODEL_ID `
-  --model yisang-qwen
-```
+  --upstream-base-url http://127.0.0.1:11434/v1 `
+  --upstream-model "llama3.2:3b" `
+  --model yisang-llama `
+  --tool-profile codex-small `
+  --codex-context-window 4096
+~~~
+
+The context-window value must describe the real upstream model configuration.
+Do not advertise a larger context window than the local runtime actually exposes.
 
 Default YiSang endpoint:
 
-```text
+~~~text
 http://127.0.0.1:18731/v1
-```
+~~~
 
 Smoke checks:
 
-```powershell
+~~~powershell
 Invoke-RestMethod http://127.0.0.1:18731/health
 Invoke-RestMethod http://127.0.0.1:18731/v1/models
-```
+Invoke-RestMethod http://127.0.0.1:18731/v1/codex/models
+~~~
 
-The model list should expose:
+The endpoints have different purposes:
 
-```text
-yisang-qwen
-```
+- `/v1/models`: OpenAI-compatible discovery surface.
+- `/v1/codex/models`: Codex-native model metadata catalog.
 
-## 3. Configure Codex
+## 3. Generate Codex model metadata
 
-For the first smoke test, use the user-level Codex config on Windows:
+Codex 0.154.0 supports a startup-only `model_catalog_json` file. Unknown
+custom model slugs otherwise fall back to generic metadata and emit:
 
-```text
-%USERPROFILE%\.codex\config.toml
-```
+~~~text
+Model metadata for `yisang-llama` not found.
+Defaulting to fallback metadata...
+~~~
 
-Example:
+Generate a YiSang catalog directly into the active Codex home:
 
-```toml
-model = "yisang-qwen"
+~~~powershell
+$env:CODEX_HOME = "$env:USERPROFILE\.codex-yisang-test"
+
+yisang-codex-catalog `
+  --model yisang-llama `
+  --context-window 4096 `
+  --output "$env:CODEX_HOME\yisang-models.json"
+~~~
+
+The generator targets the Codex 0.154 catalog shape and supplies conservative
+metadata for a text-only local model.
+
+## 4. Configure Codex
+
+Example `config.toml`:
+
+~~~toml
+model = "yisang-llama"
 model_provider = "yisang"
+model_catalog_json = "yisang-models.json"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+[windows]
+sandbox = "unelevated"
+
+[agents]
+enabled = false
+
+[features]
+goals = false
+multi_agent = false
+multi_agent_v2 = false
 
 [model_providers.yisang]
 name = "YiSang Local"
 base_url = "http://127.0.0.1:18731/v1"
-wire_api = "chat"
+wire_api = "responses"
 requires_openai_auth = false
-```
+~~~
 
-Then start Codex normally.
+Relative `model_catalog_json` paths are resolved from the Codex config home.
 
-YiSang v0.3 deliberately targets Codex's Chat Completions wire mode first.
-`POST /v1/responses` currently returns an actionable `501` response instead of
-silently pretending to support the Responses protocol.
+Restart Codex after changing the catalog. Codex applies this catalog at startup.
 
-## What YiSang adds to every model request
+## Tool ownership
 
-Before forwarding the Codex request upstream, YiSang injects a system context
-containing the current:
+YiSang intentionally does not execute Codex client tools itself.
 
-- YiSang identity
-- agent/project state
-- relevant external memories
-- routed E.G.O capability instructions
-- YiSang safety/continuity constraints
+~~~text
+Codex tool schema
+      |
+      v
+YiSang filters/normalizes for the local model
+      |
+      v
+local model chooses a tool
+      |
+      v
+YiSang emits a Responses function_call
+      |
+      v
+Codex executes the tool
+~~~
 
-The original Codex messages and tool schemas remain present after the YiSang
-augmentation message.
+With `--tool-profile codex-small`, YiSang currently exposes only a small
+coding surface to the local model and enables conservative textual tool-call
+recovery. Unknown tool names are not promoted.
 
-## Streaming
+## Responses bridge
 
-If Codex sends `stream=true`, YiSang proxies OpenAI-style SSE chunks from the
-upstream model and rewrites only the exposed model id back to `yisang-qwen`.
-Tool-call deltas and other chunk data are otherwise preserved.
+Codex 0.154 uses the Responses wire API for custom providers. YiSang accepts
+`POST /v1/responses`, translates the request into an upstream Chat
+Completions request, waits for the completed local-model response, then emits
+Codex-compatible Responses JSON or SSE events.
+
+This is currently buffered bridging, not true upstream token streaming.
 
 ## Current protocol surface
 
 Implemented:
 
-```text
+~~~text
 GET  /health
 GET  /v1/models
+GET  /v1/codex/models
 POST /v1/chat/completions
-```
+POST /v1/responses
+~~~
 
-Supported Chat Completions behavior:
+Current limitations:
 
-- normal JSON completions
-- SSE streaming
-- client message passthrough
-- client tool schema passthrough
-- upstream tool-call passthrough
-- model alias normalization
-
-Not implemented yet:
-
-- `/v1/responses`
-- Responses streaming event translation
-- exact tokenizer-aware usage accounting for YiSang-injected context
-- server-side authentication
-- multi-model routing behind one YiSang endpoint
+- Responses bridging buffers the upstream completion before emitting events.
+- tokenizer-aware accounting for YiSang-injected context is not exact.
+- the built-in server has no remote authentication/TLS layer.
+- one running server currently exposes one YiSang model alias.
+- Codex 0.154 requires a local `model_catalog_json`; newer Codex versions may
+  support provider-hosted catalog discovery separately.
 
 ## Security boundary
 
 The server binds to `127.0.0.1` by default. Keep it loopback-only unless a
 separate authentication/TLS boundary is intentionally added.
 
-The key invariant for Codex mode is:
+The core invariant remains:
 
-> YiSang augments model cognition; Codex retains execution authority.
+> YiSang augments cognition and persistent state; Codex retains client-tool
+> execution authority.

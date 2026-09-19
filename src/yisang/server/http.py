@@ -5,6 +5,11 @@ import json
 from typing import Any
 from urllib.parse import urlsplit
 
+from yisang.integrations.codex import (
+    DEFAULT_CODEX_CONTEXT_WINDOW,
+    build_codex_model_catalog,
+)
+
 from .proxy import YiSangModelProxy
 from .responses import (
     chat_response_to_responses,
@@ -29,11 +34,14 @@ def create_http_server(
     upstream: OpenAIChatUpstream,
     max_body_bytes: int = _DEFAULT_MAX_BODY_BYTES,
     tool_profile: str = "full",
+    codex_context_window: int = DEFAULT_CODEX_CONTEXT_WINDOW,
 ) -> ThreadingHTTPServer:
     if max_body_bytes <= 0:
         raise ValueError("max_body_bytes must be positive")
     if tool_profile not in {"full", "codex-small"}:
         raise ValueError(f"unknown tool profile: {tool_profile}")
+    if codex_context_window <= 0:
+        raise ValueError("codex_context_window must be positive")
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "YiSangModelServer/0.3"
@@ -67,6 +75,15 @@ def create_http_server(
                             }
                         ],
                     },
+                )
+                return
+            if path == "/v1/codex/models":
+                self._send_json(
+                    200,
+                    build_codex_model_catalog(
+                        proxy.model_id,
+                        context_window=codex_context_window,
+                    ),
                 )
                 return
             self._send_error(404, "not_found", "route not found")
