@@ -184,11 +184,25 @@ The current v0.6 slices do not yet include:
 Usage Note creation/promotion remains a v0.7 Experience Promotion concern.
 v0.6 only preserves compatible durable notes during import.
 
+## Closeout hardening
+
+Implemented:
+
+- saved Library benchmark report loader and validation gate
+- required 10 / 50 / 100 / 500 Book evidence checks
+- composite `yisang-eval-v06-closeout` continuity + scale gate
+- one-command Windows closeout runner at `scripts/v06_closeout.ps1`
+- manual GitHub Actions workflow for reproducible Python 3.11/3.12 scale evidence
+- severe-budget policy that drops positive primary advice before a guardrail when both cannot fit
+- explicit guardrail-priority regression coverage
+
+See `docs/V06_CLOSEOUT.md`.
+
 ## Next slice
 
 1. run the live cross-family v0.6 continuity evaluator against the local Llama/Qwen endpoints;
 2. run and save the 10 / 50 / 100 / 500 Book scale benchmark report;
-3. add tighter end-to-end safety-budget cases around primary/guardrail competition;
+3. run the composite closeout gate and record the saved evidence;
 4. import private Book packs only through an explicit external path;
 5. close v0.6 only after the saved continuity and scale reports are reproducible;
 6. keep SQLite LibraryPort deferred until persistence pressure justifies it.
