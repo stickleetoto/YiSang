@@ -362,7 +362,7 @@ Record:
 
 ## v0.5 — Identity Continuity
 
-> Status: **live two-engine validation passed / saved-report closeout check pending**. See `docs/V05_CLOSEOUT.md` and `docs/VALIDATION_2026-09-19.md`.
+> Status: **VALIDATED**. See `docs/V05_CLOSEOUT.md` and `docs/VALIDATION_2026-09-19.md`.
 
 ### Objective
 
@@ -1054,11 +1054,9 @@ Do not move to the next phase only because code exists. Move when the exit crite
 
 # 6. Immediate next work
 
-v0.4 is validated. v0.5 has passed the real cross-family continuity run; the current task is the final saved-report closeout check before promotion from `0.5.0rc1`.
+v0.4 and v0.5 are validated. YiSang has been promoted to `0.5.0`.
 
 Order:
 
-1. run `yisang-eval-continuity-check` against the saved `artifacts/continuity-v05.json`
-2. if ready, promote package version from `0.5.0rc1` to `0.5.0`
-3. create the validated v0.5 baseline
-4. begin v0.6 Roland
+1. create the validated v0.5 baseline
+2. begin v0.6 Roland
