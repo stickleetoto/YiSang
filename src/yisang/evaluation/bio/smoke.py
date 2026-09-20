@@ -35,7 +35,7 @@ class FixtureBioClient:
         return {
             "current_memory_id": mapping.get(topic_key),
             "confidence": 1.0,
-            "superseded_ids": [90] if topic_key == "storage_backend" else [],
+            "superseded_ids": [90] if topic_key == "storage backend" else [],
             "conflict_ids": [],
             "reasoning": "fixture current state",
             "candidates": [],
