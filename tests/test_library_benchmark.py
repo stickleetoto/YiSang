@@ -5,6 +5,7 @@ from yisang.eval.library_benchmark import (
     main,
     run_library_scale,
     run_library_scale_benchmark,
+    _percentile,
 )
 
 
@@ -51,3 +52,9 @@ def test_library_benchmark_cli_writes_serializable_report(tmp_path, capsys):
     assert payload["all_passed"] is True
     assert [item["book_count"] for item in payload["scales"]] == [10, 50]
     assert "selection_accuracy" in capsys.readouterr().out
+
+
+
+def test_library_percentile_uses_nearest_rank_for_small_samples():
+    assert _percentile([1.0, 2.0, 100.0], 0.95) == 100.0
+    assert _percentile([1.0, 2.0, 100.0], 0.0) == 1.0
