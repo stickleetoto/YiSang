@@ -12,6 +12,7 @@ EVIDENCE_SOURCE_TYPES = frozenset(
     {
         "raw_conversation",
         "model_claim",
+        "verification_result",
         "tool_result",
         "test_result",
         "user_confirmation",
