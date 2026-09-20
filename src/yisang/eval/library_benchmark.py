@@ -56,6 +56,107 @@ class LibraryScaleReport:
         }
 
 
+@dataclass(frozen=True)
+class LibraryBenchmarkCheck:
+    ready: bool
+    errors: tuple[str, ...]
+
+
+def load_library_scale_report(path: str | Path) -> LibraryScaleReport:
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Library scale report is not valid JSON") from exc
+
+    if not isinstance(raw, dict):
+        raise ValueError("Library scale report root must be an object")
+    if raw.get("schema_version") != 1:
+        raise ValueError("unsupported Library scale report schema")
+
+    raw_scales = raw.get("scales")
+    if not isinstance(raw_scales, list):
+        raise ValueError("Library scale report scales must be a list")
+
+    results: list[LibraryScaleResult] = []
+    for item in raw_scales:
+        if not isinstance(item, dict):
+            raise ValueError("Library scale result must be an object")
+        try:
+            results.append(
+                LibraryScaleResult(
+                    book_count=int(item["book_count"]),
+                    entry_count=int(item["entry_count"]),
+                    query_count=int(item["query_count"]),
+                    correct_top1=int(item["correct_top1"]),
+                    selection_accuracy=float(item["selection_accuracy"]),
+                    index_build_ms=float(item["index_build_ms"]),
+                    mean_search_ms=float(item["mean_search_ms"]),
+                    p95_search_ms=float(item["p95_search_ms"]),
+                    mean_delivery_chars=float(item["mean_delivery_chars"]),
+                    index_terms=int(item["index_terms"]),
+                    posting_refs=int(item["posting_refs"]),
+                )
+            )
+        except KeyError as exc:
+            raise ValueError(
+                f"Library scale result missing field: {exc.args[0]}"
+            ) from exc
+
+    return LibraryScaleReport(
+        schema_version=1,
+        results=tuple(results),
+    )
+
+
+def evaluate_v06_library_benchmark(
+    report: LibraryScaleReport,
+    *,
+    required_scales: tuple[int, ...] = DEFAULT_LIBRARY_SCALES,
+    min_selection_accuracy: float = 1.0,
+    max_mean_delivery_chars: float = 4_000.0,
+) -> LibraryBenchmarkCheck:
+    errors: list[str] = []
+    by_scale = {item.book_count: item for item in report.results}
+
+    for scale in required_scales:
+        if scale not in by_scale:
+            errors.append(f"missing required Library scale: {scale}")
+
+    for item in report.results:
+        prefix = f"{item.book_count} books"
+        if item.query_count <= 0:
+            errors.append(f"{prefix}: query_count must be positive")
+        if item.correct_top1 > item.query_count:
+            errors.append(f"{prefix}: correct_top1 exceeds query_count")
+        if item.selection_accuracy < min_selection_accuracy:
+            errors.append(
+                f"{prefix}: selection_accuracy "
+                f"{item.selection_accuracy:.6f} is below "
+                f"{min_selection_accuracy:.6f}"
+            )
+        if item.index_build_ms < 0:
+            errors.append(f"{prefix}: index_build_ms is negative")
+        if item.mean_search_ms < 0 or item.p95_search_ms < 0:
+            errors.append(f"{prefix}: search latency is negative")
+        if item.mean_delivery_chars <= 0:
+            errors.append(f"{prefix}: mean_delivery_chars must be positive")
+        if item.mean_delivery_chars > max_mean_delivery_chars:
+            errors.append(
+                f"{prefix}: mean_delivery_chars exceeds "
+                f"{max_mean_delivery_chars:.0f}"
+            )
+        if item.index_terms <= 0 or item.posting_refs <= 0:
+            errors.append(f"{prefix}: index statistics are empty")
+
+    if not report.results:
+        errors.append("Library scale report contains no results")
+
+    return LibraryBenchmarkCheck(
+        ready=not errors,
+        errors=tuple(dict.fromkeys(errors)),
+    )
+
+
 def build_synthetic_library(book_count: int) -> InMemoryLibraryPort:
     if book_count <= 0:
         raise ValueError("book_count must be positive")

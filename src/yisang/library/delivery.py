@@ -224,6 +224,23 @@ def _fit_budget(
                     knowledge[: max(0, new_size - 1)].rstrip() + "…"
                 )
                 continue
+
+        # Under severe pressure, safety wins over a positive recommendation.
+        # Keep the guardrail and its avoid_when/provenance boundary when both
+        # primary and guardrail can no longer fit together.
+        if len(result) > 1:
+            non_guardrail = next(
+                (
+                    index
+                    for index in range(len(result) - 1, -1, -1)
+                    if result[index].get("role") != "guardrail"
+                ),
+                None,
+            )
+            if non_guardrail is not None:
+                result.pop(non_guardrail)
+                continue
+
         break
 
     return result

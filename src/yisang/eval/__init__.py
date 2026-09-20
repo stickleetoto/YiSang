@@ -12,8 +12,11 @@ from .continuity import (
 )
 from .library_benchmark import (
     DEFAULT_LIBRARY_SCALES,
+    LibraryBenchmarkCheck,
     LibraryScaleReport,
     LibraryScaleResult,
+    evaluate_v06_library_benchmark,
+    load_library_scale_report,
     run_library_scale,
     run_library_scale_benchmark,
 )
@@ -49,6 +52,7 @@ __all__ = [
     "DEFAULT_LIBRARY_SCALES",
     "DEFAULT_MEMORY_CASES",
     "MEMORY_BENCHMARK_PROFILES",
+    "LibraryBenchmarkCheck",
     "LibraryScaleReport",
     "LibraryScaleResult",
     "MemoryBenchmarkCase",
@@ -71,7 +75,9 @@ __all__ = [
     "evaluate_baseline",
     "evaluate_v05_closeout",
     "evaluate_v06_closeout",
+    "evaluate_v06_library_benchmark",
     "load_continuity_report",
+    "load_library_scale_report",
     "matrix_case_ids",
     "run_case",
     "run_continuity_case",

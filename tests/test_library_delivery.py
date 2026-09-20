@@ -144,3 +144,23 @@ def test_budget_prunes_optional_detail_before_safety_boundary() -> None:
         item for item in payload if item["topic"] == "Heap Dijkstra"
     )
     assert "avoid_when" in guardrail
+
+
+
+def test_severe_budget_prefers_guardrail_over_primary() -> None:
+    payload = build_library_delivery(
+        _results("implement shortest path with negative edge weights performance"),
+        request=(
+            "implement shortest path with negative edge weights "
+            "performance and tradeoffs"
+        ),
+        max_chars=650,
+    )
+
+    assert delivery_chars(payload) <= 650
+    guardrails = [item for item in payload if item["role"] == "guardrail"]
+    assert guardrails
+    assert "avoid_when" in guardrails[0]
+
+    if len(payload) == 1:
+        assert payload[0]["role"] == "guardrail"
