@@ -101,6 +101,7 @@ class YiSangRuntime:
         engine = self.engine_router.get(self.state.active_engine)
         action_results: list[ActionResult] = []
         action_history: list[dict] = []
+        used_knowledge_refs: list[str] = []
         loop_exhausted = False
         goal_satisfied = False
         completion_text: str | None = None
@@ -118,6 +119,11 @@ class YiSangRuntime:
                 action_history=action_history,
                 session_history=session_history,
             )
+            for item in context.library:
+                knowledge_ref = item.get("knowledge_ref")
+                if knowledge_ref and knowledge_ref not in used_knowledge_refs:
+                    used_knowledge_refs.append(str(knowledge_ref))
+
             result = engine.generate(context)
 
             if not result.action_proposals:
@@ -247,11 +253,7 @@ class YiSangRuntime:
             verification_status=verification.status,
             used_memory_ids=[m.memory_id for m in memories],
             used_ego_ids=[e.ego_id for e in selected_egos],
-            used_knowledge_refs=[
-                str(item["knowledge_ref"])
-                for item in library_payload
-                if item.get("knowledge_ref")
-            ],
+            used_knowledge_refs=used_knowledge_refs,
             action_results=[item.to_dict() for item in action_results],
             memory_write_results=memory_write_results,
         )
