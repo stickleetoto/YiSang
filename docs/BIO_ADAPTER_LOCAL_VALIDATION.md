@@ -20,6 +20,10 @@ python -m pytest `
   tests/test_bio_adapter.py `
   tests/test_memory_provider_factory.py `
   tests/test_bio_adapter_smoke.py `
+  tests/test_runtime_memory_provider.py `
+  tests/test_bio_ab_evaluator.py `
+  tests/test_bio_ab_smoke.py `
+  tests/test_bio_runtime_smoke.py `
   -q
 ~~~
 
@@ -61,7 +65,7 @@ python -m pytest -q
 Current repository-side CI baseline:
 
 ~~~text
-313 passed
+320 passed
 ~~~
 
 ## Not proven yet
@@ -72,3 +76,33 @@ Current repository-side CI baseline:
 - Native-vs-BIO Resume/Stale/Correction A/B metrics
 
 Those belong to the next integration/validation slices.
+
+
+## Runtime provider smoke
+
+~~~powershell
+yisang-bio-runtime-smoke
+~~~
+
+Expected important values:
+
+~~~text
+ready = true
+real_bio_used = false
+memory_provider_id = bio
+memory_context_ref = ctx-runtime-smoke
+used_memory_ids = [bio:42]
+write_status = pending
+proposal_ref = bio-proposal:88
+direct_bio_approval = false
+~~~
+
+## Synthetic A/B harness smoke
+
+~~~powershell
+yisang-bio-ab-smoke
+~~~
+
+This runs Resume, Stale, and Correction scenarios against the Native provider
+and a fake BIO provider. It validates the evaluator wiring only; it does not
+claim BIO superiority or use a live BIO database.

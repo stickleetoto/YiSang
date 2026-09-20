@@ -281,3 +281,9 @@ evidence, exit criteria, and explicit migration boundaries.
   and does not rank providers.
 - Added synthetic Native-vs-BIO smoke only; real BIO ROI claims still require
   live BIO runs and the proposed larger task set.
+
+
+- Added yisang-bio-runtime-smoke to exercise the actual YiSangRuntime with an
+  injected BioMemoryProvider while still using a fake BIO client. It proves
+  runtime read routing, context_ref propagation, pending write proposals, and
+  absence of direct BIO approval.
