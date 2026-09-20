@@ -233,3 +233,21 @@ evidence, exit criteria, and explicit migration boundaries.
   PromotionGate.
 - This proves real deterministic replay execution; mapping arbitrary historical
   tool traces into replay manifests remains a separate integration step.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 trace-to-replay compiler
+
+- Added runtime ActionTrace capture with in-memory and SQLite ports.
+- Runtime tool arguments are fingerprinted; raw argument values are not stored
+  in ActionTrace.
+- Replay manifests are accepted only from completion_evidence.replay_manifest on
+  EXECUTED + goal_satisfied tool results.
+- Malformed or unverified manifests are retained only as rejected trace
+  metadata and cannot become replay specs.
+- Added ReplayManifestCompiler from source episode request ids + ActionTracePort
+  to ReplayExecutionSpec.
+- v1 compiler intentionally supports exactly one replayable tool step per case;
+  multi-tool traces are rejected until an ordered multi-step executor contract
+  exists.
+- Added yisang-trace-replay-smoke for Trace -> Manifest -> real replay ->
+  PromotionGate.

@@ -10,6 +10,8 @@ from yisang.execution.models import ActionResult
 from yisang.execution.runtime import ActionRuntime
 from yisang.experience.episode_port import ExperiencePort
 from yisang.experience.recorder import ExperienceRecorder
+from yisang.experience.trace import ActionTraceRecorder
+from yisang.experience.trace_port import ActionTracePort
 from yisang.identity.models import AgentState, IdentityCharter
 from yisang.library.delivery import build_library_delivery
 from yisang.library.port import LibraryPort
@@ -42,6 +44,8 @@ class YiSangRuntime:
         library_retriever: LexicalLibraryRetriever | None = None,
         experience_port: ExperiencePort | None = None,
         experience_recorder: ExperienceRecorder | None = None,
+        experience_trace_port: ActionTracePort | None = None,
+        experience_trace_recorder: ActionTraceRecorder | None = None,
         library_limit: int = 3,
         max_action_rounds: int = 3,
     ) -> None:
@@ -79,6 +83,10 @@ class YiSangRuntime:
         self.library_retriever = library_retriever
         self.experience_port = experience_port
         self.experience_recorder = experience_recorder or ExperienceRecorder()
+        self.experience_trace_port = experience_trace_port
+        self.experience_trace_recorder = (
+            experience_trace_recorder or ActionTraceRecorder()
+        )
         self.library_limit = library_limit
         self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
             memory=memory,
@@ -124,6 +132,8 @@ class YiSangRuntime:
         engine = self.engine_router.get(self.state.active_engine)
         action_results: list[ActionResult] = []
         action_history: list[dict] = []
+        experience_trace_ids: list[str] = []
+        action_trace_ordinal = 0
         used_knowledge_refs: list[str] = []
         loop_exhausted = False
         goal_satisfied = False
@@ -166,6 +176,16 @@ class YiSangRuntime:
                     )
                     action_results.append(denied)
                     action_history.append(_history_item(proposal, denied))
+                    if self.experience_trace_port is not None:
+                        trace = self.experience_trace_recorder.record(
+                            request_id=request.request_id,
+                            ordinal=action_trace_ordinal,
+                            proposal=proposal,
+                            result=denied,
+                        )
+                        self.experience_trace_port.put_trace(trace)
+                        experience_trace_ids.append(trace.trace_id)
+                        action_trace_ordinal += 1
                 break
 
             round_failed = False
@@ -188,6 +208,16 @@ class YiSangRuntime:
 
                 action_results.append(executed)
                 action_history.append(_history_item(proposal, executed))
+                if self.experience_trace_port is not None:
+                    trace = self.experience_trace_recorder.record(
+                        request_id=request.request_id,
+                        ordinal=action_trace_ordinal,
+                        proposal=proposal,
+                        result=executed,
+                    )
+                    self.experience_trace_port.put_trace(trace)
+                    experience_trace_ids.append(trace.trace_id)
+                    action_trace_ordinal += 1
 
                 if executed.status != "EXECUTED":
                     round_failed = True
@@ -279,6 +309,7 @@ class YiSangRuntime:
             used_knowledge_refs=used_knowledge_refs,
             action_results=[item.to_dict() for item in action_results],
             memory_write_results=memory_write_results,
+            experience_trace_ids=experience_trace_ids,
         )
         if self.experience_port is not None:
             episode = self.experience_recorder.capture(

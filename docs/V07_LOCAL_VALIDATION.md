@@ -132,3 +132,29 @@ promotion_accepted = true
 Each replay writes a file, checks exact file content and stdout, records an
 observation digest as replay evidence, and then feeds the real ReplayReport into
 PromotionGate.
+
+
+## 10. Runtime trace -> replay manifest smoke
+
+This smoke records three verified action traces, persists only hashes for raw
+tool arguments, compiles trusted replay manifests, executes them, and feeds the
+real replay report into PromotionGate.
+
+~~~powershell
+yisang-trace-replay-smoke
+~~~
+
+Expected important values:
+
+~~~text
+ready = true
+recorded_trace_count = 3
+compiled_manifest_count = 3
+executed_replay_count = 3
+all_replays_passed = true
+raw_action_arguments_stored = false
+promotion_accepted = true
+~~~
+
+Replay manifests are opt-in tool evidence. YiSang does not reconstruct shell
+commands from arbitrary model text or raw action arguments.

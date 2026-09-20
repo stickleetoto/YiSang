@@ -41,11 +41,24 @@ from .replay import (
 )
 from .promotion import PromotionGate
 from .sqlite import SQLitePromotionPort
+from .trace import (
+    ActionTrace,
+    ActionTraceRecorder,
+    ReplayExecutionTemplate,
+    ReplayManifestCompiler,
+    ReplayManifestError,
+)
+from .trace_memory import InMemoryActionTracePort
+from .trace_port import ActionTracePort
+from .trace_sqlite import SQLiteActionTracePort
 
 __all__ = [
     "EgoInstructionPatch",
     "EgoInstructionPatchAdapter",
     "DeterministicReplayExecutor",
+    "ActionTrace",
+    "ActionTracePort",
+    "ActionTraceRecorder",
     "ExperienceEpisode",
     "ExperienceGeneralizationError",
     "ExperienceGeneralizer",
@@ -53,6 +66,7 @@ __all__ = [
     "FileExpectation",
     "ExperienceRecorder",
     "ExperienceEvidence",
+    "InMemoryActionTracePort",
     "InMemoryExperiencePort",
     "InMemoryPromotionLedger",
     "LessonCandidate",
@@ -68,12 +82,16 @@ __all__ = [
     "ReplayCaseResult",
     "ReplayExecutionError",
     "ReplayExecutionSpec",
+    "ReplayExecutionTemplate",
     "ReplayPlan",
     "ReplayPlanBuilder",
     "ReplayPlanCase",
     "ReplayPlanError",
+    "ReplayManifestCompiler",
+    "ReplayManifestError",
     "ReplayReport",
     "ReplaySetupFile",
+    "SQLiteActionTracePort",
     "SQLiteExperiencePort",
     "SQLitePromotionPort",
 ]
