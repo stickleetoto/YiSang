@@ -14,6 +14,7 @@ from yisang.memory.models import MEMORY_SCHEMA_VERSION
 from yisang.memory.transfer import build_memory_archive
 
 SNAPSHOT_SCHEMA_VERSION = 1
+_AUTO_LIBRARY = object()
 
 
 @dataclass(frozen=True)
@@ -97,15 +98,15 @@ def build_identity_snapshot(
     *,
     policy_version: str,
     runtime_version: str,
-    library: SnapshotReference | None = None,
+    library: SnapshotReference | None | object = _AUTO_LIBRARY,
     migrations: tuple[MigrationRecord, ...] = (),
 ) -> IdentitySnapshot:
     memory_archive = build_memory_archive(runtime.memory)
     ego_payload = ego_registry_payload(runtime.ego_registry)
     library_reference = (
-        library
-        if library is not None
-        else _runtime_library_reference(runtime)
+        _runtime_library_reference(runtime)
+        if library is _AUTO_LIBRARY
+        else library
     )
 
     goal = runtime.state.current_goal
