@@ -121,6 +121,8 @@ def test_runtime_without_library_preserves_previous_behavior():
     response = runtime.run(YiSangRequest("r2", "plain request"))
 
     assert engine.contexts[0].library == []
+    assert "library" not in engine.contexts[0].to_dict()
+    assert "[ROLAND LIBRARY]" not in render_context(engine.contexts[0])
     assert response.used_knowledge_refs == []
 
 
