@@ -8,6 +8,8 @@ import json
 import time
 import uuid
 
+from yisang.library.archive import library_digest
+from yisang.library.models import LIBRARY_SCHEMA_VERSION
 from yisang.memory.models import MEMORY_SCHEMA_VERSION
 from yisang.memory.transfer import build_memory_archive
 
@@ -100,6 +102,11 @@ def build_identity_snapshot(
 ) -> IdentitySnapshot:
     memory_archive = build_memory_archive(runtime.memory)
     ego_payload = ego_registry_payload(runtime.ego_registry)
+    library_reference = (
+        library
+        if library is not None
+        else _runtime_library_reference(runtime)
+    )
 
     goal = runtime.state.current_goal
     active_goals = (goal,) if isinstance(goal, str) and goal.strip() else ()
@@ -134,7 +141,7 @@ def build_identity_snapshot(
             sha256=_sha256_json(ego_payload),
             schema_version=1,
         ),
-        library=library,
+        library=library_reference,
         policy_version=policy_version,
         runtime_version=runtime_version,
         migrations=tuple(migrations),
@@ -269,6 +276,13 @@ def validate_snapshot_against_runtime(
     if snapshot.ego_registry.sha256 != ego_digest:
         errors.append("E.G.O registry digest does not match snapshot")
 
+    if snapshot.library is not None:
+        runtime_library = _runtime_library_reference(runtime)
+        if runtime_library is None:
+            errors.append("runtime Library is missing for snapshot")
+        elif runtime_library != snapshot.library:
+            errors.append("authoritative Library digest does not match snapshot")
+
     runtime_state = {
         "active_project": runtime.state.active_project,
         "current_goal": runtime.state.current_goal,
@@ -281,6 +295,18 @@ def validate_snapshot_against_runtime(
         valid=not errors,
         errors=tuple(errors),
         warnings=tuple(warnings),
+    )
+
+
+def _runtime_library_reference(runtime) -> SnapshotReference | None:
+    port = getattr(runtime, "library_port", None)
+    if port is None:
+        return None
+    return SnapshotReference(
+        kind="library",
+        ref="library://authoritative",
+        sha256=library_digest(port),
+        schema_version=LIBRARY_SCHEMA_VERSION,
     )
 
 
