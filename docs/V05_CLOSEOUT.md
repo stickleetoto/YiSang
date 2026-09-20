@@ -1,10 +1,10 @@
 # YiSang v0.5 Identity Continuity — Implementation Closeout
 
-Status: **live two-engine validation passed / saved-report closeout check pending**
+Status: **VALIDATED**
 
 Frozen branch: `freeze/v0.5-implementation` (created from the freeze merge commit).
 
-A real Llama-family to Qwen-family continuity run passed on 2026-09-19 with 5/5 cases and `closeout_ready=true`. The remaining explicit closeout step is loading the saved report through `yisang-eval-continuity-check`. See `docs/VALIDATION_2026-09-19.md`.
+A real Llama-family to Qwen-family continuity run passed with 5/5 cases and `closeout_ready=true`. The saved report was then loaded through `yisang-eval-continuity-check` with `ready=true`, no errors, and pass rate 1.0. See `docs/VALIDATION_2026-09-19.md`.
 
 ## Implemented
 
@@ -110,53 +110,12 @@ Hardening includes:
 | restart + restore resumes same goal/state | portable fresh-runtime restore implemented |
 | schema migrations explicit/testable | implemented |
 | snapshot corruption detected | implemented |
-| continuity across two different engines | Llama 3.2 3B -> Qwen 2.5 1.5B, 5/5 passed; saved-report checker pending |
+| continuity across two different engines | Llama 3.2 3B -> Qwen 2.5 1.5B, 5/5 passed; saved-report checker ready=true |
 
-## Deferred validation pass
+## Validation closeout
 
-First update the local checkout:
-
-~~~powershell
-cd "D:\Users\leejy\Downloads\project\포폴\YiSang"
-git pull
-python -m pip install -e ".[dev]"
-pytest -q
-~~~
-
-Then run the v0.4 deferred checks:
-
-~~~powershell
-yisang-eval-memory --output ".\artifacts\memory-v04.json"
-~~~
-
-Then perform the real v0.5 engine-family run. Example shape:
-
-~~~powershell
-yisang-eval-continuity `
-  --source-base-url http://127.0.0.1:11434/v1 `
-  --source-model "<llama-family-model>" `
-  --source-engine-id llama-source `
-  --source-family llama `
-  --target-base-url http://127.0.0.1:11434/v1 `
-  --target-model "<qwen-family-model>" `
-  --target-engine-id qwen-target `
-  --target-family qwen `
-  --repeats 5 `
-  --output ".\artifacts\continuity-v05.json"
-~~~
-
-Finally:
-
-~~~powershell
-yisang-eval-continuity-check `
-  --input ".\artifacts\continuity-v05.json" `
-  --min-repeats 3
-~~~
-
-Only after that checker returns ready should v0.5 be marked validated.
+The deferred validation pass is complete. The full repository test suite, v0.4 memory benchmark and audit, real cross-family continuity run, and saved-report closeout checker all passed.
 
 ## Gate before v0.6
 
-Roland/v0.6 may be designed in parallel, but v0.5 should not be declared
-validated until the saved real-engine continuity report passes the closeout
-checker.
+The v0.5 validation gate is closed. Normal v0.6 Roland work may begin.

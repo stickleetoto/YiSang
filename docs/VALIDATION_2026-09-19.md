@@ -98,12 +98,25 @@ Result:
 
 Status: **LIVE CONTINUITY PASS**
 
-The saved report still needs to be loaded through
-`yisang-eval-continuity-check` to complete the explicit saved-evidence closeout
-step defined in the freeze policy.
+## Saved-report closeout check
+
+The saved continuity report was loaded through the closeout checker with the
+following result:
+
+~~~text
+ready      : true
+errors     : []
+case_count : 5
+pass_rate  : 1.0
+~~~
+
+The report metadata confirmed source `llama3.2:3b` / family `llama`, target
+`qwen2.5:1.5b` / family `qwen`, 5 repeats, and `max_tokens=32`.
+
+Status: **PASS**
 
 ## Current phase status
 
 - v0.4 Governed Memory: **VALIDATED**
-- v0.5 Identity Continuity: **live two-engine validation passed / saved-report closeout check pending**
-- package version remains **0.5.0rc1** until the saved report checker passes
+- v0.5 Identity Continuity: **VALIDATED**
+- release promotion: **0.5.0**
