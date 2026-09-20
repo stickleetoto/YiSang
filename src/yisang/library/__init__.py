@@ -20,6 +20,12 @@ from .models import (
     LibraryUsageNote,
 )
 from .port import LibraryPort
+from .retrieval import (
+    CompactLibraryIndex,
+    LeanKnowledgeRef,
+    LexicalLibraryRetriever,
+    LibrarySearchResult,
+)
 
 __all__ = [
     "LIBRARY_ARCHIVE_SCHEMA_VERSION",
@@ -30,6 +36,10 @@ __all__ = [
     "LibraryFormatError",
     "LibraryPort",
     "LibraryUsageNote",
+    "CompactLibraryIndex",
+    "LeanKnowledgeRef",
+    "LexicalLibraryRetriever",
+    "LibrarySearchResult",
     "build_library_archive",
     "import_legacy_roland_library",
     "legacy_roland_book_from_dict",
