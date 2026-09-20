@@ -17,6 +17,7 @@ from yisang.library.archive import (
 )
 from yisang.library.port import LibraryPort
 from yisang.library.retrieval import LexicalLibraryRetriever
+from yisang.memory.native_provider import NativeMemoryProvider
 from yisang.memory.pipeline import MemoryWritePipeline
 from yisang.memory.port import MemoryPort
 from yisang.memory.transfer import (
@@ -289,6 +290,7 @@ def apply_restore(
     old_library = getattr(runtime, "library_port", None)
     old_library_retriever = getattr(runtime, "library_retriever", None)
     old_pipeline = runtime.memory_pipeline
+    old_memory_provider = getattr(runtime, "memory_provider", None)
 
     try:
         runtime.identity = staged_identity
@@ -310,6 +312,11 @@ def apply_restore(
             governor=runtime.governor,
             quarantine=runtime.memory_pipeline.quarantine,
         )
+        if isinstance(old_memory_provider, NativeMemoryProvider):
+            runtime.memory_provider = NativeMemoryProvider(
+                memory=staged_memory,
+                pipeline=runtime.memory_pipeline,
+            )
 
         validation = validate_snapshot_against_runtime(snapshot, runtime)
         if not validation.valid:
@@ -337,6 +344,8 @@ def apply_restore(
         runtime.library_port = old_library
         runtime.library_retriever = old_library_retriever
         runtime.memory_pipeline = old_pipeline
+        if old_memory_provider is not None:
+            runtime.memory_provider = old_memory_provider
         raise
 
     return RestoreReport(
