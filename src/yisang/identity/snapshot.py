@@ -277,7 +277,7 @@ def validate_snapshot_against_runtime(
     if snapshot.ego_registry.sha256 != ego_digest:
         errors.append("E.G.O registry digest does not match snapshot")
 
-    if snapshot.library is not None:
+    if _is_authoritative_library_reference(snapshot.library):
         runtime_library = _runtime_library_reference(runtime)
         if runtime_library is None:
             errors.append("runtime Library is missing for snapshot")
@@ -296,6 +296,16 @@ def validate_snapshot_against_runtime(
         valid=not errors,
         errors=tuple(errors),
         warnings=tuple(warnings),
+    )
+
+
+def _is_authoritative_library_reference(
+    reference: SnapshotReference | None,
+) -> bool:
+    return (
+        reference is not None
+        and reference.kind == "library"
+        and reference.ref == "library://authoritative"
     )
 
 
