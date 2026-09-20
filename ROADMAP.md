@@ -423,7 +423,7 @@ On startup:
 
 ## v0.6 — Roland Library
 
-> Status: **CLOSEOUT-READY HARNESS — implementation and evidence gates are complete; live cross-family v0.6 evidence is pending**. See `docs/V06_ROLAND_FOUNDATION.md` and `docs/V06_CLOSEOUT.md`.
+> Status: **VALIDATED — live cross-family continuity and 10 / 50 / 100 / 500 Book evidence passed**. See `docs/V06_ROLAND_FOUNDATION.md`, `docs/V06_CLOSEOUT.md`, and `docs/VALIDATION_2026-09-20_V06.md`.
 
 ### Objective
 
@@ -1084,12 +1084,11 @@ Do not move to the next phase only because code exists. Move when the exit crite
 
 # 6. Immediate next work
 
-v0.4 and v0.5 are validated. YiSang has been promoted to `0.5.0`.
+v0.4, v0.5, and v0.6 are validated. YiSang has been promoted to `0.6.0`.
 
 Order:
 
-1. run `scripts/v06_closeout.ps1` against the real local/reachable Llama and Qwen endpoints
-2. preserve the generated continuity and 10 / 50 / 100 / 500 Book benchmark evidence
-3. require `yisang-eval-v06-closeout` to return `ready=true`
-4. record the live validation evidence and freeze v0.6
-5. import private Book packs only through an explicit external path after closeout
+1. freeze and preserve the validated v0.6 implementation/evidence boundary
+2. begin v0.7 Experience Promotion with raw-log -> candidate -> validation -> promotion separation
+3. keep private Roland Book packs external to the public repository
+4. preserve v0.6 continuity and Library benchmarks as regression gates for future phases

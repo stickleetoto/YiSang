@@ -1,133 +1,134 @@
 # YiSang
 
-**YiSang is a model-independent LLM enhancement layer.**
+**YiSang is a model-independent persistent-agent runtime.**
 
 > Models are replaceable. Memory and capability remain.
 
-YiSang keeps durable agent assets outside the attached model:
+Current release: **v0.6.0 — Roland Library validated**
 
-- identity and runtime state
-- external memory
+YiSang keeps durable agent assets outside the attached reasoning model:
+
+- identity and engine-independent runtime state
+- governed durable memory
 - E.G.O capability packs
-- context compilation
+- Roland Library knowledge
+- deterministic context compilation and budgeting
 - guarded tool execution
-- verification and governance
+- verification and provenance
+- continuity snapshots and portable restore bundles
 
-## v0.3 direction: YiSang as the model
+## Current architecture
 
-YiSang can now sit **behind an agent harness such as Codex** and present itself
-as an OpenAI-compatible model endpoint:
+~~~text
+Codex / UI / agent harness
+          |
+          v
+      YiSang Runtime
+          |
+          +-- Identity / State
+          +-- Memory
+          +-- E.G.O
+          +-- Roland Library
+          |      |
+          |      +-- authoritative LibraryPort
+          |      +-- rebuildable retrieval index
+          |      +-- request-aware delivery
+          |
+          +-- ContextCompiler
+          +-- continuity snapshot / restore
+          |
+          v
+   replaceable reasoning engine
+      Llama / Qwen / future
+~~~
 
-```text
-Codex
-  |
-  | model = yisang-qwen
-  v
-YiSang Model Server
-  |
-  +-- Memory
-  +-- E.G.O
-  +-- Context Compiler
-  +-- Identity / State
-  |
-  v
-Qwen / local OpenAI-compatible model
-```
+The attached LLM is not the source of truth. Replacing it changes reasoning
+quality, not the persistent identity and governed state.
 
-In this mode, Codex keeps its own tools, shell, sandbox, approvals, and agent
-loop. YiSang preserves Codex tool schemas on the request and passes Qwen tool
-calls back to Codex for execution.
+## Validated milestones
 
-Current model-server surface:
+- **v0.4 — Governed Memory:** validated
+- **v0.5 — Identity Continuity:** validated
+- **v0.6 — Roland Library:** validated
 
-```text
-GET  /health
-GET  /v1/models
-POST /v1/chat/completions
-```
+v0.6 live closeout used Llama 3.2 3B -> Qwen 2.5 1.5B across three repeated
+continuity cases. The Roland Library survived snapshot/restore and the same
+stable knowledge reference was retrieved on both sides. The deterministic
+10 / 50 / 100 / 500 Book scale benchmark also passed.
 
-Both normal Chat Completions and SSE streaming are supported. Responses API
-compatibility is the next protocol milestone.
+See:
 
-## Existing v0.2 foundation
-
-The v0.3 model-server branch is based on the integrated v0.2 line, which
-already provides:
-
-- persistent `SQLiteMemoryPort`
-- OpenAI-compatible local LLM engine
-- model-agnostic context budgets
-- deterministic context rendering
-- E.G.O loading from `manifest.json` + `SKILL.md`
-- engine-swap invariance probe
-- typed `ToolRegistry`
-- E.G.O capability + permission `ActionGate`
-- side-effect tools disabled by default
-- structured action decoding
-- bounded tool-feedback loop
-- read-only workspace tools with path confinement
-- GitHub Actions tests on Python 3.11 / 3.12
-
-BIO remains a future `MemoryPort` adapter rather than a YiSang dependency.
+- `docs/V04_CLOSEOUT.md`
+- `docs/V05_CLOSEOUT.md`
+- `docs/V06_CLOSEOUT.md`
+- `docs/VALIDATION_2026-09-20_V06.md`
+- `ROADMAP.md`
 
 ## Install
 
-```bash
-python -m pip install -e .[dev]
+~~~bash
+python -m pip install -e ".[dev]"
 pytest -q
-```
+~~~
 
-## Start YiSang as a local model
+Python 3.11 and 3.12 are covered by CI.
 
-Assuming LM Studio is serving Qwen at `http://127.0.0.1:1234/v1`:
+## v0.6 validation commands
 
-```powershell
-yisang-model-server `
-  --upstream-base-url http://127.0.0.1:1234/v1 `
-  --upstream-model YOUR_LM_STUDIO_MODEL_ID `
-  --model yisang-qwen
-```
+Run the deterministic Roland scale benchmark:
 
-YiSang then exposes:
+~~~powershell
+yisang-eval-library --output ".\artifacts\library-v06.json"
+yisang-eval-library-check --input ".\artifacts\library-v06.json"
+~~~
 
-```text
-http://127.0.0.1:18731/v1
-```
+Run live cross-engine continuity using OpenAI-compatible endpoints:
 
-For Codex, configure a custom provider with:
+~~~powershell
+.\scripts\v06_closeout.ps1 \
+  -SourceBaseUrl "http://127.0.0.1:11434/v1" \
+  -SourceModel "llama3.2:3b" \
+  -SourceFamily "llama" \
+  -TargetBaseUrl "http://127.0.0.1:11434/v1" \
+  -TargetModel "qwen2.5:1.5b" \
+  -TargetFamily "qwen"
+~~~
 
-```toml
-model = "yisang-qwen"
-model_provider = "yisang"
+## Model-server / Codex integration
 
-[model_providers.yisang]
-name = "YiSang Local"
-base_url = "http://127.0.0.1:18731/v1"
-wire_api = "chat"
-requires_openai_auth = false
-```
+YiSang can also sit behind an agent harness such as Codex and expose an
+OpenAI-compatible model surface while Codex retains shell, sandbox, approval,
+and external tool-execution authority.
 
-See `docs/CODEX_MODEL_SERVER.md` for the full flow.
+See `docs/CODEX_MODEL_SERVER.md` for that integration path.
 
 ## Core invariants
 
-1. `YiSang != the attached base model`.
-2. Engine replacement must not reset memory.
-3. Engine replacement must not reset capabilities.
-4. Model output is not authoritative memory.
-5. Memory writes pass through proposal + governance.
+1. YiSang is not the attached base model.
+2. Engine replacement must not reset identity, memory, goals, capabilities, or Library.
+3. Model output is not authoritative durable memory.
+4. Durable writes pass through proposal, provenance, validation, and governance.
+5. Session history is replay context, not the authoritative memory store.
 6. E.G.O is external capability data, not model weights.
 7. Model-proposed actions do not create execution authority.
-8. Side-effecting YiSang tools are opt-in.
-9. Tool output is evidence, not instruction authority.
-10. Tool loops are bounded.
-11. In Codex model-server mode, Codex retains client-tool execution authority.
-12. Core depends on interfaces, not model providers.
+8. Tool output is evidence, not instruction authority.
+9. Read-side indexes are rebuildable and never authoritative state.
+10. Library evidence retains provenance, trust, validation, and stable references.
+11. Continuity restore is staged and validated before runtime-owned state is swapped.
+12. Core interfaces remain independent of a single model provider or agent framework.
 
-## Documentation
+## Next phase
 
-- `docs/ARCHITECTURE.md`
-- `docs/EXECUTION.md`
-- `docs/CODEX_MODEL_SERVER.md`
-- `docs/HANDOFF.md`
-- `docs/TECH_RADAR_2026-09-17.md`
+v0.7 focuses on **Experience Promotion**:
+
+~~~text
+successful experience
+  -> lesson candidate
+  -> generalization
+  -> validation / replay
+  -> promotion gate
+  -> durable skill / Library knowledge / warning
+~~~
+
+Raw conversations or failures must never be promoted directly into durable
+capability.

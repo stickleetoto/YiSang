@@ -1,116 +1,148 @@
 # YiSang Handoff
 
-## Current target
+## Current release
 
-**v0.3.0 development — OpenAI-compatible YiSang Model Server**
+**v0.6.0 — Roland Library validated**
+
+v0.4 Governed Memory, v0.5 Identity Continuity, and v0.6 Roland Library have
+all crossed their validation gates.
+
+Latest validation evidence:
+
+- live source model: `llama3.2:3b`
+- live target model: `qwen2.5:1.5b`
+- engine families: Llama -> Qwen
+- continuity repeats: 3
+- continuity pass rate: 1.0
+- Library knowledge-ref retrieval before/after restore: passed
+- 10 / 50 / 100 / 500 Book benchmark: passed
+- composite v0.6 closeout: `ready=true`
+
+See `docs/VALIDATION_2026-09-20_V06.md`.
 
 ## Core thesis
 
-YiSang is not the attached base LLM. YiSang is the persistent cognitive layer
-that can itself be exposed as a model to an external agent harness.
+~~~text
+Models are replaceable.
+Memory and capability remain.
+~~~
 
-```text
-Codex / client agent
+YiSang owns persistent cognition/state. The attached LLM is a replaceable
+reasoning engine.
+
+## Current runtime boundary
+
+~~~text
+Codex / client / UI
         |
         v
-YiSang model-compatible proxy
+YiSang Runtime
         |
-        +-- identity/state
-        +-- memory
-        +-- E.G.O
-        +-- context compiler
+        +-- Identity / State
+        +-- governed Memory
+        +-- E.G.O capability registry
+        +-- Roland Library
+        |      +-- authoritative LibraryPort
+        |      +-- CompactLibraryIndex
+        |      +-- retrieval / fit / delivery
+        +-- ContextCompiler
+        +-- continuity snapshot / bundle / restore
         |
         v
-replaceable Qwen / local model
-```
+replaceable Llama / Qwen / future engine
+~~~
 
-## v0.3 implemented
+## v0.6 implemented
 
-- `YiSangModelProxy`
-- stdlib-only HTTP server
-- `GET /health`
-- `GET /v1/models`
-- `POST /v1/chat/completions`
-- non-streaming completion proxy
-- SSE streaming proxy
-- YiSang model alias rewriting
-- original client message preservation
-- original client tool-schema preservation
-- upstream tool-call preservation
-- YiSang memory retrieval before each model request
-- E.G.O routing before each model request
-- YiSang context injection before the original conversation
-- `yisang-model-server` CLI entry point
-- explicit unsupported `/v1/responses` error
-- HTTP/proxy regression tests
+- YiSang-native `Book` and `KnowledgeEntry`
+- authoritative `LibraryPort`
+- deterministic checksummed Library archive/digest
+- legacy Roland importer without copying the private corpus into the public repo
+- compact deterministic lexical retrieval
+- request-aware primary / complement / guardrail delivery
+- stable `knowledge_ref`
+- provenance / trust / validation in model-visible evidence
+- Library-aware ContextPack and budget accounting
+- optional Runtime retrieval integration
+- authoritative Runtime Library ownership
+- IdentitySnapshot Library digest binding
+- portable continuity-bundle Library archive/restore
+- staged Library restore before runtime mutation
+- retriever rebuild after restore
+- v0.6 continuity evaluator with source/target knowledge-ref proof
+- 10 / 50 / 100 / 500 Book benchmark
+- severe-budget guardrail priority
+- saved evidence checkers and composite closeout gate
 
-## Codex ownership model
+## Public/private boundary
 
-In Codex mode:
+The legacy Roland repository and private Book corpus remain private source
+assets.
 
-```text
-Codex owns:
-- shell
-- repository mutations
-- tool execution
-- sandbox
-- approvals
-- agent loop
+The public YiSang repository may contain:
 
-YiSang owns:
-- persistent cognition layer
-- memory retrieval
-- E.G.O selection
-- context augmentation
-- attached base-model selection
-```
+- generic Library architecture
+- schemas/interfaces
+- import compatibility code
+- synthetic fixtures
+- benchmark data
 
-Codex tool schemas are passed through YiSang to Qwen. Qwen tool calls are passed
-back through YiSang to Codex. YiSang does not steal Codex's tool executor.
+It must not contain the private Roland Book corpus.
 
-## v0.2 inherited foundation
+## Validated branches
 
-- SQLite persistent `MemoryPort`
-- OpenAI-compatible engine adapter
-- context budgeting
-- E.G.O directory loader
-- model invariance probe
-- guarded standalone action runtime
-- verification/governance
-- bounded internal tool-feedback loop
-- read-only workspace tools
-- Python 3.11 / 3.12 CI
+Expected preserved validation/freeze branches after closeout:
 
-## Guardrails
+- `freeze/v0.4-implementation`
+- `validated/v0.5`
+- `freeze/v0.5-implementation`
+- `validated/v0.6`
+- `freeze/v0.6-implementation`
 
-- BIO is not a dependency yet.
-- Do not make base-model output authoritative memory.
-- Keep memory and E.G.O outside Qwen.
-- Preserve external client tools exactly unless protocol translation requires a
-  deterministic transformation.
-- Do not execute Codex-owned tools inside YiSang model-server mode.
-- Bind to loopback by default.
-- Do not claim Responses API compatibility until its event and tool protocol is
-  actually implemented and tested.
+## Immediate next phase: v0.7 Experience Promotion
 
-## Next priorities
+Target pipeline:
 
-1. pass the full Python 3.11 / 3.12 CI on the v0.3 branch
-2. real LM Studio + Qwen smoke
-3. real Codex `wire_api = "chat"` smoke
-4. add `/v1/responses` compatibility
-5. Responses streaming + tool event translation
-6. per-client/session continuity metadata
-7. exact usage accounting / token-aware augmentation budgeting
-8. base Qwen vs `Codex + YiSang(Qwen)` benchmark
-9. BIO `MemoryPort` adapter later
+~~~text
+Raw Episode
+    |
+    v
+Lesson Candidate
+    |
+    v
+Generalize
+    |
+    v
+Validator
+    |
+    v
+Replay / test
+    |
+    v
+Promotion Gate
+    |
+    v
+Durable Skill / Knowledge / Warning
+~~~
 
-## Definition of done for v0.3 first milestone
+Rules:
 
-- Codex can select `yisang-qwen` as a custom model
-- YiSang injects memory/E.G.O context before Qwen inference
-- Codex tool schemas reach Qwen
-- Qwen tool calls reach Codex unchanged
-- both streaming and non-streaming Chat Completions work
-- the model server remains loopback-only by default
-- the inherited YiSang test suite still passes
+- raw conversation text is never promoted directly;
+- failure is evidence, not a skill;
+- every promoted artifact carries source evidence;
+- promotion must be replayable/testable;
+- privileged or security-sensitive capability is not auto-promoted;
+- promoted capability must be invalidatable and versioned;
+- Roland Library may receive validated knowledge, but v0.7 owns the promotion logic.
+
+## Known follow-up
+
+The v0.6 validation binary used a simple percentile estimator that is weak for
+three-sample p95 reporting. The closeout gates do not depend on latency
+thresholds. Correct the small-sample percentile estimator after the validated
+v0.6 freeze so the exact validated runtime boundary remains preserved.
+
+## Development rule
+
+Do not advance a phase because code merely exists. Preserve tests, saved
+evidence, exit criteria, and explicit migration boundaries.
