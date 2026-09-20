@@ -12,6 +12,7 @@ class ContextPack:
     state: dict[str, Any]
     memories: list[dict[str, Any]]
     egos: list[dict[str, Any]]
+    library: list[dict[str, Any]] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
     tools: list[dict[str, Any]] = field(default_factory=list)
     action_history: list[dict[str, Any]] = field(default_factory=list)
@@ -26,6 +27,7 @@ class ContextPack:
             "state": self.state,
             "memories": self.memories,
             "egos": self.egos,
+            "library": self.library,
             "constraints": self.constraints,
             "tools": self.tools,
             "action_history": self.action_history,
@@ -43,6 +45,7 @@ class ContextBudgetReport:
     user_chars: int
     memory_chars: int
     ego_chars: int
+    library_chars: int
     tool_chars: int
     action_history_chars: int
     session_chars: int
@@ -50,6 +53,8 @@ class ContextBudgetReport:
     dropped_memories: int
     selected_egos: int
     dropped_egos: int
+    selected_library_items: int
+    dropped_library_items: int
     selected_tools: int
     dropped_tools: int
     selected_action_history: int
