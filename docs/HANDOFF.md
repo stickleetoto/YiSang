@@ -171,3 +171,27 @@ evidence, exit criteria, and explicit migration boundaries.
   - durable PromotionPort
   - governed application adapters for E.G.O / Library / warnings / routing
   - replay harness integration with real runtime episodes
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 durable promotion + apply boundary
+
+- Goal:
+  - make accepted promotion artifacts durable and introduce an explicit governed
+    application boundary
+- Added:
+  - PromotionPort abstraction
+  - SQLitePromotionPort with persistent artifacts and apply receipts
+  - application requests carrying actor, approval_ref, reason, and target_ref
+  - idempotent LibraryKnowledgeApplyAdapter
+  - stable promoted Library entry ids and promotion provenance
+  - EgoInstructionPatchAdapter that produces an approved patch without mutating
+    the current file-backed E.G.O registry
+  - persistent invalidation and application receipt tests
+- Important boundary:
+  - validation/promotion and application remain separate operations
+  - E.G.O is not directly mutated until it has its own durable mutation port
+  - repeated Library application cannot duplicate the same promoted entry
+- Next:
+  - durable E.G.O mutation/version port
+  - runtime episode capture and replay harness integration
+  - promotion rollback/supersession across applied targets

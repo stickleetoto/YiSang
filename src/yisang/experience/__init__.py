@@ -1,9 +1,9 @@
-from .ledger import InMemoryPromotionLedger
+from .application import (\n    EgoInstructionPatchAdapter,\n    LibraryKnowledgeApplyAdapter,\n    PromotionApplicationError,\n)\nfrom .ledger import InMemoryPromotionLedger\nfrom .port import PromotionPort\nfrom .sqlite import SQLitePromotionPort
 from .models import (
-    ExperienceEpisode,
+    EgoInstructionPatch,\n    ExperienceEpisode,
     ExperienceEvidence,
     LessonCandidate,
-    PromotionArtifact,
+    PromotionApplyReceipt,\n    PromotionApplyRequest,\n    PromotionArtifact,
     PromotionDecision,
     PromotionOutcome,
     ReplayCaseResult,
@@ -12,13 +12,13 @@ from .models import (
 from .promotion import PromotionGate
 
 __all__ = [
-    "ExperienceEpisode",
+    "EgoInstructionPatch",\n    "EgoInstructionPatchAdapter",\n    "ExperienceEpisode",
     "ExperienceEvidence",
-    "InMemoryPromotionLedger",
+    "InMemoryPromotionLedger",\n    "LibraryKnowledgeApplyAdapter",
     "LessonCandidate",
-    "PromotionArtifact",
+    "PromotionApplicationError",\n    "PromotionApplyReceipt",\n    "PromotionApplyRequest",\n    "PromotionArtifact",
     "PromotionDecision",
-    "PromotionGate",
+    "PromotionGate",\n    "PromotionPort",\n    "SQLitePromotionPort",
     "PromotionOutcome",
     "ReplayCaseResult",
     "ReplayReport",

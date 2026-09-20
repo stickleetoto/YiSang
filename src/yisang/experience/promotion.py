@@ -141,5 +141,8 @@ class PromotionGate:
                 )
             ),
             validation_run_id=replay.run_id,
+            trigger_conditions=candidate.trigger_conditions,
+            scope=candidate.scope,
+            risk_class=candidate.risk_class,
         )
         return PromotionOutcome(decision=decision, artifact=artifact)

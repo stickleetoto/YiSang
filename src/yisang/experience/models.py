@@ -42,6 +42,7 @@ RISK_CLASSES = frozenset(
     {"low", "normal", "high", "privileged", "security_sensitive"}
 )
 PROMOTION_STATES = frozenset({"active", "invalidated"})
+APPLY_STATUSES = frozenset({"applied", "rejected", "already_applied"})
 
 
 def _required(value: str, *, name: str) -> str:
@@ -179,6 +180,9 @@ class PromotionArtifact:
     source_episode_ids: tuple[str, ...]
     evidence_refs: tuple[str, ...]
     validation_run_id: str
+    trigger_conditions: tuple[str, ...] = ()
+    scope: str = "general"
+    risk_class: str = "normal"
     created_at: float = field(default_factory=time.time)
     state: str = "active"
     invalidated_at: float | None = None
@@ -192,6 +196,9 @@ class PromotionArtifact:
         _required(self.content, name="content")
         _required(self.version, name="version")
         _required(self.validation_run_id, name="validation_run_id")
+        _required(self.scope, name="scope")
+        if self.risk_class not in RISK_CLASSES:
+            raise ValueError(f"unsupported risk_class: {self.risk_class}")
         if self.state not in PROMOTION_STATES:
             raise ValueError(f"unsupported promotion state: {self.state}")
 
@@ -206,6 +213,68 @@ class PromotionArtifact:
         self.state = "invalidated"
         self.invalidated_at = time.time()
         self.invalidation_reason = normalized
+
+
+@dataclass(frozen=True)
+class PromotionApplyRequest:
+    artifact_id: str
+    target_ref: str
+    actor: str
+    approval_ref: str
+    reason: str
+
+    def __post_init__(self) -> None:
+        _required(self.artifact_id, name="artifact_id")
+        _required(self.target_ref, name="target_ref")
+        _required(self.actor, name="actor")
+        _required(self.approval_ref, name="approval_ref")
+        _required(self.reason, name="reason")
+
+
+@dataclass(frozen=True)
+class PromotionApplyReceipt:
+    apply_id: str
+    artifact_id: str
+    target: str
+    target_ref: str
+    actor: str
+    approval_ref: str
+    reason: str
+    status: str
+    result_ref: str
+    created_at: float = field(default_factory=time.time)
+
+    def __post_init__(self) -> None:
+        _required(self.apply_id, name="apply_id")
+        _required(self.artifact_id, name="artifact_id")
+        _required(self.target, name="target")
+        _required(self.target_ref, name="target_ref")
+        _required(self.actor, name="actor")
+        _required(self.approval_ref, name="approval_ref")
+        _required(self.reason, name="reason")
+        _required(self.result_ref, name="result_ref")
+        if self.status not in APPLY_STATUSES:
+            raise ValueError(f"unsupported apply status: {self.status}")
+
+
+@dataclass(frozen=True)
+class EgoInstructionPatch:
+    patch_id: str
+    artifact_id: str
+    ego_id: str
+    target: str
+    instruction: str
+    version: str
+    evidence_refs: tuple[str, ...]
+    approval_ref: str
+
+    def __post_init__(self) -> None:
+        _required(self.patch_id, name="patch_id")
+        _required(self.artifact_id, name="artifact_id")
+        _required(self.ego_id, name="ego_id")
+        _required(self.instruction, name="instruction")
+        _required(self.version, name="version")
+        _required(self.approval_ref, name="approval_ref")
 
 
 @dataclass(frozen=True)
