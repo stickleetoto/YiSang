@@ -30,7 +30,7 @@ python -m pytest `
 Expected:
 
 ~~~text
-12 passed
+19 passed
 ~~~
 
 ## Adapter smoke
