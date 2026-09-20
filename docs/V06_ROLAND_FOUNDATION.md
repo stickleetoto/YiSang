@@ -155,6 +155,25 @@ Implemented:
 - restore evidence for Library book count and pre/post digest
 - compatibility with older snapshots where `library=None`
 
+## Sixth slice: continuity retrieval and scale validation harnesses
+
+Implemented:
+
+- continuity probe support for expected `knowledge_ref` values
+- source-side and restored-runtime Library retrieval evidence
+- explicit `library_preserved` continuity result
+- v0.6 closeout gate requiring Library snapshot preservation and source/target knowledge retrieval
+- backward-compatible loading of v0.5 continuity reports without Library fields
+- `yisang-eval-continuity-check --phase auto|v0.5|v0.6`
+- live OpenAI-compatible continuity runner seeded with a deterministic Roland Book
+- `yisang-eval-library` deterministic scale benchmark
+- default scale matrix: 10 / 50 / 100 / 500 Books
+- scale metrics for index build latency, mean/p95 search latency, top-1 selection accuracy, index size, and delivered context size
+
+The v0.6 continuity criterion is stronger than archive equality alone: the
+restored Runtime must retrieve the expected stable knowledge reference after
+the reasoning engine is replaced.
+
 ## Explicitly deferred
 
 The current v0.6 slices do not yet include:
@@ -167,9 +186,9 @@ v0.6 only preserves compatible durable notes during import.
 
 ## Next slice
 
-1. add deterministic retrieval and tighter end-to-end safety-budget evals;
-2. add scale benchmarks for 10 / 50 / 100 / 500 books;
-3. verify restored Library retrieval after an engine swap in the continuity evaluator;
+1. run the live cross-family v0.6 continuity evaluator against the local Llama/Qwen endpoints;
+2. run and save the 10 / 50 / 100 / 500 Book scale benchmark report;
+3. add tighter end-to-end safety-budget cases around primary/guardrail competition;
 4. import private Book packs only through an explicit external path;
-5. close v0.6 only after retrieval, continuity, and scale evidence are reproducible;
+5. close v0.6 only after the saved continuity and scale reports are reproducible;
 6. keep SQLite LibraryPort deferred until persistence pressure justifies it.
