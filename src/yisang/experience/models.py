@@ -85,6 +85,10 @@ class ExperienceEpisode:
     evidence: tuple[ExperienceEvidence, ...]
     trigger_conditions: tuple[str, ...] = ()
     procedure_steps: tuple[str, ...] = ()
+    request_id: str = ""
+    engine_id: str = ""
+    verification_status: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
     schema_version: int = EXPERIENCE_SCHEMA_VERSION
 

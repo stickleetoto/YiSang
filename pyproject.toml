@@ -25,6 +25,8 @@ yisang-eval-v06-closeout = "yisang.eval.v06_closeout:main"
 yisang-eval-continuity-check = "yisang.eval.continuity_check:main"
 yisang-memory-archive = "yisang.memory.transfer:main"
 yisang-memory-audit = "yisang.memory.audit:main"
+yisang-experience-audit = "yisang.experience.audit:main"
+yisang-experience-smoke = "yisang.experience.smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

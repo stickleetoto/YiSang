@@ -3,6 +3,9 @@ from .application import (
     LibraryKnowledgeApplyAdapter,
     PromotionApplicationError,
 )
+from .episode_memory import InMemoryExperiencePort
+from .episode_port import ExperiencePort
+from .episode_sqlite import SQLiteExperiencePort
 from .ledger import InMemoryPromotionLedger
 from .models import (
     EgoInstructionPatch,
@@ -18,6 +21,7 @@ from .models import (
     ReplayReport,
 )
 from .port import PromotionPort
+from .recorder import ExperienceRecorder
 from .promotion import PromotionGate
 from .sqlite import SQLitePromotionPort
 
@@ -25,7 +29,10 @@ __all__ = [
     "EgoInstructionPatch",
     "EgoInstructionPatchAdapter",
     "ExperienceEpisode",
+    "ExperiencePort",
+    "ExperienceRecorder",
     "ExperienceEvidence",
+    "InMemoryExperiencePort",
     "InMemoryPromotionLedger",
     "LessonCandidate",
     "LibraryKnowledgeApplyAdapter",
@@ -39,5 +46,6 @@ __all__ = [
     "PromotionPort",
     "ReplayCaseResult",
     "ReplayReport",
+    "SQLiteExperiencePort",
     "SQLitePromotionPort",
 ]

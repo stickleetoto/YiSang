@@ -195,3 +195,12 @@ evidence, exit criteria, and explicit migration boundaries.
   - durable E.G.O mutation/version port
   - runtime episode capture and replay harness integration
   - promotion rollback/supersession across applied targets
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 runtime episode capture
+- Added ExperiencePort with in-memory and SQLite stores.
+- YiSangRuntime can optionally capture normalized success/failure episodes.
+- Raw request text is fingerprinted with SHA-256 instead of copied into normalized metadata.
+- Only explicitly goal-satisfied executed tool results become promotable tool evidence.
+- Added yisang-experience-smoke and yisang-experience-audit for local verification.
+- Capture remains separate from candidate creation and promotion/application.

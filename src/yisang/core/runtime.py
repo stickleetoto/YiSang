@@ -8,6 +8,8 @@ from yisang.engines.router import EngineRouter
 from yisang.execution.failure import failure_from_gate_reason
 from yisang.execution.models import ActionResult
 from yisang.execution.runtime import ActionRuntime
+from yisang.experience.episode_port import ExperiencePort
+from yisang.experience.recorder import ExperienceRecorder
 from yisang.identity.models import AgentState, IdentityCharter
 from yisang.library.delivery import build_library_delivery
 from yisang.library.port import LibraryPort
@@ -38,6 +40,8 @@ class YiSangRuntime:
         session_port: SessionPort | None = None,
         library_port: LibraryPort | None = None,
         library_retriever: LexicalLibraryRetriever | None = None,
+        experience_port: ExperiencePort | None = None,
+        experience_recorder: ExperienceRecorder | None = None,
         library_limit: int = 3,
         max_action_rounds: int = 3,
     ) -> None:
@@ -73,6 +77,8 @@ class YiSangRuntime:
 
         self.library_port = library_port
         self.library_retriever = library_retriever
+        self.experience_port = experience_port
+        self.experience_recorder = experience_recorder or ExperienceRecorder()
         self.library_limit = library_limit
         self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
             memory=memory,
@@ -263,7 +269,7 @@ class YiSangRuntime:
                 },
             )
 
-        return YiSangResponse(
+        response = YiSangResponse(
             request_id=request.request_id,
             text=result.text,
             engine_id=result.engine_id,
@@ -274,6 +280,16 @@ class YiSangRuntime:
             action_results=[item.to_dict() for item in action_results],
             memory_write_results=memory_write_results,
         )
+        if self.experience_port is not None:
+            episode = self.experience_recorder.capture(
+                request_id=request.request_id, request_text=request.text,
+                request_metadata=request.metadata, engine_id=result.engine_id,
+                verification_status=verification.status, verification_reason=verification.reason,
+                action_results=action_results, memories=memories, library_payload=library_payload,
+            )
+            self.experience_port.put_episode(episode)
+            response.experience_episode_id = episode.episode_id
+        return response
 
 
 def _history_item(proposal, result: ActionResult) -> dict:

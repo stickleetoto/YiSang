@@ -20,3 +20,4 @@ class YiSangResponse:
     used_knowledge_refs: list[str] = field(default_factory=list)
     action_results: list[dict[str, Any]] = field(default_factory=list)
     memory_write_results: list[dict[str, Any]] = field(default_factory=list)
+    experience_episode_id: str | None = None
