@@ -197,3 +197,27 @@ def test_timeout_becomes_failed_replay_result(tmp_path) -> None:
     report = _executor(tmp_path).execute(plan, specs)
     assert all(not result.passed for result in report.results)
     assert all("timeout" in result.detail for result in report.results)
+
+
+def test_absolute_allowlist_does_not_degrade_to_basename(tmp_path) -> None:
+    _, plan = _plan()
+    basename = __import__("pathlib").Path(sys.executable).name
+    specs = tuple(
+        ReplayExecutionSpec(
+            test_id=case.test_id,
+            argv=(basename, "-c", "pass"),
+        )
+        for case in plan.cases
+    )
+
+    with pytest.raises(ReplayExecutionError, match="not allowed"):
+        _executor(tmp_path).execute(plan, specs)
+
+
+def test_file_expectation_rejects_exact_text_when_absence_is_expected() -> None:
+    with pytest.raises(ValueError, match="exact_text requires"):
+        FileExpectation(
+            path="x.txt",
+            must_exist=False,
+            exact_text="impossible",
+        )
