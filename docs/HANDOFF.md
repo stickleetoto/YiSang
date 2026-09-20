@@ -204,3 +204,15 @@ evidence, exit criteria, and explicit migration boundaries.
 - Only explicitly goal-satisfied executed tool results become promotable tool evidence.
 - Added yisang-experience-smoke and yisang-experience-audit for local verification.
 - Capture remains separate from candidate creation and promotion/application.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 deterministic generalization + replay plan
+
+- Added ExperienceGeneralizer with a conservative repeated-evidence threshold.
+- Procedure candidates require repeated success, promotable evidence in every source episode, at least one shared trigger, and identical procedure steps.
+- Warning candidates require repeated failure evidence.
+- Candidate ids are content-derived and deterministic across source ordering.
+- Added source-episode ReplayPlan and strict ReplayReport construction.
+- Replay report creation rejects missing or unexpected test results.
+- Added yisang-generalization-smoke for local Episode -> Candidate -> ReplayPlan -> PromotionGate wiring.
+- Important: the smoke uses simulated replay results; real tool replay remains a later v0.7 slice.

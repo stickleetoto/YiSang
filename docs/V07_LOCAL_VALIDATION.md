@@ -83,3 +83,25 @@ promotion evidence.
 
 That integration is a later v0.7 slice. Do not infer tool success from model
 text alone.
+
+
+## 8. Repeated-experience generalization smoke
+
+This smoke uses three synthetic but independently verified source episodes. It tests the deterministic middle path without an external LLM or real tool side effects.
+
+~~~powershell
+yisang-generalization-smoke
+~~~
+
+Expected important values:
+
+~~~text
+ready = true
+source_episode_count = 3
+success_count = 3
+replay_case_count = 3
+simulated_replay_results = true
+promotion_accepted = true
+~~~
+
+The simulated replay flag is intentional. This validates Episode -> Generalizer -> LessonCandidate -> ReplayPlan -> ReplayReport -> PromotionGate wiring; it does not claim real tools were replayed.

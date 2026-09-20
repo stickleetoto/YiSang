@@ -6,6 +6,10 @@ from .application import (
 from .episode_memory import InMemoryExperiencePort
 from .episode_port import ExperiencePort
 from .episode_sqlite import SQLiteExperiencePort
+from .generalizer import (
+    ExperienceGeneralizationError,
+    ExperienceGeneralizer,
+)
 from .ledger import InMemoryPromotionLedger
 from .models import (
     EgoInstructionPatch,
@@ -22,6 +26,12 @@ from .models import (
 )
 from .port import PromotionPort
 from .recorder import ExperienceRecorder
+from .replay import (
+    ReplayPlan,
+    ReplayPlanBuilder,
+    ReplayPlanCase,
+    ReplayPlanError,
+)
 from .promotion import PromotionGate
 from .sqlite import SQLitePromotionPort
 
@@ -29,6 +39,8 @@ __all__ = [
     "EgoInstructionPatch",
     "EgoInstructionPatchAdapter",
     "ExperienceEpisode",
+    "ExperienceGeneralizationError",
+    "ExperienceGeneralizer",
     "ExperiencePort",
     "ExperienceRecorder",
     "ExperienceEvidence",
@@ -45,6 +57,10 @@ __all__ = [
     "PromotionOutcome",
     "PromotionPort",
     "ReplayCaseResult",
+    "ReplayPlan",
+    "ReplayPlanBuilder",
+    "ReplayPlanCase",
+    "ReplayPlanError",
     "ReplayReport",
     "SQLiteExperiencePort",
     "SQLitePromotionPort",

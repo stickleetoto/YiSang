@@ -27,6 +27,7 @@ yisang-memory-archive = "yisang.memory.transfer:main"
 yisang-memory-audit = "yisang.memory.audit:main"
 yisang-experience-audit = "yisang.experience.audit:main"
 yisang-experience-smoke = "yisang.experience.smoke:main"
+yisang-generalization-smoke = "yisang.experience.generalization_smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
