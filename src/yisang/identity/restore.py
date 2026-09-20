@@ -10,6 +10,13 @@ import time
 from yisang.ego.models import EgoManifest
 from yisang.ego.registry import EgoRegistry
 from yisang.identity.models import AgentState, IdentityCharter
+from yisang.library.archive import (
+    build_library_archive,
+    restore_library_archive,
+    validate_library_archive,
+)
+from yisang.library.port import LibraryPort
+from yisang.library.retrieval import LexicalLibraryRetriever
 from yisang.memory.pipeline import MemoryWritePipeline
 from yisang.memory.port import MemoryPort
 from yisang.memory.transfer import (
@@ -36,9 +43,11 @@ class RestorePlan:
     identity_matches: bool
     memory_matches: bool
     ego_registry_matches: bool
+    library_matches: bool
     state_matches: bool
     requires_memory_restore: bool
     requires_ego_restore: bool
+    requires_library_restore: bool
     requires_state_restore: bool
     blockers: tuple[str, ...]
     warnings: tuple[str, ...]
@@ -52,6 +61,7 @@ class RestorePlan:
 class RestoreArtifacts:
     memory_archive: dict | None = None
     ego_manifests: tuple[EgoManifest, ...] | None = None
+    library_archive: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -64,6 +74,7 @@ class RestoreReport:
     state_restored: bool
     memory_restored: bool
     ego_registry_restored: bool
+    library_restored: bool
     pre_continuity_fingerprint: str
     post_continuity_fingerprint: str
     warnings: tuple[str, ...] = ()
@@ -87,6 +98,7 @@ class RestoreReport:
 RESTORE_REPORT_SCHEMA_VERSION = 1
 
 MemoryFactory = Callable[[], MemoryPort]
+LibraryFactory = Callable[[], LibraryPort]
 
 
 def plan_restore(
@@ -108,12 +120,16 @@ def plan_restore(
         runtime,
         policy_version=snapshot.policy_version,
         runtime_version=snapshot.runtime_version,
-        library=snapshot.library,
     )
 
     identity_matches = current.agent_id == snapshot.agent_id
     memory_matches = current.memory == snapshot.memory
     ego_matches = current.ego_registry == snapshot.ego_registry
+    library_matches = (
+        True
+        if snapshot.library is None
+        else current.library == snapshot.library
+    )
     state_matches = current.state == snapshot.state
 
     if not identity_matches:
@@ -122,6 +138,8 @@ def plan_restore(
         warnings.append("authoritative memory restore is required")
     if not ego_matches:
         warnings.append("E.G.O registry restore is required")
+    if not library_matches:
+        warnings.append("authoritative Library restore is required")
     if not state_matches:
         warnings.append("engine-independent state restore is required")
 
@@ -131,9 +149,11 @@ def plan_restore(
         identity_matches=identity_matches,
         memory_matches=memory_matches,
         ego_registry_matches=ego_matches,
+        library_matches=library_matches,
         state_matches=state_matches,
         requires_memory_restore=not memory_matches,
         requires_ego_restore=not ego_matches,
+        requires_library_restore=not library_matches,
         requires_state_restore=not state_matches,
         blockers=tuple(blockers),
         warnings=tuple(dict.fromkeys(warnings)),
@@ -147,6 +167,7 @@ def apply_restore(
     target_engine: str,
     artifacts: RestoreArtifacts | None = None,
     memory_factory: MemoryFactory | None = None,
+    library_factory: LibraryFactory | None = None,
 ) -> RestoreReport:
     """Stage, validate, then atomically swap runtime continuity components.
 
@@ -214,6 +235,43 @@ def apply_restore(
             )
         staged_egos = candidate_egos
 
+    staged_library = getattr(runtime, "library_port", None)
+    if plan.requires_library_restore:
+        if snapshot.library is None:
+            raise ValueError(
+                "restore plan requires Library restore without snapshot reference"
+            )
+        if artifacts.library_archive is None:
+            raise ValueError(
+                "restore requires a Library archive artifact"
+            )
+        if library_factory is None:
+            raise ValueError(
+                "restore requires library_factory when authoritative Library differs"
+            )
+        validate_library_archive(artifacts.library_archive)
+        if artifacts.library_archive.get("books_sha256") != snapshot.library.sha256:
+            raise ValueError(
+                "Library archive digest does not match snapshot reference"
+            )
+
+        candidate_library = library_factory()
+        if not candidate_library.is_empty():
+            raise ValueError(
+                "library_factory must return an empty staging LibraryPort"
+            )
+        restore_library_archive(
+            artifacts.library_archive,
+            candidate_library,
+            overwrite=False,
+        )
+        staged_library_archive = build_library_archive(candidate_library)
+        if staged_library_archive["books_sha256"] != snapshot.library.sha256:
+            raise ValueError(
+                "staged Library digest does not match snapshot reference"
+            )
+        staged_library = candidate_library
+
     restore_started_at = time.time()
     pre_snapshot = build_identity_snapshot(
         runtime,
@@ -227,6 +285,8 @@ def apply_restore(
     old_state = runtime.state
     old_memory = runtime.memory
     old_egos = runtime.ego_registry
+    old_library = getattr(runtime, "library_port", None)
+    old_library_retriever = getattr(runtime, "library_retriever", None)
     old_pipeline = runtime.memory_pipeline
 
     try:
@@ -234,6 +294,13 @@ def apply_restore(
         runtime.state = staged_state
         runtime.memory = staged_memory
         runtime.ego_registry = staged_egos
+        if snapshot.library is not None:
+            runtime.library_port = staged_library
+            runtime.library_retriever = (
+                LexicalLibraryRetriever(staged_library)
+                if staged_library is not None
+                else None
+            )
 
         # Keep the existing governor/quarantine object identities but redirect
         # governed writes to the staged authoritative store.
@@ -266,6 +333,8 @@ def apply_restore(
         runtime.state = old_state
         runtime.memory = old_memory
         runtime.ego_registry = old_egos
+        runtime.library_port = old_library
+        runtime.library_retriever = old_library_retriever
         runtime.memory_pipeline = old_pipeline
         raise
 
@@ -278,20 +347,36 @@ def apply_restore(
         state_restored=plan.requires_state_restore,
         memory_restored=plan.requires_memory_restore,
         ego_registry_restored=plan.requires_ego_restore,
+        library_restored=plan.requires_library_restore,
         pre_continuity_fingerprint=pre_fingerprint,
         post_continuity_fingerprint=post_fingerprint,
         warnings=plan.warnings,
         evidence={
             "memory_record_count": len(runtime.memory.all()),
             "ego_count": len(runtime.ego_registry.list_all()),
+            "library_book_count": (
+                len(runtime.library_port.list_books())
+                if getattr(runtime, "library_port", None) is not None
+                else 0
+            ),
             "memory_sha256": snapshot.memory.sha256,
             "ego_registry_sha256": snapshot.ego_registry.sha256,
+            "library_sha256": (
+                snapshot.library.sha256
+                if snapshot.library is not None
+                else None
+            ),
             "target_engine_registered": True,
             "source_snapshot_sha256": snapshot_payload_sha256(snapshot),
             "pre_runtime_snapshot_id": pre_snapshot.snapshot_id,
             "post_runtime_snapshot_id": post_snapshot.snapshot_id,
             "post_memory_sha256": post_snapshot.memory.sha256,
             "post_ego_registry_sha256": post_snapshot.ego_registry.sha256,
+            "post_library_sha256": (
+                post_snapshot.library.sha256
+                if post_snapshot.library is not None
+                else None
+            ),
             "restore_started_at": restore_started_at,
         },
     )
