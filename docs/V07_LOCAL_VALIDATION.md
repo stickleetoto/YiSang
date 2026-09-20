@@ -21,7 +21,7 @@ python -m pip install -e ".[dev]"
 ## 3. Focused v0.7 tests
 
 ~~~powershell
-python -m pytest tests/test_experience_promotion_v07.py tests/test_experience_application_v07.py tests/test_experience_recorder_v07.py tests/test_experience_store_v07.py tests/test_runtime_experience_v07.py tests/test_experience_smoke_v07.py tests/test_experience_generalizer_v07.py tests/test_experience_replay_plan_v07.py tests/test_experience_generalization_smoke_v07.py -q
+python -m pytest tests/test_experience_promotion_v07.py tests/test_experience_application_v07.py tests/test_experience_recorder_v07.py tests/test_experience_store_v07.py tests/test_runtime_experience_v07.py tests/test_experience_smoke_v07.py tests/test_experience_generalizer_v07.py tests/test_experience_replay_plan_v07.py tests/test_experience_generalization_smoke_v07.py tests/test_experience_executor_v07.py tests/test_experience_real_replay_smoke_v07.py -q
 ~~~
 
 ## 4. Full regression
@@ -33,7 +33,7 @@ python -m pytest -q
 Expected repository-side CI baseline at the time this document was written:
 
 ~~~text
-278 passed
+290 passed
 ~~~
 
 ## 5. Runtime persistence smoke
