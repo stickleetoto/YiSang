@@ -14,6 +14,7 @@ from yisang.eval.continuity import (
     load_continuity_report,
     run_continuity_case,
     write_continuity_report,
+    _percentile,
 )
 from yisang.identity.models import AgentState, IdentityCharter
 from yisang.memory.governor import MemoryGovernor
@@ -301,3 +302,9 @@ def test_saved_continuity_report_rejects_missing_case_field(tmp_path):
 
     with pytest.raises(ValueError, match="missing field"):
         load_continuity_report(path)
+
+
+
+def test_continuity_percentile_uses_nearest_rank_for_small_samples():
+    assert _percentile([1.0, 2.0, 100.0], 0.95) == 100.0
+    assert _percentile([1.0, 2.0, 100.0], 0.0) == 1.0

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict, dataclass
 import json
+from math import ceil
 from pathlib import Path
 from time import perf_counter
 from typing import Iterable
@@ -374,15 +375,13 @@ def _mean(values: list[float]) -> float:
 def _percentile(values: list[float], fraction: float) -> float:
     if not values:
         return 0.0
+    if not 0.0 <= fraction <= 1.0:
+        raise ValueError("fraction must be between 0 and 1")
     ordered = sorted(values)
-    index = max(
-        0,
-        min(
-            len(ordered) - 1,
-            int((len(ordered) - 1) * fraction),
-        ),
-    )
-    return ordered[index]
+    if fraction == 0.0:
+        return ordered[0]
+    rank = max(1, min(len(ordered), ceil(fraction * len(ordered))))
+    return ordered[rank - 1]
 
 
 if __name__ == "__main__":

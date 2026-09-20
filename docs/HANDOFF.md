@@ -135,12 +135,14 @@ Rules:
 - promoted capability must be invalidatable and versioned;
 - Roland Library may receive validated knowledge, but v0.7 owns the promotion logic.
 
-## Known follow-up
+## Post-freeze measurement fix
 
-The v0.6 validation binary used a simple percentile estimator that is weak for
-three-sample p95 reporting. The closeout gates do not depend on latency
-thresholds. Correct the small-sample percentile estimator after the validated
-v0.6 freeze so the exact validated runtime boundary remains preserved.
+The validated v0.6 freeze preserves the exact binary that produced the recorded
+closeout evidence. Mainline development then corrected the small-sample
+percentile estimator to nearest-rank semantics and added regression tests.
+
+This measurement-only fix begins the `0.6.1.dev0` line. It does not alter the
+v0.6 continuity/Library pass criteria or mutate the validated/freeze branches.
 
 ## Development rule
 
