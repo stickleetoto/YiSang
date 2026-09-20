@@ -9,6 +9,8 @@ from yisang.execution.failure import failure_from_gate_reason
 from yisang.execution.models import ActionResult
 from yisang.execution.runtime import ActionRuntime
 from yisang.identity.models import AgentState, IdentityCharter
+from yisang.library.delivery import build_library_delivery
+from yisang.library.retrieval import LexicalLibraryRetriever
 from yisang.memory.governor import MemoryGovernor
 from yisang.memory.pipeline import MemoryWritePipeline
 from yisang.memory.port import MemoryPort
@@ -33,10 +35,14 @@ class YiSangRuntime:
         action_runtime: ActionRuntime | None = None,
         memory_pipeline: MemoryWritePipeline | None = None,
         session_port: SessionPort | None = None,
+        library_retriever: LexicalLibraryRetriever | None = None,
+        library_limit: int = 3,
         max_action_rounds: int = 3,
     ) -> None:
         if max_action_rounds < 0:
             raise ValueError("max_action_rounds must be non-negative")
+        if library_limit <= 0:
+            raise ValueError("library_limit must be positive")
 
         self.identity = identity
         self.state = state
@@ -49,6 +55,8 @@ class YiSangRuntime:
         self.verifier = verifier
         self.action_runtime = action_runtime
         self.session_port = session_port
+        self.library_retriever = library_retriever
+        self.library_limit = library_limit
         self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
             memory=memory,
             governor=governor,
@@ -78,10 +86,22 @@ class YiSangRuntime:
             if self.action_runtime is not None
             else []
         )
+        library_payload = ()
+        if self.library_retriever is not None and request.text.strip():
+            library_results = self.library_retriever.search(
+                request.text,
+                limit=self.library_limit,
+            )
+            library_payload = build_library_delivery(
+                library_results,
+                request=request.text,
+                max_chars=self.context_compiler.budget.max_library_chars,
+            )
 
         engine = self.engine_router.get(self.state.active_engine)
         action_results: list[ActionResult] = []
         action_history: list[dict] = []
+        used_knowledge_refs: list[str] = []
         loop_exhausted = False
         goal_satisfied = False
         completion_text: str | None = None
@@ -94,10 +114,16 @@ class YiSangRuntime:
                 state=self.state,
                 memories=memories,
                 egos=selected_egos,
+                library=library_payload,
                 tools=available_tools,
                 action_history=action_history,
                 session_history=session_history,
             )
+            for item in context.library:
+                knowledge_ref = item.get("knowledge_ref")
+                if knowledge_ref and knowledge_ref not in used_knowledge_refs:
+                    used_knowledge_refs.append(str(knowledge_ref))
+
             result = engine.generate(context)
 
             if not result.action_proposals:
@@ -227,6 +253,7 @@ class YiSangRuntime:
             verification_status=verification.status,
             used_memory_ids=[m.memory_id for m in memories],
             used_ego_ids=[e.ego_id for e in selected_egos],
+            used_knowledge_refs=used_knowledge_refs,
             action_results=[item.to_dict() for item in action_results],
             memory_write_results=memory_write_results,
         )

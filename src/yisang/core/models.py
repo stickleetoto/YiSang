@@ -17,5 +17,6 @@ class YiSangResponse:
     verification_status: str
     used_memory_ids: list[str] = field(default_factory=list)
     used_ego_ids: list[str] = field(default_factory=list)
+    used_knowledge_refs: list[str] = field(default_factory=list)
     action_results: list[dict[str, Any]] = field(default_factory=list)
     memory_write_results: list[dict[str, Any]] = field(default_factory=list)
