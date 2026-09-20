@@ -18,6 +18,7 @@ from yisang.identity import (
     restore_continuity_bundle,
     validate_snapshot_against_runtime,
     write_continuity_bundle,
+    SnapshotReference,
 )
 from yisang.library import (
     Book,
@@ -220,6 +221,31 @@ def test_bundle_rejects_library_tampering_with_valid_outer_checksum(tmp_path):
 
     with pytest.raises(ValueError, match="Library archive checksum mismatch|library archive checksum mismatch"):
         load_continuity_bundle(path)
+
+
+def test_reference_only_v05_library_bundle_remains_loadable(tmp_path):
+    source = _runtime(with_library=False)
+    legacy_ref = SnapshotReference(
+        kind="library",
+        ref="library://legacy-external",
+        sha256="1" * 64,
+        schema_version=1,
+    )
+    bundle = build_continuity_bundle(
+        source,
+        policy_version="policy-v1",
+        runtime_version="0.5-legacy",
+        library=legacy_ref,
+    )
+
+    assert bundle.snapshot.library == legacy_ref
+    assert bundle.library_archive is None
+
+    path = write_continuity_bundle(bundle, tmp_path / "continuity-v05.json")
+    loaded = load_continuity_bundle(path)
+
+    assert loaded.snapshot.library == legacy_ref
+    assert loaded.library_archive is None
 
 
 def test_bundle_restore_requires_empty_staging_library():
