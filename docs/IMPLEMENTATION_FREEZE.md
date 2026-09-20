@@ -1,104 +1,47 @@
 # YiSang Implementation Freeze
 
-This document defines the implementation freeze for the completed v0.4 and v0.5 development phases.
+This document records the frozen implementation references and their validation status.
 
-## Frozen baselines
+## v0.4 Governed Memory
 
-### v0.4 Governed Memory
+Reference branch: `freeze/v0.4-implementation`
 
-Frozen implementation branch:
-
-`freeze/v0.4-implementation`
-
-Baseline commit:
+Original implementation baseline:
 
 `d10409dff9701b3450d2b506e5ac98e186f951ee`
 
-Status:
+Status: **implementation frozen / validated**
 
-**implementation frozen / validated**
+Validation evidence is recorded in `docs/VALIDATION_2026-09-19.md`.
 
-The branch represents the v0.4 implementation closeout before v0.5 development began.
+## v0.5 Identity Continuity
 
-### v0.5 Identity Continuity
+Reference branch: `freeze/v0.5-implementation`
 
-Frozen implementation branch:
+Status: **implementation frozen / validated**
 
-`freeze/v0.5-implementation`
+The release candidate completed the required repository tests, v0.4 memory benchmark and audit, live cross-family continuity run, and saved-report closeout check.
 
-Status:
+Final validated package version: **0.5.0**
 
-**implementation frozen / live two-engine pass; saved-report closeout pending**
+A separate validated baseline branch is created after release promotion so the original implementation-freeze branch remains an unchanged historical reference.
 
-The branch is created from the freeze merge commit that records this policy and the v0.5 release-candidate metadata.
+## Freeze policy
 
-## Freeze rules
+Frozen implementation branches are historical reference points. Normal feature work does not move those references.
 
-Frozen implementation branches are reference baselines.
+Validation corrections are developed on separate branches, re-tested, and then recorded as a new validated baseline when they pass.
 
-Do not add normal feature work to them.
+## v0.5 final validation checklist
 
-Allowed changes after freeze are limited to:
+1. full repository test suite — passed
+2. v0.4 deterministic memory benchmark — passed
+3. representative SQLite memory audit — passed
+4. live continuity across different local model families — passed
+5. saved continuity report checker — passed
+6. validation evidence recorded — passed
+7. package promoted from `0.5.0rc1` to `0.5.0`
 
-- validation fixes required to make the frozen implementation behave as designed
-- security fixes
-- data-corruption fixes
-- migration/restore correctness fixes
-- test corrections where the test itself is wrong
-- documentation corrections that do not redefine architecture
+## Next phase
 
-New capabilities belong on `main` under the next roadmap phase.
-
-## Validation does not rewrite history
-
-A validation failure does not silently move the frozen baseline.
-
-Use this flow:
-
-~~~text
-frozen implementation
-        |
-        v
-validation
-        |
-   pass | fail
-        |   |
-        |   +--> fix on main / hotfix branch
-        |         -> revalidate
-        |         -> explicitly create a new freeze baseline if required
-        |
-        +--> mark validated
-~~~
-
-## Version policy
-
-The main package version after this freeze is `0.5.0rc1`.
-
-`rc1` means:
-
-- v0.4/v0.5 implementation surfaces are frozen
-- integrated validation is not yet complete
-- real two-engine continuity evidence is still required
-- the version must not be described as a validated v0.5 release yet
-
-After the deferred validation pass succeeds, a later commit may promote the version to `0.5.0`.
-
-## Required validation before v0.5 final
-
-1. install the frozen candidate
-2. run the full pytest suite
-3. run the v0.4 memory benchmark
-4. run the v0.4 memory audit against a representative SQLite store
-5. run live v0.5 continuity across two different local engine families
-6. run the saved-report closeout checker
-7. record the resulting evidence
-8. only then promote from `0.5.0rc1` to `0.5.0`
-
-## Development after freeze
-
-Normal feature development resumes on `main`.
-
-The next feature phase is v0.6 Roland, but roadmap implementation should begin only after the v0.4/v0.5 deferred validation pass has either:
-
-- passed, or
-- produced explicit validation-fix work with the frozen baselines retained for comparison.
+v0.4 and v0.5 are validated. Normal development may continue with v0.6 Roland.
