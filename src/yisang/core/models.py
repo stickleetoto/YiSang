@@ -20,5 +20,7 @@ class YiSangResponse:
     used_knowledge_refs: list[str] = field(default_factory=list)
     action_results: list[dict[str, Any]] = field(default_factory=list)
     memory_write_results: list[dict[str, Any]] = field(default_factory=list)
+    memory_provider_id: str = "native"
+    memory_context_ref: str | None = None
     experience_episode_id: str | None = None
     experience_trace_ids: list[str] = field(default_factory=list)

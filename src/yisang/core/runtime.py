@@ -17,7 +17,9 @@ from yisang.library.delivery import build_library_delivery
 from yisang.library.port import LibraryPort
 from yisang.library.retrieval import LexicalLibraryRetriever
 from yisang.memory.governor import MemoryGovernor
+from yisang.memory.native_provider import NativeMemoryProvider
 from yisang.memory.pipeline import MemoryWritePipeline
+from yisang.memory.provider import MemoryProvider
 from yisang.memory.port import MemoryPort
 from yisang.memory.quarantine import InMemoryQuarantinePort
 from yisang.session.port import SessionPort
@@ -39,6 +41,7 @@ class YiSangRuntime:
         verifier: Verifier,
         action_runtime: ActionRuntime | None = None,
         memory_pipeline: MemoryWritePipeline | None = None,
+        memory_provider: MemoryProvider | None = None,
         session_port: SessionPort | None = None,
         library_port: LibraryPort | None = None,
         library_retriever: LexicalLibraryRetriever | None = None,
@@ -93,6 +96,10 @@ class YiSangRuntime:
             governor=governor,
             quarantine=InMemoryQuarantinePort(),
         )
+        self.memory_provider = memory_provider or NativeMemoryProvider(
+            memory=memory,
+            pipeline=self.memory_pipeline,
+        )
         self.max_action_rounds = max_action_rounds
 
     def run(self, request: YiSangRequest) -> YiSangResponse:
@@ -106,7 +113,12 @@ class YiSangRuntime:
             else []
         )
 
-        memories = self.memory.search(request.text, limit=8)
+        memory_context = self.memory_provider.get_context(
+            request.text,
+            limit=8,
+            char_budget=self.context_compiler.budget.max_memory_chars,
+        )
+        memories = list(memory_context.memories)
         selected_egos = self.capability_router.route(
             request.text,
             self.ego_registry.list_all(),
@@ -256,7 +268,7 @@ class YiSangRuntime:
         )
 
         if memories:
-            self.memory.record_outcome(
+            self.memory_provider.observe_outcome(
                 [memory.memory_id for memory in memories],
                 success=(verification.status == "PASS"),
             )
@@ -264,21 +276,25 @@ class YiSangRuntime:
         memory_write_results: list[dict] = []
         if verification.status == "PASS" and result.memory_proposals:
             for proposal in result.memory_proposals:
-                write_result = self.memory_pipeline.submit(proposal)
+                write_result = self.memory_provider.remember(proposal)
+                quarantine_id = None
+                if (
+                    write_result.proposal_ref is not None
+                    and write_result.proposal_ref.startswith("native-quarantine:")
+                ):
+                    quarantine_id = write_result.proposal_ref.split(":", 1)[1]
                 memory_write_results.append({
-                    "status": write_result.status.value,
+                    "provider_id": write_result.provider_id,
+                    "status": write_result.status,
                     "reason": write_result.reason,
                     "memory_id": (
                         write_result.record.memory_id
                         if write_result.record is not None
                         else None
                     ),
-                    "quarantine_id": (
-                        write_result.quarantine.quarantine_id
-                        if write_result.quarantine is not None
-                        else None
-                    ),
-                    "risk_flags": list(write_result.risk_flags),
+                    "proposal_ref": write_result.proposal_ref,
+                    "quarantine_id": quarantine_id,
+                    "risk_flags": list(write_result.warnings),
                 })
 
         if self.session_port is not None and session_id is not None:
@@ -309,6 +325,8 @@ class YiSangRuntime:
             used_knowledge_refs=used_knowledge_refs,
             action_results=[item.to_dict() for item in action_results],
             memory_write_results=memory_write_results,
+            memory_provider_id=self.memory_provider.provider_id,
+            memory_context_ref=memory_context.context_ref,
             experience_trace_ids=experience_trace_ids,
         )
         if self.experience_port is not None:

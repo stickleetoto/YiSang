@@ -75,6 +75,14 @@ class NativeMemoryProvider(MemoryProvider):
             metadata={"strategy": "active_recall_top1"},
         )
 
+    def observe_outcome(
+        self,
+        memory_ids: list[str],
+        *,
+        success: bool,
+    ) -> None:
+        self.memory.record_outcome(memory_ids, success=success)
+
     def get_context(
         self,
         query: str,

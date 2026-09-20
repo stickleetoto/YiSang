@@ -82,3 +82,12 @@ class MemoryProvider(ABC):
         char_budget: int = 2400,
     ) -> ProviderContext:
         raise NotImplementedError
+
+    def observe_outcome(
+        self,
+        memory_ids: list[str],
+        *,
+        success: bool,
+    ) -> None:
+        """Optional provider feedback hook after request verification."""
+        return None
