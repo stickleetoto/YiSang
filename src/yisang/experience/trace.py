@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from hashlib import sha256
 import json
 import time
-from typing import Any, Iterable
+from typing import Any, Iterable, TYPE_CHECKING
 
 from yisang.execution.models import ActionProposal, ActionResult
 
@@ -15,7 +15,8 @@ from .executor import (
 )
 from .models import ExperienceEpisode
 from .replay import ReplayPlan
-from .trace_port import ActionTracePort
+if TYPE_CHECKING:
+    from .trace_port import ActionTracePort
 
 _REPLAY_MANIFEST_KEYS = frozenset(
     {
@@ -292,8 +293,11 @@ class ReplayManifestCompiler:
         episodes: Iterable[ExperienceEpisode],
         traces: ActionTracePort,
     ) -> tuple[ReplayExecutionSpec, ...]:
-        episode_map = {episode.episode_id: episode for episode in episodes}
-        if len(episode_map) != len(tuple(episodes)):
+        episode_items = tuple(episodes)
+        episode_map = {
+            episode.episode_id: episode for episode in episode_items
+        }
+        if len(episode_map) != len(episode_items):
             raise ReplayManifestError("duplicate source episode ids")
 
         specs: list[ReplayExecutionSpec] = []
