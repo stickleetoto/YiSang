@@ -31,7 +31,7 @@ class FixtureBioClient:
         return {"proposal": {"id": 1, "status": "pending"}}
 
     def current_state(self, *, project, namespace, topic_key):
-        mapping = {"storage_backend": 1, "next_version": 2, "next_task": 3}
+        mapping = {"storage backend": 1, "next version": 2, "next task": 3}
         return {
             "current_memory_id": mapping.get(topic_key),
             "confidence": 1.0,
@@ -143,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
             "resume",
             "current goal next task",
             required_substrings=("BIO adapter validation", "runtime provider integration"),
-            topic_key="next_task",
+            topic_key="next task",
         ),
         MemoryValidationScenario(
             "stale-1",
@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
             "storage backend",
             required_substrings=("SQLite",),
             forbidden_substrings=("JSON is current",),
-            topic_key="storage_backend",
+            topic_key="storage backend",
         ),
         MemoryValidationScenario(
             "correction-1",
@@ -159,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
             "next version",
             required_substrings=("v0.6",),
             forbidden_substrings=("v0.7",),
-            topic_key="next_version",
+            topic_key="next version",
         ),
     )
     report = MemoryProviderABEvaluator().run((native, bio), scenarios)
