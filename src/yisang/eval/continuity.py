@@ -518,5 +518,7 @@ def _percentile(values: list[float], fraction: float) -> float:
     if not 0.0 <= fraction <= 1.0:
         raise ValueError("fraction must be between 0 and 1")
     ordered = sorted(values)
-    index = max(0, min(len(ordered) - 1, int((len(ordered) - 1) * fraction)))
-    return ordered[index]
+    if fraction == 0.0:
+        return ordered[0]
+    rank = max(1, min(len(ordered), -(-int(fraction * 1_000_000) * len(ordered) // 1_000_000)))
+    return ordered[rank - 1]
