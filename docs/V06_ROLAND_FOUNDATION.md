@@ -111,11 +111,23 @@ Implemented:
 
 The index is derived entirely from `LibraryPort` and can be discarded and rebuilt.
 
+## Third slice: request-aware delivery
+
+Implemented:
+
+- stable opaque `knowledge_ref`
+- `primary` / `complement` / `guardrail` delivery roles
+- provenance / trust / validation metadata in model-visible Library evidence
+- implementation hints only for implementation-oriented requests
+- complexity only for performance-oriented requests
+- tradeoffs and pitfalls only when comparison/risk intent requires them
+- safety-critical `avoid_when` retained through ordinary pruning
+- character-budget compression that drops optional detail before guardrails
+
 ## Explicitly deferred
 
 The current v0.6 slices do not yet include:
 
-- request-aware delivery
 - ContextPack Library payload
 - ContextBudgetReport Library accounting
 - snapshot / continuity bundle Library restore
@@ -127,10 +139,9 @@ v0.6 only preserves compatible durable notes during import.
 
 ## Next slice
 
-1. add request-aware delivery and safety-preserving budget compression;
-2. add Library payload and budget accounting to ContextCompiler;
-3. wire optional Library retrieval into YiSangRuntime;
-4. make `IdentitySnapshot.library` a real digest/reference;
-5. extend continuity bundles with Library archive/restore;
-6. port deterministic retrieval and tight-budget safety evals;
-7. import private Book packs only through an explicit external path.
+1. add Library payload and budget accounting to ContextCompiler;
+2. wire optional Library retrieval into YiSangRuntime;
+3. make `IdentitySnapshot.library` a real digest/reference;
+4. extend continuity bundles with Library archive/restore;
+5. port deterministic retrieval and tight-budget safety evals;
+6. import private Book packs only through an explicit external path.
