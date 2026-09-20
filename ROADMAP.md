@@ -423,7 +423,7 @@ On startup:
 
 ## v0.6 — Roland Library
 
-> Status: **ACTIVE — YiSang-native Library foundation started**. See `docs/V06_ROLAND_FOUNDATION.md`.
+> Status: **ACTIVE — foundation, retrieval, delivery, and runtime context integration implemented**. See `docs/V06_ROLAND_FOUNDATION.md`.
 
 ### Objective
 
@@ -503,13 +503,18 @@ With 10 / 50 / 100 / 500 books measure:
 
 ### Foundation progress
 
-Implemented in the first v0.6 slice:
+Implemented across the current v0.6 slices:
 
 - YiSang-native `Book` / `KnowledgeEntry` models
 - authoritative `LibraryPort` boundary
 - in-memory reference store
 - deterministic checksummed Library archive/digest
 - legacy Roland `book.json` importer
+- compact deterministic lexical retrieval and fit judgement
+- request-aware primary / complement / guardrail delivery
+- provenance, trust, validation, and stable knowledge references
+- `ContextPack.library` and Library budget accounting
+- optional Runtime retrieval -> delivery -> ContextCompiler integration
 - explicit public/private migration boundary
 - Usage Note compatibility without enabling v0.7 promotion logic
 
@@ -1072,8 +1077,8 @@ v0.4 and v0.5 are validated. YiSang has been promoted to `0.5.0`.
 
 Order:
 
-1. build the v0.6 Roland native Library foundation
-2. port compact retrieval and fit/delivery
-3. integrate Library context budgeting
-4. integrate Library snapshot/continuity evidence
-5. run retrieval, safety-budget, and scale validation
+1. integrate Library snapshot/continuity evidence
+2. extend continuity bundle archive/restore with Library state
+3. run deterministic retrieval and safety-budget validation
+4. run 10 / 50 / 100 / 500 Book scale benchmarks
+5. close v0.6 only after continuity and benchmark evidence are reproducible
