@@ -99,7 +99,7 @@ Expected preserved validation/freeze branches after closeout:
 - `validated/v0.6`
 - `freeze/v0.6-implementation`
 
-## Immediate next phase: v0.7 Experience Promotion
+## Active next phase: v0.7 Experience Promotion
 
 Target pipeline:
 
@@ -148,3 +148,106 @@ v0.6 continuity/Library pass criteria or mutate the validated/freeze branches.
 
 Do not advance a phase because code merely exists. Preserve tests, saved
 evidence, exit criteria, and explicit migration boundaries.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 experience foundation
+
+- Goal:
+  - begin v0.7 with a deterministic, side-effect-free Experience Promotion gate
+- Added:
+  - `yisang.experience` domain models
+  - verified evidence classification
+  - replay-completeness and replay-failure checks
+  - automatic-promotion block for privileged/security-sensitive candidates
+  - candidate-kind to target boundary checks
+  - versioned `PromotionArtifact`
+  - in-memory promotion ledger with invalidation
+  - focused v0.7 tests and design note
+- Important boundary:
+  - promotion eligibility does not directly mutate E.G.O or Roland Library
+  - raw conversation/model claims may remain provenance but cannot independently
+    satisfy promotion evidence
+- Next:
+  - durable PromotionPort
+  - governed application adapters for E.G.O / Library / warnings / routing
+  - replay harness integration with real runtime episodes
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 durable promotion + apply boundary
+
+- Goal:
+  - make accepted promotion artifacts durable and introduce an explicit governed
+    application boundary
+- Added:
+  - PromotionPort abstraction
+  - SQLitePromotionPort with persistent artifacts and apply receipts
+  - application requests carrying actor, approval_ref, reason, and target_ref
+  - idempotent LibraryKnowledgeApplyAdapter
+  - stable promoted Library entry ids and promotion provenance
+  - EgoInstructionPatchAdapter that produces an approved patch without mutating
+    the current file-backed E.G.O registry
+  - persistent invalidation and application receipt tests
+- Important boundary:
+  - validation/promotion and application remain separate operations
+  - E.G.O is not directly mutated until it has its own durable mutation port
+  - repeated Library application cannot duplicate the same promoted entry
+- Next:
+  - durable E.G.O mutation/version port
+  - runtime episode capture and replay harness integration
+  - promotion rollback/supersession across applied targets
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 runtime episode capture
+- Added ExperiencePort with in-memory and SQLite stores.
+- YiSangRuntime can optionally capture normalized success/failure episodes.
+- Raw request text is fingerprinted with SHA-256 instead of copied into normalized metadata.
+- Only explicitly goal-satisfied executed tool results become promotable tool evidence.
+- Added yisang-experience-smoke and yisang-experience-audit for local verification.
+- Capture remains separate from candidate creation and promotion/application.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 deterministic generalization + replay plan
+
+- Added ExperienceGeneralizer with a conservative repeated-evidence threshold.
+- Procedure candidates require repeated success, promotable evidence in every source episode, at least one shared trigger, and identical procedure steps.
+- Warning candidates require repeated failure evidence.
+- Candidate ids are content-derived and deterministic across source ordering.
+- Added source-episode ReplayPlan and strict ReplayReport construction.
+- Replay report creation rejects missing or unexpected test results.
+- Added yisang-generalization-smoke for local Episode -> Candidate -> ReplayPlan -> PromotionGate wiring.
+- Important: the smoke uses simulated replay results; real tool replay remains a later v0.7 slice.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 deterministic replay executor
+
+- Added DeterministicReplayExecutor.
+- Replay execution uses explicit argv with shell=False.
+- Every executable must be explicitly allowlisted by the caller.
+- Each replay runs in its own temporary workspace.
+- Setup/expectation paths reject absolute paths and parent-directory traversal.
+- Deterministic checks currently support exit code, stdout/stderr containment,
+  file existence, and exact UTF-8 file content.
+- Timeout and OS execution failures become failed ReplayCaseResult records.
+- Every executed replay emits a SHA-256 observation evidence reference.
+- Added yisang-real-replay-smoke: three subprocess replays -> ReplayReport ->
+  PromotionGate.
+- This proves real deterministic replay execution; mapping arbitrary historical
+  tool traces into replay manifests remains a separate integration step.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 trace-to-replay compiler
+
+- Added runtime ActionTrace capture with in-memory and SQLite ports.
+- Runtime tool arguments are fingerprinted; raw argument values are not stored
+  in ActionTrace.
+- Replay manifests are accepted only from completion_evidence.replay_manifest on
+  EXECUTED + goal_satisfied tool results.
+- Malformed or unverified manifests are retained only as rejected trace
+  metadata and cannot become replay specs.
+- Added ReplayManifestCompiler from source episode request ids + ActionTracePort
+  to ReplayExecutionSpec.
+- v1 compiler intentionally supports exactly one replayable tool step per case;
+  multi-tool traces are rejected until an ordered multi-step executor contract
+  exists.
+- Added yisang-trace-replay-smoke for Trace -> Manifest -> real replay ->
+  PromotionGate.

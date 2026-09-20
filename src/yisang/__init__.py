@@ -6,7 +6,7 @@ from .engines.base import LLMEngine
 from .engines.openai_compatible import OpenAICompatibleEngine
 from .server.proxy import YiSangModelProxy
 
-__version__ = "0.3.0"
+__version__ = "0.7.0.dev0"
 
 __all__ = [
     "YiSangRuntime",
