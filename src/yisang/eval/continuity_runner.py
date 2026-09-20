@@ -11,6 +11,12 @@ from yisang.ego.router import CapabilityRouter
 from yisang.engines.openai_compatible import OpenAICompatibleEngine
 from yisang.engines.router import EngineRouter
 from yisang.identity.models import AgentState, IdentityCharter
+from yisang.library import (
+    Book,
+    InMemoryLibraryPort,
+    KnowledgeEntry,
+    stable_knowledge_ref,
+)
 from yisang.memory.governor import MemoryGovernor
 from yisang.memory.in_memory import InMemoryMemoryPort
 from yisang.memory.models import MemoryProposal
@@ -19,7 +25,7 @@ from yisang.verification.base import PassThroughVerifier
 from .continuity import (
     ContinuityProbe,
     build_continuity_report,
-    evaluate_v05_closeout,
+    evaluate_v06_closeout,
     run_continuity_case,
     write_continuity_report,
 )
@@ -32,6 +38,7 @@ def _build_runtime(
 ) -> YiSangRuntime:
     memory = InMemoryMemoryPort()
     egos = EgoRegistry()
+    library = None
 
     if populated:
         memory.commit(
@@ -56,11 +63,36 @@ def _build_runtime(
                 ),
             )
         )
+        library = InMemoryLibraryPort(
+            (
+                Book(
+                    book_id="continuity-book",
+                    title="Continuity Algorithms",
+                    version="1",
+                    entries=(
+                        KnowledgeEntry(
+                            entry_id="continuity-entry",
+                            title="Dijkstra Continuity Probe",
+                            summary=(
+                                "A priority queue supports non-negative "
+                                "shortest-path continuity checks."
+                            ),
+                            aliases=("shortest path",),
+                            tags=("continuity", "dijkstra", "graph"),
+                            use_when=("edge weights are non-negative",),
+                            source_refs=("book://continuity",),
+                            trust_class="curated",
+                            validation_state="validated",
+                        ),
+                    ),
+                ),
+            )
+        )
         state = AgentState(
             active_engine=engine.engine_id,
             active_project="YiSang",
-            current_goal="prove identity continuity across engines",
-            tags={"suite": "v0.5-live"},
+            current_goal="prove identity and Library continuity across engines",
+            tags={"suite": "v0.6-live"},
         )
     else:
         state = AgentState(active_engine=engine.engine_id)
@@ -78,6 +110,7 @@ def _build_runtime(
         context_compiler=ContextCompiler(),
         engine_router=engines,
         verifier=PassThroughVerifier(),
+        library_port=library,
     )
 
 
@@ -85,8 +118,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="yisang-eval-continuity",
         description=(
-            "Run YiSang v0.5 continuity against two OpenAI-compatible "
-            "reasoning engines."
+            "Run YiSang v0.6 continuity, including Roland Library restore, "
+            "against two OpenAI-compatible reasoning engines."
         ),
     )
     parser.add_argument("--source-base-url", required=True)
@@ -155,12 +188,21 @@ def main(argv: list[str] | None = None) -> int:
                 target_runtime=target,
                 target_engine=args.target_engine_id,
                 memory_factory=InMemoryMemoryPort,
+                library_factory=InMemoryLibraryPort,
                 policy_version="memory-governance-v1",
-                runtime_version="0.5-live",
+                runtime_version="0.6-live",
                 probe=ContinuityProbe(
-                    request_text="continuity alpha debug",
+                    request_text=(
+                        "continuity alpha debug Dijkstra shortest path"
+                    ),
                     expected_memory_ids=(memory_id,),
                     expected_ego_ids=("ego.continuity",),
+                    expected_knowledge_refs=(
+                        stable_knowledge_ref(
+                            "continuity-book",
+                            "continuity-entry",
+                        ),
+                    ),
                 ),
             )
         except TimeoutError as exc:
@@ -185,9 +227,10 @@ def main(argv: list[str] | None = None) -> int:
             "repeats": args.repeats,
             "temperature": args.temperature,
             "max_tokens": args.max_tokens,
+            "library_probe": True,
         },
     )
-    closeout = evaluate_v05_closeout(report)
+    closeout = evaluate_v06_closeout(report)
     output = write_continuity_report(report, args.output)
     payload = report.to_dict()
     print(output)

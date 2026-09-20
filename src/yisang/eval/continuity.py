@@ -23,6 +23,7 @@ class ContinuityProbe:
     request_text: str = "continuity probe"
     expected_memory_ids: tuple[str, ...] = ()
     expected_ego_ids: tuple[str, ...] = ()
+    expected_knowledge_refs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,11 @@ class ContinuityCaseResult:
     used_ego_ids: tuple[str, ...]
     source_response_text: str
     response_text: str
+    library_preserved: bool = True
+    source_expected_knowledge_retrieved: bool = True
+    expected_knowledge_retrieved: bool = True
+    source_used_knowledge_refs: tuple[str, ...] = ()
+    used_knowledge_refs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -113,6 +119,7 @@ def run_continuity_case(
     target_runtime,
     target_engine: str,
     memory_factory,
+    library_factory=None,
     policy_version: str,
     runtime_version: str,
     probe: ContinuityProbe | None = None,
@@ -135,6 +142,7 @@ def run_continuity_case(
 
     source_used_memory_ids = tuple(source_response.used_memory_ids)
     source_used_ego_ids = tuple(source_response.used_ego_ids)
+    source_used_knowledge_refs = tuple(source_response.used_knowledge_refs)
     source_engine_used = source_response.engine_id == source_engine
     source_expected_memory_retrieved = set(
         probe.expected_memory_ids
@@ -142,6 +150,9 @@ def run_continuity_case(
     source_expected_ego_selected = set(
         probe.expected_ego_ids
     ).issubset(source_used_ego_ids)
+    source_expected_knowledge_retrieved = set(
+        probe.expected_knowledge_refs
+    ).issubset(source_used_knowledge_refs)
 
     bundle = build_continuity_bundle(
         source_runtime,
@@ -157,6 +168,7 @@ def run_continuity_case(
         target_runtime,
         target_engine=target_engine,
         memory_factory=memory_factory,
+        library_factory=library_factory,
     )
     restore_latency_ms = (perf_counter() - restore_started) * 1000
 
@@ -180,6 +192,7 @@ def run_continuity_case(
     capabilities_preserved = (
         source_snapshot.ego_registry == restored_snapshot.ego_registry
     )
+    library_preserved = source_snapshot.library == restored_snapshot.library
     continuity_preserved = source_fingerprint == restored_fingerprint
 
     probe_started = perf_counter()
@@ -194,6 +207,7 @@ def run_continuity_case(
 
     used_memory_ids = tuple(response.used_memory_ids)
     used_ego_ids = tuple(response.used_ego_ids)
+    used_knowledge_refs = tuple(response.used_knowledge_refs)
     target_engine_used = response.engine_id == target_engine
     expected_memory_retrieved = set(probe.expected_memory_ids).issubset(
         used_memory_ids
@@ -201,6 +215,9 @@ def run_continuity_case(
     expected_ego_selected = set(probe.expected_ego_ids).issubset(
         used_ego_ids
     )
+    expected_knowledge_retrieved = set(
+        probe.expected_knowledge_refs
+    ).issubset(used_knowledge_refs)
 
     passed = all(
         (
@@ -209,13 +226,16 @@ def run_continuity_case(
             state_preserved,
             memory_preserved,
             capabilities_preserved,
+            library_preserved,
             continuity_preserved,
             source_engine_used,
             target_engine_used,
             source_expected_memory_retrieved,
             source_expected_ego_selected,
+            source_expected_knowledge_retrieved,
             expected_memory_retrieved,
             expected_ego_selected,
+            expected_knowledge_retrieved,
         )
     )
 
@@ -246,6 +266,11 @@ def run_continuity_case(
         used_ego_ids=used_ego_ids,
         source_response_text=source_response.text,
         response_text=response.text,
+        library_preserved=library_preserved,
+        source_expected_knowledge_retrieved=source_expected_knowledge_retrieved,
+        expected_knowledge_retrieved=expected_knowledge_retrieved,
+        source_used_knowledge_refs=source_used_knowledge_refs,
+        used_knowledge_refs=used_knowledge_refs,
     )
 
 
@@ -307,6 +332,43 @@ def evaluate_v05_closeout(
         if not case.continuity_fingerprint_preserved:
             errors.append(
                 f"{case.case_id}: continuity fingerprint was not preserved"
+            )
+
+    return ContinuityCloseoutCheck(
+        ready=not errors,
+        errors=tuple(dict.fromkeys(errors)),
+    )
+
+
+def evaluate_v06_closeout(
+    report: ContinuityReport,
+    *,
+    min_repeats: int = 3,
+) -> ContinuityCloseoutCheck:
+    base = evaluate_v05_closeout(report, min_repeats=min_repeats)
+    errors = list(base.errors)
+
+    if report.metadata.get("library_probe") is not True:
+        errors.append("library_probe evidence is missing")
+
+    for case in report.cases:
+        if not case.library_preserved:
+            errors.append(f"{case.case_id}: Library snapshot was not preserved")
+        if not case.source_expected_knowledge_retrieved:
+            errors.append(
+                f"{case.case_id}: source Library knowledge was not retrieved"
+            )
+        if not case.expected_knowledge_retrieved:
+            errors.append(
+                f"{case.case_id}: restored Library knowledge was not retrieved"
+            )
+        if not case.source_used_knowledge_refs:
+            errors.append(
+                f"{case.case_id}: source knowledge_ref evidence is missing"
+            )
+        if not case.used_knowledge_refs:
+            errors.append(
+                f"{case.case_id}: restored knowledge_ref evidence is missing"
             )
 
     return ContinuityCloseoutCheck(
@@ -387,6 +449,26 @@ def load_continuity_report(path: str | Path) -> ContinuityReport:
                         item.get("source_response_text", "")
                     ),
                     response_text=str(item.get("response_text", "")),
+                    library_preserved=bool(
+                        item.get("library_preserved", True)
+                    ),
+                    source_expected_knowledge_retrieved=bool(
+                        item.get("source_expected_knowledge_retrieved", True)
+                    ),
+                    expected_knowledge_retrieved=bool(
+                        item.get("expected_knowledge_retrieved", True)
+                    ),
+                    source_used_knowledge_refs=tuple(
+                        str(value)
+                        for value in item.get(
+                            "source_used_knowledge_refs",
+                            [],
+                        )
+                    ),
+                    used_knowledge_refs=tuple(
+                        str(value)
+                        for value in item.get("used_knowledge_refs", [])
+                    ),
                 )
             )
         except KeyError as exc:
