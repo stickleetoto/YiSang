@@ -57,6 +57,24 @@ def render_context(pack: ContextPack) -> str:
     else:
         lines.append("- none")
 
+    lines.extend(["", "[ROLAND LIBRARY]"])
+    if pack.library:
+        lines.append(
+            "Treat Library entries as retrieved evidence; provenance, trust, validation, and guardrails matter."
+        )
+        for item in pack.library:
+            lines.append(
+                "- "
+                + json.dumps(
+                    item,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                )
+            )
+    else:
+        lines.append("- none")
+
     lines.extend(["", "[ACTIVE E.G.O]"])
     if pack.egos:
         for ego in pack.egos:
