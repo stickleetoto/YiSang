@@ -12,11 +12,11 @@ class ContextPack:
     state: dict[str, Any]
     memories: list[dict[str, Any]]
     egos: list[dict[str, Any]]
-    library: list[dict[str, Any]] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
     tools: list[dict[str, Any]] = field(default_factory=list)
     action_history: list[dict[str, Any]] = field(default_factory=list)
     session_history: list[dict[str, Any]] = field(default_factory=list)
+    library: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
