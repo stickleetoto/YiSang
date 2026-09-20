@@ -1,6 +1,6 @@
 # YiSang v0.6 Roland Library — Closeout Procedure
 
-Status: **PREPARED — live cross-family evidence pending**
+Status: **VALIDATED**
 
 v0.6 closeout requires both:
 
@@ -109,9 +109,19 @@ Under severe Library context pressure:
 
 The guardrail retains its `avoid_when` and provenance/trust boundary.
 
-## Remaining closeout action
+## Validation result
 
-The repository can prepare and validate the harness in CI, but the real
-Llama-to-Qwen continuity report requires the configured local or reachable
-OpenAI-compatible endpoints. After the live report and scale report are saved,
-run the composite gate and record the evidence in the v0.6 validation document.
+The live closeout run completed successfully on 2026-09-20 using Ollama's OpenAI-compatible endpoint at `http://127.0.0.1:11434/v1`.
+
+- source: `llama3.2:3b` (`llama`)
+- target: `qwen2.5:1.5b` (`qwen`)
+- repeats: 3
+- continuity pass rate: 1.0
+- v0.6 continuity checker: `ready=true`
+- 10 / 50 / 100 / 500 Book benchmark: all passed
+- composite `yisang-eval-v06-closeout`: `ready=true`
+- saved local evidence:
+  - `artifacts/v06-closeout/continuity-v06.json`
+  - `artifacts/v06-closeout/library-v06.json`
+
+See `docs/VALIDATION_2026-09-20_V06.md` for the recorded evidence and metrics.
