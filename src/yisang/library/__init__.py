@@ -5,6 +5,11 @@ from .archive import (
     restore_library_archive,
     validate_library_archive,
 )
+from .delivery import (
+    build_library_delivery,
+    delivery_chars,
+    stable_knowledge_ref,
+)
 from .in_memory import InMemoryLibraryPort
 from .legacy_roland import (
     import_legacy_roland_library,
@@ -31,6 +36,8 @@ __all__ = [
     "LIBRARY_ARCHIVE_SCHEMA_VERSION",
     "LIBRARY_SCHEMA_VERSION",
     "Book",
+    "build_library_delivery",
+    "delivery_chars",
     "InMemoryLibraryPort",
     "KnowledgeEntry",
     "LibraryFormatError",
@@ -47,5 +54,6 @@ __all__ = [
     "load_legacy_roland_book",
     "load_legacy_roland_library",
     "restore_library_archive",
+    "stable_knowledge_ref",
     "validate_library_archive",
 ]
