@@ -95,11 +95,26 @@ already carries explicit `source_refs`.
 
 The importer does not expose or bundle the private Roland Book corpus.
 
+## Second slice: compact lexical retrieval
+
+Implemented:
+
+- rebuildable `CompactLibraryIndex`
+- deterministic integer `LeanKnowledgeRef`
+- term -> KnowledgeEntry postings
+- candidate-only lexical scoring instead of catalog-wide entry scans
+- weighted title/alias/tag/summary/use-condition ranking
+- `recommended` / `caution` / `avoid` fit judgement
+- explicit constraint-conflict evidence
+- deterministic tie-breaking
+- rebuild semantics after authoritative Library changes
+
+The index is derived entirely from `LibraryPort` and can be discarded and rebuilt.
+
 ## Explicitly deferred
 
-The first foundation slice does not yet include:
+The current v0.6 slices do not yet include:
 
-- compact lexical retrieval
 - request-aware delivery
 - ContextPack Library payload
 - ContextBudgetReport Library accounting
@@ -112,11 +127,10 @@ v0.6 only preserves compatible durable notes during import.
 
 ## Next slice
 
-1. add compact lexical Book / KnowledgeEntry candidate discovery;
-2. port fit judgement and safety guardrails;
-3. add Library payload and budget accounting to ContextCompiler;
-4. wire optional Library retrieval into YiSangRuntime;
-5. make `IdentitySnapshot.library` a real digest/reference;
-6. extend continuity bundles with Library archive/restore;
-7. port deterministic retrieval and tight-budget safety evals;
-8. import private Book packs only through an explicit external path.
+1. add request-aware delivery and safety-preserving budget compression;
+2. add Library payload and budget accounting to ContextCompiler;
+3. wire optional Library retrieval into YiSangRuntime;
+4. make `IdentitySnapshot.library` a real digest/reference;
+5. extend continuity bundles with Library archive/restore;
+6. port deterministic retrieval and tight-budget safety evals;
+7. import private Book packs only through an explicit external path.
