@@ -423,6 +423,8 @@ On startup:
 
 ## v0.6 — Roland Library
 
+> Status: **ACTIVE — YiSang-native Library foundation started**. See `docs/V06_ROLAND_FOUNDATION.md`.
+
 ### Objective
 
 Turn YiSang external knowledge into a structured library that can grow without forcing all knowledge into every prompt.
@@ -498,6 +500,18 @@ With 10 / 50 / 100 / 500 books measure:
 - total prompt tokens
 - latency
 - answer/task success
+
+### Foundation progress
+
+Implemented in the first v0.6 slice:
+
+- YiSang-native `Book` / `KnowledgeEntry` models
+- authoritative `LibraryPort` boundary
+- in-memory reference store
+- deterministic checksummed Library archive/digest
+- legacy Roland `book.json` importer
+- explicit public/private migration boundary
+- Usage Note compatibility without enabling v0.7 promotion logic
 
 ### Exit criteria
 
@@ -1058,5 +1072,8 @@ v0.4 and v0.5 are validated. YiSang has been promoted to `0.5.0`.
 
 Order:
 
-1. create the validated v0.5 baseline
-2. begin v0.6 Roland
+1. build the v0.6 Roland native Library foundation
+2. port compact retrieval and fit/delivery
+3. integrate Library context budgeting
+4. integrate Library snapshot/continuity evidence
+5. run retrieval, safety-budget, and scale validation
