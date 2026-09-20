@@ -10,6 +10,7 @@ from yisang.execution.models import ActionResult
 from yisang.execution.runtime import ActionRuntime
 from yisang.identity.models import AgentState, IdentityCharter
 from yisang.library.delivery import build_library_delivery
+from yisang.library.port import LibraryPort
 from yisang.library.retrieval import LexicalLibraryRetriever
 from yisang.memory.governor import MemoryGovernor
 from yisang.memory.pipeline import MemoryWritePipeline
@@ -35,6 +36,7 @@ class YiSangRuntime:
         action_runtime: ActionRuntime | None = None,
         memory_pipeline: MemoryWritePipeline | None = None,
         session_port: SessionPort | None = None,
+        library_port: LibraryPort | None = None,
         library_retriever: LexicalLibraryRetriever | None = None,
         library_limit: int = 3,
         max_action_rounds: int = 3,
@@ -55,6 +57,21 @@ class YiSangRuntime:
         self.verifier = verifier
         self.action_runtime = action_runtime
         self.session_port = session_port
+
+        if library_port is None and library_retriever is not None:
+            library_port = library_retriever.port
+        if (
+            library_port is not None
+            and library_retriever is not None
+            and library_retriever.port is not library_port
+        ):
+            raise ValueError(
+                "library_retriever must be backed by runtime library_port"
+            )
+        if library_port is not None and library_retriever is None:
+            library_retriever = LexicalLibraryRetriever(library_port)
+
+        self.library_port = library_port
         self.library_retriever = library_retriever
         self.library_limit = library_limit
         self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
