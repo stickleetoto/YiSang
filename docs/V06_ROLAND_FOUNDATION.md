@@ -124,12 +124,24 @@ Implemented:
 - safety-critical `avoid_when` retained through ordinary pruning
 - character-budget compression that drops optional detail before guardrails
 
+## Fourth slice: ContextCompiler and Runtime integration
+
+Implemented:
+
+- `ContextPack.library` model-visible evidence payload
+- `ContextBudgetPolicy.max_library_chars` / `max_library_items`
+- `ContextBudgetReport` Library character and selection accounting
+- deterministic `[ROLAND LIBRARY]` rendering
+- optional `LexicalLibraryRetriever` injection into `YiSangRuntime`
+- request -> retrieve -> request-aware delivery -> ContextCompiler pipeline
+- `YiSangResponse.used_knowledge_refs` based on evidence actually compiled for the model
+- global-budget pruning that removes optional Library detail and positive complements before guardrails
+- no-Library compatibility path that preserves the prior runtime behavior
+
 ## Explicitly deferred
 
 The current v0.6 slices do not yet include:
 
-- ContextPack Library payload
-- ContextBudgetReport Library accounting
 - snapshot / continuity bundle Library restore
 - SQLite LibraryPort
 - active Usage Note promotion
@@ -139,9 +151,9 @@ v0.6 only preserves compatible durable notes during import.
 
 ## Next slice
 
-1. add Library payload and budget accounting to ContextCompiler;
-2. wire optional Library retrieval into YiSangRuntime;
-3. make `IdentitySnapshot.library` a real digest/reference;
-4. extend continuity bundles with Library archive/restore;
-5. port deterministic retrieval and tight-budget safety evals;
-6. import private Book packs only through an explicit external path.
+1. make `IdentitySnapshot.library` a real digest/reference;
+2. extend continuity bundles with Library archive/restore;
+3. add deterministic retrieval and tighter end-to-end safety-budget evals;
+4. add scale benchmarks for 10 / 50 / 100 / 500 books;
+5. import private Book packs only through an explicit external path;
+6. keep SQLite LibraryPort deferred until persistence pressure justifies it.
