@@ -99,7 +99,7 @@ Expected preserved validation/freeze branches after closeout:
 - `validated/v0.6`
 - `freeze/v0.6-implementation`
 
-## Immediate next phase: v0.7 Experience Promotion
+## Active next phase: v0.7 Experience Promotion
 
 Target pipeline:
 
@@ -148,3 +148,26 @@ v0.6 continuity/Library pass criteria or mutate the validated/freeze branches.
 
 Do not advance a phase because code merely exists. Preserve tests, saved
 evidence, exit criteria, and explicit migration boundaries.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 experience foundation
+
+- Goal:
+  - begin v0.7 with a deterministic, side-effect-free Experience Promotion gate
+- Added:
+  - `yisang.experience` domain models
+  - verified evidence classification
+  - replay-completeness and replay-failure checks
+  - automatic-promotion block for privileged/security-sensitive candidates
+  - candidate-kind to target boundary checks
+  - versioned `PromotionArtifact`
+  - in-memory promotion ledger with invalidation
+  - focused v0.7 tests and design note
+- Important boundary:
+  - promotion eligibility does not directly mutate E.G.O or Roland Library
+  - raw conversation/model claims may remain provenance but cannot independently
+    satisfy promotion evidence
+- Next:
+  - durable PromotionPort
+  - governed application adapters for E.G.O / Library / warnings / routing
+  - replay harness integration with real runtime episodes
