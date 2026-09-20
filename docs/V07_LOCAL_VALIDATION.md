@@ -105,3 +105,30 @@ promotion_accepted = true
 ~~~
 
 The simulated replay flag is intentional. This validates Episode -> Generalizer -> LessonCandidate -> ReplayPlan -> ReplayReport -> PromotionGate wiring; it does not claim real tools were replayed.
+
+
+## 9. Deterministic subprocess replay smoke
+
+This smoke performs three real subprocess executions in isolated temporary
+workspaces. It does not use a shell and only allows the current Python
+interpreter.
+
+~~~powershell
+yisang-real-replay-smoke
+~~~
+
+Expected important values:
+
+~~~text
+ready = true
+replay_case_count = 3
+executed_subprocess_replays = 3
+all_replays_passed = true
+evidence_refs_present = true
+shell_used = false
+promotion_accepted = true
+~~~
+
+Each replay writes a file, checks exact file content and stdout, records an
+observation digest as replay evidence, and then feeds the real ReplayReport into
+PromotionGate.

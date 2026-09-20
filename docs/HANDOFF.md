@@ -216,3 +216,20 @@ evidence, exit criteria, and explicit migration boundaries.
 - Replay report creation rejects missing or unexpected test results.
 - Added yisang-generalization-smoke for local Episode -> Candidate -> ReplayPlan -> PromotionGate wiring.
 - Important: the smoke uses simulated replay results; real tool replay remains a later v0.7 slice.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / v0.7 deterministic replay executor
+
+- Added DeterministicReplayExecutor.
+- Replay execution uses explicit argv with shell=False.
+- Every executable must be explicitly allowlisted by the caller.
+- Each replay runs in its own temporary workspace.
+- Setup/expectation paths reject absolute paths and parent-directory traversal.
+- Deterministic checks currently support exit code, stdout/stderr containment,
+  file existence, and exact UTF-8 file content.
+- Timeout and OS execution failures become failed ReplayCaseResult records.
+- Every executed replay emits a SHA-256 observation evidence reference.
+- Added yisang-real-replay-smoke: three subprocess replays -> ReplayReport ->
+  PromotionGate.
+- This proves real deterministic replay execution; mapping arbitrary historical
+  tool traces into replay manifests remains a separate integration step.

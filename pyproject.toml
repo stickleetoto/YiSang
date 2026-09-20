@@ -28,6 +28,7 @@ yisang-memory-audit = "yisang.memory.audit:main"
 yisang-experience-audit = "yisang.experience.audit:main"
 yisang-experience-smoke = "yisang.experience.smoke:main"
 yisang-generalization-smoke = "yisang.experience.generalization_smoke:main"
+yisang-real-replay-smoke = "yisang.experience.real_replay_smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

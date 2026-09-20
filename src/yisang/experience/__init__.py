@@ -6,6 +6,13 @@ from .application import (
 from .episode_memory import InMemoryExperiencePort
 from .episode_port import ExperiencePort
 from .episode_sqlite import SQLiteExperiencePort
+from .executor import (
+    DeterministicReplayExecutor,
+    FileExpectation,
+    ReplayExecutionError,
+    ReplayExecutionSpec,
+    ReplaySetupFile,
+)
 from .generalizer import (
     ExperienceGeneralizationError,
     ExperienceGeneralizer,
@@ -38,10 +45,12 @@ from .sqlite import SQLitePromotionPort
 __all__ = [
     "EgoInstructionPatch",
     "EgoInstructionPatchAdapter",
+    "DeterministicReplayExecutor",
     "ExperienceEpisode",
     "ExperienceGeneralizationError",
     "ExperienceGeneralizer",
     "ExperiencePort",
+    "FileExpectation",
     "ExperienceRecorder",
     "ExperienceEvidence",
     "InMemoryExperiencePort",
@@ -57,11 +66,14 @@ __all__ = [
     "PromotionOutcome",
     "PromotionPort",
     "ReplayCaseResult",
+    "ReplayExecutionError",
+    "ReplayExecutionSpec",
     "ReplayPlan",
     "ReplayPlanBuilder",
     "ReplayPlanCase",
     "ReplayPlanError",
     "ReplayReport",
+    "ReplaySetupFile",
     "SQLiteExperiencePort",
     "SQLitePromotionPort",
 ]
