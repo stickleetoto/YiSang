@@ -29,6 +29,11 @@ class FileExpectation:
     must_exist: bool = True
     exact_text: str | None = None
 
+    def __post_init__(self) -> None:
+        _validate_relative_path(self.path)
+        if not self.must_exist and self.exact_text is not None:
+            raise ValueError("exact_text requires must_exist=True")
+
 
 @dataclass(frozen=True)
 class ReplayExecutionSpec:
@@ -145,6 +150,7 @@ class DeterministicReplayExecutor:
                     "test_id": test_id,
                     "status": "timeout",
                     "timeout_seconds": timeout,
+                    "manifest_sha256": _manifest_digest(spec),
                 }
                 return ReplayCaseResult(
                     test_id=test_id,
@@ -158,6 +164,7 @@ class DeterministicReplayExecutor:
                     "status": "os_error",
                     "error_type": type(exc).__name__,
                     "error": str(exc),
+                    "manifest_sha256": _manifest_digest(spec),
                 }
                 return ReplayCaseResult(
                     test_id=test_id,
@@ -220,6 +227,7 @@ class DeterministicReplayExecutor:
             observation = {
                 "test_id": test_id,
                 "status": "completed",
+                "manifest_sha256": _manifest_digest(spec),
                 "returncode": completed.returncode,
                 "stdout_sha256": sha256(
                     completed.stdout.encode("utf-8")
@@ -243,9 +251,31 @@ class DeterministicReplayExecutor:
             )
 
     def _validate_executable(self, executable: str) -> None:
-        actual = _executable_keys(executable)
+        actual_text = str(executable).strip()
+        actual_path = Path(actual_text)
+        actual_has_path = (
+            actual_path.is_absolute()
+            or "/" in actual_text
+            or "\\" in actual_text
+        )
         for allowed in self.allowed_executables:
-            if actual & _executable_keys(allowed):
+            allowed_text = str(allowed).strip()
+            allowed_path = Path(allowed_text)
+            allowed_has_path = (
+                allowed_path.is_absolute()
+                or "/" in allowed_text
+                or "\\" in allowed_text
+            )
+            if allowed_has_path:
+                if not actual_has_path:
+                    continue
+                if os.path.normcase(str(actual_path.resolve())) == os.path.normcase(
+                    str(allowed_path.resolve())
+                ):
+                    return
+            elif os.path.normcase(actual_path.name) == os.path.normcase(
+                allowed_path.name
+            ):
                 return
         raise ReplayExecutionError(
             f"executable is not allowed for replay: {executable}"
@@ -275,15 +305,49 @@ def _workspace_path(workspace: Path, value: str) -> Path:
     return path
 
 
-def _executable_keys(value: str) -> set[str]:
-    text = str(value).strip()
-    keys = {os.path.normcase(text)}
-    keys.add(os.path.normcase(Path(text).name))
-    try:
-        keys.add(os.path.normcase(str(Path(text).resolve())))
-    except OSError:
-        pass
-    return keys
+def _manifest_digest(spec: ReplayExecutionSpec) -> str:
+    payload = {
+        "test_id": spec.test_id,
+        "argv_sha256": sha256(
+            json.dumps(
+                list(spec.argv),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest(),
+        "expected_exit_code": spec.expected_exit_code,
+        "stdout_contains": list(spec.stdout_contains),
+        "stderr_contains": list(spec.stderr_contains),
+        "setup_files": [
+            {
+                "path": item.path,
+                "content_sha256": sha256(
+                    item.content.encode("utf-8")
+                ).hexdigest(),
+            }
+            for item in spec.setup_files
+        ],
+        "file_expectations": [
+            {
+                "path": item.path,
+                "must_exist": item.must_exist,
+                "exact_text_sha256": (
+                    sha256(item.exact_text.encode("utf-8")).hexdigest()
+                    if item.exact_text is not None
+                    else None
+                ),
+            }
+            for item in spec.file_expectations
+        ],
+        "timeout_seconds": spec.timeout_seconds,
+    }
+    raw = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _evidence_ref(observation: dict[str, object]) -> str:
