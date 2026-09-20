@@ -423,7 +423,7 @@ On startup:
 
 ## v0.6 — Roland Library
 
-> Status: **ACTIVE — implementation complete through continuity/scale validation harnesses; live v0.6 evidence still pending**. See `docs/V06_ROLAND_FOUNDATION.md`.
+> Status: **CLOSEOUT-READY HARNESS — implementation and evidence gates are complete; live cross-family v0.6 evidence is pending**. See `docs/V06_ROLAND_FOUNDATION.md` and `docs/V06_CLOSEOUT.md`.
 
 ### Objective
 
@@ -522,6 +522,10 @@ Implemented across the current v0.6 slices:
 - continuity evaluator knowledge_ref source/target proof
 - v0.6 Library-aware closeout gate with v0.5 report compatibility
 - deterministic 10 / 50 / 100 / 500 Book scale benchmark harness
+- saved scale-report validation and composite v0.6 closeout gate
+- one-command Windows live continuity + benchmark closeout runner
+- severe-budget guardrail-over-primary fallback
+- manual CI workflow for reproducible Python 3.11/3.12 scale evidence
 - explicit public/private migration boundary
 - Usage Note compatibility without enabling v0.7 promotion logic
 
@@ -1084,8 +1088,8 @@ v0.4 and v0.5 are validated. YiSang has been promoted to `0.5.0`.
 
 Order:
 
-1. run and save live cross-family v0.6 continuity evidence with Roland retrieval
-2. run and save the 10 / 50 / 100 / 500 Book scale benchmark
-3. add tighter end-to-end primary/guardrail safety-budget cases
-4. import private Book packs only through an explicit external path
-5. close v0.6 only after continuity and benchmark evidence are reproducible
+1. run `scripts/v06_closeout.ps1` against the real local/reachable Llama and Qwen endpoints
+2. preserve the generated continuity and 10 / 50 / 100 / 500 Book benchmark evidence
+3. require `yisang-eval-v06-closeout` to return `ready=true`
+4. record the live validation evidence and freeze v0.6
+5. import private Book packs only through an explicit external path after closeout
