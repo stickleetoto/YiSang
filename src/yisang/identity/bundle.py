@@ -20,6 +20,7 @@ from .restore import RestoreArtifacts, RestoreReport, apply_restore
 from .snapshot import (
     IdentitySnapshot,
     SnapshotReference,
+    _is_authoritative_library_reference,
     build_identity_snapshot,
     ego_registry_digest,
     identity_snapshot_from_dict,
@@ -79,7 +80,7 @@ def build_continuity_bundle(
     memory_archive = build_memory_archive(runtime.memory)
     library_archive = (
         build_library_archive(runtime.library_port)
-        if snapshot.library is not None
+        if _is_authoritative_library_reference(snapshot.library)
         and getattr(runtime, "library_port", None) is not None
         else None
     )
@@ -152,31 +153,36 @@ def validate_continuity_bundle(bundle: ContinuityBundle) -> None:
             raise ValueError(
                 "continuity bundle snapshot Library reference kind is invalid"
             )
-        if bundle.snapshot.library.sha256 is None:
-            raise ValueError(
-                "continuity bundle snapshot Library reference lacks sha256"
+        if _is_authoritative_library_reference(bundle.snapshot.library):
+            if bundle.snapshot.library.sha256 is None:
+                raise ValueError(
+                    "continuity bundle snapshot Library reference lacks sha256"
+                )
+            if bundle.library_archive is None:
+                raise ValueError(
+                    "continuity bundle snapshot requires library_archive"
+                )
+            validate_library_archive(bundle.library_archive)
+            archive_library_schema = bundle.library_archive.get(
+                "library_schema_version"
             )
-        if bundle.library_archive is None:
+            if (
+                bundle.snapshot.library.schema_version is not None
+                and archive_library_schema != bundle.snapshot.library.schema_version
+            ):
+                raise ValueError(
+                    "continuity bundle Library schema does not match snapshot reference"
+                )
+            if (
+                bundle.library_archive.get("books_sha256")
+                != bundle.snapshot.library.sha256
+            ):
+                raise ValueError(
+                    "continuity bundle Library archive does not match snapshot reference"
+                )
+        elif bundle.library_archive is not None:
             raise ValueError(
-                "continuity bundle snapshot requires library_archive"
-            )
-        validate_library_archive(bundle.library_archive)
-        archive_library_schema = bundle.library_archive.get(
-            "library_schema_version"
-        )
-        if (
-            bundle.snapshot.library.schema_version is not None
-            and archive_library_schema != bundle.snapshot.library.schema_version
-        ):
-            raise ValueError(
-                "continuity bundle Library schema does not match snapshot reference"
-            )
-        if (
-            bundle.library_archive.get("books_sha256")
-            != bundle.snapshot.library.sha256
-        ):
-            raise ValueError(
-                "continuity bundle Library archive does not match snapshot reference"
+                "reference-only Library snapshots must not carry library_archive"
             )
 
 
