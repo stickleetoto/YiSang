@@ -27,6 +27,7 @@ from yisang.memory.transfer import (
 
 from .snapshot import (
     IdentitySnapshot,
+    _is_authoritative_library_reference,
     build_identity_snapshot,
     continuity_fingerprint,
     ego_registry_digest,
@@ -126,9 +127,9 @@ def plan_restore(
     memory_matches = current.memory == snapshot.memory
     ego_matches = current.ego_registry == snapshot.ego_registry
     library_matches = (
-        True
-        if snapshot.library is None
-        else current.library == snapshot.library
+        current.library == snapshot.library
+        if _is_authoritative_library_reference(snapshot.library)
+        else True
     )
     state_matches = current.state == snapshot.state
 
@@ -294,7 +295,7 @@ def apply_restore(
         runtime.state = staged_state
         runtime.memory = staged_memory
         runtime.ego_registry = staged_egos
-        if snapshot.library is not None:
+        if plan.requires_library_restore:
             runtime.library_port = staged_library
             runtime.library_retriever = (
                 LexicalLibraryRetriever(staged_library)
