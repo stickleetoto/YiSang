@@ -423,7 +423,7 @@ On startup:
 
 ## v0.6 — Roland Library
 
-> Status: **ACTIVE — foundation, retrieval, delivery, runtime context, and continuity restore implemented**. See `docs/V06_ROLAND_FOUNDATION.md`.
+> Status: **ACTIVE — implementation complete through continuity/scale validation harnesses; live v0.6 evidence still pending**. See `docs/V06_ROLAND_FOUNDATION.md`.
 
 ### Objective
 
@@ -519,6 +519,9 @@ Implemented across the current v0.6 slices:
 - IdentitySnapshot Library digest/reference binding
 - continuity bundle Library archive/restore with staged verification
 - retriever rebuild after Library restore
+- continuity evaluator knowledge_ref source/target proof
+- v0.6 Library-aware closeout gate with v0.5 report compatibility
+- deterministic 10 / 50 / 100 / 500 Book scale benchmark harness
 - explicit public/private migration boundary
 - Usage Note compatibility without enabling v0.7 promotion logic
 
@@ -1081,8 +1084,8 @@ v0.4 and v0.5 are validated. YiSang has been promoted to `0.5.0`.
 
 Order:
 
-1. run deterministic retrieval and safety-budget validation
-2. extend the live continuity evaluator to prove restored Library retrieval across engine swap
-3. run 10 / 50 / 100 / 500 Book scale benchmarks
+1. run and save live cross-family v0.6 continuity evidence with Roland retrieval
+2. run and save the 10 / 50 / 100 / 500 Book scale benchmark
+3. add tighter end-to-end primary/guardrail safety-budget cases
 4. import private Book packs only through an explicit external path
 5. close v0.6 only after continuity and benchmark evidence are reproducible
