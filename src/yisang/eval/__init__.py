@@ -5,9 +5,17 @@ from .continuity import (
     ContinuityReport,
     build_continuity_report,
     evaluate_v05_closeout,
+    evaluate_v06_closeout,
     load_continuity_report,
     run_continuity_case,
     write_continuity_report,
+)
+from .library_benchmark import (
+    DEFAULT_LIBRARY_SCALES,
+    LibraryScaleReport,
+    LibraryScaleResult,
+    run_library_scale,
+    run_library_scale_benchmark,
 )
 from .memory_benchmark import (
     DEFAULT_MEMORY_CASES,
@@ -38,8 +46,11 @@ from .repeatability import (
 
 __all__ = [
     "BaselineGate",
+    "DEFAULT_LIBRARY_SCALES",
     "DEFAULT_MEMORY_CASES",
     "MEMORY_BENCHMARK_PROFILES",
+    "LibraryScaleReport",
+    "LibraryScaleResult",
     "MemoryBenchmarkCase",
     "MemoryBenchmarkProfile",
     "MemoryBenchmarkReport",
@@ -59,10 +70,13 @@ __all__ = [
     "build_report",
     "evaluate_baseline",
     "evaluate_v05_closeout",
+    "evaluate_v06_closeout",
     "load_continuity_report",
     "matrix_case_ids",
     "run_case",
     "run_continuity_case",
+    "run_library_scale",
+    "run_library_scale_benchmark",
     "run_memory_benchmark",
     "run_profile_matrix",
     "write_continuity_report",
