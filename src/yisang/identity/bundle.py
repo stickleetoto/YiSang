@@ -8,6 +8,11 @@ import json
 
 from yisang.ego.models import EgoManifest
 from yisang.ego.registry import EgoRegistry
+from yisang.library.archive import (
+    build_library_archive,
+    validate_library_archive,
+)
+from yisang.library.port import LibraryPort
 from yisang.memory.port import MemoryPort
 from yisang.memory.transfer import build_memory_archive, validate_memory_archive
 
@@ -15,6 +20,7 @@ from .restore import RestoreArtifacts, RestoreReport, apply_restore
 from .snapshot import (
     IdentitySnapshot,
     SnapshotReference,
+    _is_authoritative_library_reference,
     build_identity_snapshot,
     ego_registry_digest,
     identity_snapshot_from_dict,
@@ -28,9 +34,10 @@ class ContinuityBundle:
     snapshot: IdentitySnapshot
     memory_archive: dict[str, Any]
     ego_manifests: tuple[EgoManifest, ...]
+    library_archive: dict[str, Any] | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload = {
             "snapshot": self.snapshot.to_dict(),
             "memory_archive": self.memory_archive,
             "ego_manifests": [
@@ -45,6 +52,9 @@ class ContinuityBundle:
                 for ego in self.ego_manifests
             ],
         }
+        if self.library_archive is not None:
+            payload["library_archive"] = self.library_archive
+        return payload
 
 
 def build_continuity_bundle(
@@ -54,13 +64,26 @@ def build_continuity_bundle(
     runtime_version: str,
     library: SnapshotReference | None = None,
 ) -> ContinuityBundle:
-    snapshot = build_identity_snapshot(
-        runtime,
-        policy_version=policy_version,
-        runtime_version=runtime_version,
-        library=library,
-    )
+    if library is None:
+        snapshot = build_identity_snapshot(
+            runtime,
+            policy_version=policy_version,
+            runtime_version=runtime_version,
+        )
+    else:
+        snapshot = build_identity_snapshot(
+            runtime,
+            policy_version=policy_version,
+            runtime_version=runtime_version,
+            library=library,
+        )
     memory_archive = build_memory_archive(runtime.memory)
+    library_archive = (
+        build_library_archive(runtime.library_port)
+        if _is_authoritative_library_reference(snapshot.library)
+        and getattr(runtime, "library_port", None) is not None
+        else None
+    )
     egos = tuple(
         sorted(
             runtime.ego_registry.list_all(),
@@ -71,6 +94,7 @@ def build_continuity_bundle(
         snapshot=snapshot,
         memory_archive=memory_archive,
         ego_manifests=egos,
+        library_archive=library_archive,
     )
     validate_continuity_bundle(bundle)
     return bundle
@@ -118,6 +142,48 @@ def validate_continuity_bundle(bundle: ContinuityBundle) -> None:
         raise ValueError(
             "continuity bundle E.G.O manifests do not match snapshot reference"
         )
+
+    if bundle.snapshot.library is None:
+        if bundle.library_archive is not None:
+            raise ValueError(
+                "continuity bundle Library archive has no snapshot reference"
+            )
+    else:
+        if bundle.snapshot.library.kind != "library":
+            raise ValueError(
+                "continuity bundle snapshot Library reference kind is invalid"
+            )
+        if _is_authoritative_library_reference(bundle.snapshot.library):
+            if bundle.snapshot.library.sha256 is None:
+                raise ValueError(
+                    "continuity bundle snapshot Library reference lacks sha256"
+                )
+            if bundle.library_archive is None:
+                raise ValueError(
+                    "continuity bundle snapshot requires library_archive"
+                )
+            validate_library_archive(bundle.library_archive)
+            archive_library_schema = bundle.library_archive.get(
+                "library_schema_version"
+            )
+            if (
+                bundle.snapshot.library.schema_version is not None
+                and archive_library_schema != bundle.snapshot.library.schema_version
+            ):
+                raise ValueError(
+                    "continuity bundle Library schema does not match snapshot reference"
+                )
+            if (
+                bundle.library_archive.get("books_sha256")
+                != bundle.snapshot.library.sha256
+            ):
+                raise ValueError(
+                    "continuity bundle Library archive does not match snapshot reference"
+                )
+        elif bundle.library_archive is not None:
+            raise ValueError(
+                "reference-only Library snapshots must not carry library_archive"
+            )
 
 
 def write_continuity_bundle(
@@ -171,6 +237,7 @@ def load_continuity_bundle(path: str | Path) -> ContinuityBundle:
     snapshot_raw = payload.get("snapshot")
     memory_archive = payload.get("memory_archive")
     ego_raw = payload.get("ego_manifests")
+    library_archive = payload.get("library_archive")
 
     if not isinstance(snapshot_raw, dict):
         raise ValueError("continuity bundle snapshot must be an object")
@@ -178,6 +245,8 @@ def load_continuity_bundle(path: str | Path) -> ContinuityBundle:
         raise ValueError("continuity bundle memory_archive must be an object")
     if not isinstance(ego_raw, list):
         raise ValueError("continuity bundle ego_manifests must be a list")
+    if library_archive is not None and not isinstance(library_archive, dict):
+        raise ValueError("continuity bundle library_archive must be an object")
 
     snapshot = identity_snapshot_from_dict(snapshot_raw)
     egos = tuple(_ego_from_dict(item) for item in ego_raw)
@@ -186,6 +255,11 @@ def load_continuity_bundle(path: str | Path) -> ContinuityBundle:
         snapshot=snapshot,
         memory_archive=dict(memory_archive),
         ego_manifests=egos,
+        library_archive=(
+            dict(library_archive)
+            if library_archive is not None
+            else None
+        ),
     )
     validate_continuity_bundle(bundle)
     return bundle
@@ -197,6 +271,7 @@ def restore_continuity_bundle(
     *,
     target_engine: str,
     memory_factory: Callable[[], MemoryPort] | None = None,
+    library_factory: Callable[[], LibraryPort] | None = None,
 ) -> RestoreReport:
     validate_continuity_bundle(bundle)
     return apply_restore(
@@ -206,8 +281,10 @@ def restore_continuity_bundle(
         artifacts=RestoreArtifacts(
             memory_archive=bundle.memory_archive,
             ego_manifests=bundle.ego_manifests,
+            library_archive=bundle.library_archive,
         ),
         memory_factory=memory_factory,
+        library_factory=library_factory,
     )
 
 

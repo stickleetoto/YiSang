@@ -138,11 +138,27 @@ Implemented:
 - global-budget pruning that removes optional Library detail and positive complements before guardrails
 - no-Library compatibility path that preserves the prior runtime behavior
 
+## Fifth slice: snapshot and continuity integration
+
+Implemented:
+
+- runtime-owned authoritative `LibraryPort`
+- automatic `IdentitySnapshot.library` reference generation from the authoritative Library digest
+- `library://authoritative` snapshot reference with Library schema version
+- runtime-vs-snapshot Library drift detection
+- continuity bundle `library_archive` payload with internal archive checksum validation
+- snapshot reference / archive schema / digest consistency checks
+- staged Library restore into an empty `LibraryPort`
+- post-stage digest verification before runtime mutation
+- rollback-safe Runtime Library swap
+- automatic `LexicalLibraryRetriever` rebuild after Library restore
+- restore evidence for Library book count and pre/post digest
+- compatibility with older snapshots where `library=None`
+
 ## Explicitly deferred
 
 The current v0.6 slices do not yet include:
 
-- snapshot / continuity bundle Library restore
 - SQLite LibraryPort
 - active Usage Note promotion
 
@@ -151,9 +167,9 @@ v0.6 only preserves compatible durable notes during import.
 
 ## Next slice
 
-1. make `IdentitySnapshot.library` a real digest/reference;
-2. extend continuity bundles with Library archive/restore;
-3. add deterministic retrieval and tighter end-to-end safety-budget evals;
-4. add scale benchmarks for 10 / 50 / 100 / 500 books;
-5. import private Book packs only through an explicit external path;
+1. add deterministic retrieval and tighter end-to-end safety-budget evals;
+2. add scale benchmarks for 10 / 50 / 100 / 500 books;
+3. verify restored Library retrieval after an engine swap in the continuity evaluator;
+4. import private Book packs only through an explicit external path;
+5. close v0.6 only after retrieval, continuity, and scale evidence are reproducible;
 6. keep SQLite LibraryPort deferred until persistence pressure justifies it.

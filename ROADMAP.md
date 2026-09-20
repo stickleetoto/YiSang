@@ -423,7 +423,7 @@ On startup:
 
 ## v0.6 — Roland Library
 
-> Status: **ACTIVE — foundation, retrieval, delivery, and runtime context integration implemented**. See `docs/V06_ROLAND_FOUNDATION.md`.
+> Status: **ACTIVE — foundation, retrieval, delivery, runtime context, and continuity restore implemented**. See `docs/V06_ROLAND_FOUNDATION.md`.
 
 ### Objective
 
@@ -515,6 +515,10 @@ Implemented across the current v0.6 slices:
 - provenance, trust, validation, and stable knowledge references
 - `ContextPack.library` and Library budget accounting
 - optional Runtime retrieval -> delivery -> ContextCompiler integration
+- authoritative Runtime `LibraryPort` ownership
+- IdentitySnapshot Library digest/reference binding
+- continuity bundle Library archive/restore with staged verification
+- retriever rebuild after Library restore
 - explicit public/private migration boundary
 - Usage Note compatibility without enabling v0.7 promotion logic
 
@@ -1077,8 +1081,8 @@ v0.4 and v0.5 are validated. YiSang has been promoted to `0.5.0`.
 
 Order:
 
-1. integrate Library snapshot/continuity evidence
-2. extend continuity bundle archive/restore with Library state
-3. run deterministic retrieval and safety-budget validation
-4. run 10 / 50 / 100 / 500 Book scale benchmarks
+1. run deterministic retrieval and safety-budget validation
+2. extend the live continuity evaluator to prove restored Library retrieval across engine swap
+3. run 10 / 50 / 100 / 500 Book scale benchmarks
+4. import private Book packs only through an explicit external path
 5. close v0.6 only after continuity and benchmark evidence are reproducible

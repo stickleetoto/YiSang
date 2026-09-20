@@ -8,10 +8,13 @@ import json
 import time
 import uuid
 
+from yisang.library.archive import library_digest
+from yisang.library.models import LIBRARY_SCHEMA_VERSION
 from yisang.memory.models import MEMORY_SCHEMA_VERSION
 from yisang.memory.transfer import build_memory_archive
 
 SNAPSHOT_SCHEMA_VERSION = 1
+_AUTO_LIBRARY = object()
 
 
 @dataclass(frozen=True)
@@ -95,11 +98,16 @@ def build_identity_snapshot(
     *,
     policy_version: str,
     runtime_version: str,
-    library: SnapshotReference | None = None,
+    library: SnapshotReference | None | object = _AUTO_LIBRARY,
     migrations: tuple[MigrationRecord, ...] = (),
 ) -> IdentitySnapshot:
     memory_archive = build_memory_archive(runtime.memory)
     ego_payload = ego_registry_payload(runtime.ego_registry)
+    library_reference = (
+        _runtime_library_reference(runtime)
+        if library is _AUTO_LIBRARY
+        else library
+    )
 
     goal = runtime.state.current_goal
     active_goals = (goal,) if isinstance(goal, str) and goal.strip() else ()
@@ -134,7 +142,7 @@ def build_identity_snapshot(
             sha256=_sha256_json(ego_payload),
             schema_version=1,
         ),
-        library=library,
+        library=library_reference,
         policy_version=policy_version,
         runtime_version=runtime_version,
         migrations=tuple(migrations),
@@ -269,6 +277,13 @@ def validate_snapshot_against_runtime(
     if snapshot.ego_registry.sha256 != ego_digest:
         errors.append("E.G.O registry digest does not match snapshot")
 
+    if _is_authoritative_library_reference(snapshot.library):
+        runtime_library = _runtime_library_reference(runtime)
+        if runtime_library is None:
+            errors.append("runtime Library is missing for snapshot")
+        elif runtime_library != snapshot.library:
+            errors.append("authoritative Library digest does not match snapshot")
+
     runtime_state = {
         "active_project": runtime.state.active_project,
         "current_goal": runtime.state.current_goal,
@@ -281,6 +296,28 @@ def validate_snapshot_against_runtime(
         valid=not errors,
         errors=tuple(errors),
         warnings=tuple(warnings),
+    )
+
+
+def _is_authoritative_library_reference(
+    reference: SnapshotReference | None,
+) -> bool:
+    return (
+        reference is not None
+        and reference.kind == "library"
+        and reference.ref == "library://authoritative"
+    )
+
+
+def _runtime_library_reference(runtime) -> SnapshotReference | None:
+    port = getattr(runtime, "library_port", None)
+    if port is None:
+        return None
+    return SnapshotReference(
+        kind="library",
+        ref="library://authoritative",
+        sha256=library_digest(port),
+        schema_version=LIBRARY_SCHEMA_VERSION,
     )
 
 
