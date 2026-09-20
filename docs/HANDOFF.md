@@ -251,3 +251,16 @@ evidence, exit criteria, and explicit migration boundaries.
   exists.
 - Added yisang-trace-replay-smoke for Trace -> Manifest -> real replay ->
   PromotionGate.
+
+
+## Session 2026-09-20 / GPT-5.6 Sol / BIO adapter foundation
+
+- BIO repository/code was not modified.
+- Added a provider-neutral MemoryProvider surface above the existing native MemoryPort contract.
+- Added NativeMemoryProvider as the control implementation.
+- Added BioMemoryProvider as an optional YiSang-side adapter.
+- Added BioBridgeClientAdapter using duck typing; YiSang does not import BIO at package import time and does not vendor BIO.
+- BIO reads map current/active memory into YiSang MemoryRecord views while terminal lifecycle states stay inactive.
+- BIO writes create pending memory proposals only; YiSang never auto-approves them in this adapter.
+- Added provider selection/factory and a fake-bridge smoke so the adapter can be validated without touching a live BIO instance.
+- Next after local validation: explicit Runtime MemoryProvider integration and Native-vs-BIO resume/stale/correction A/B evaluator.
