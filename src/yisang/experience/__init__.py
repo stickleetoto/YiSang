@@ -18,6 +18,12 @@ from .generalizer import (
     ExperienceGeneralizer,
 )
 from .ledger import InMemoryPromotionLedger
+from .multistep import (
+    DeterministicOrderedReplayExecutor,
+    OrderedReplayError,
+    OrderedReplayManifestCompiler,
+    OrderedReplaySequence,
+)
 from .models import (
     EgoInstructionPatch,
     ExperienceEpisode,
@@ -56,6 +62,7 @@ __all__ = [
     "EgoInstructionPatch",
     "EgoInstructionPatchAdapter",
     "DeterministicReplayExecutor",
+    "DeterministicOrderedReplayExecutor",
     "ActionTrace",
     "ActionTracePort",
     "ActionTraceRecorder",
@@ -78,6 +85,9 @@ __all__ = [
     "PromotionDecision",
     "PromotionGate",
     "PromotionOutcome",
+    "OrderedReplayError",
+    "OrderedReplayManifestCompiler",
+    "OrderedReplaySequence",
     "PromotionPort",
     "ReplayCaseResult",
     "ReplayExecutionError",

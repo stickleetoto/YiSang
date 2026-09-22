@@ -121,134 +121,147 @@ class DeterministicReplayExecutor:
         test_id: str,
         spec: ReplayExecutionSpec,
     ) -> ReplayCaseResult:
-        self._validate_executable(spec.argv[0])
-        timeout = min(spec.timeout_seconds, self.max_timeout_seconds)
-
+        if self.workspace_root is not None:
+            self.workspace_root.mkdir(parents=True, exist_ok=True)
         with TemporaryDirectory(
             prefix="yisang-replay-",
             dir=str(self.workspace_root) if self.workspace_root is not None else None,
         ) as temp_dir:
-            workspace = Path(temp_dir)
-            for setup in spec.setup_files:
-                path = _workspace_path(workspace, setup.path)
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(setup.content, encoding="utf-8")
-
-            try:
-                completed = subprocess.run(
-                    list(spec.argv),
-                    cwd=workspace,
-                    capture_output=True,
-                    text=True,
-                    shell=False,
-                    timeout=timeout,
-                    check=False,
-                    env=os.environ.copy(),
-                )
-            except subprocess.TimeoutExpired as exc:
-                observation = {
-                    "test_id": test_id,
-                    "status": "timeout",
-                    "timeout_seconds": timeout,
-                    "manifest_sha256": _manifest_digest(spec),
-                }
-                return ReplayCaseResult(
-                    test_id=test_id,
-                    passed=False,
-                    evidence_refs=(_evidence_ref(observation),),
-                    detail=f"timeout after {timeout:g}s",
-                )
-            except OSError as exc:
-                observation = {
-                    "test_id": test_id,
-                    "status": "os_error",
-                    "error_type": type(exc).__name__,
-                    "error": str(exc),
-                    "manifest_sha256": _manifest_digest(spec),
-                }
-                return ReplayCaseResult(
-                    test_id=test_id,
-                    passed=False,
-                    evidence_refs=(_evidence_ref(observation),),
-                    detail=f"{type(exc).__name__}: {exc}",
-                )
-
-            checks: list[tuple[str, bool]] = [
-                (
-                    f"exit_code=={spec.expected_exit_code}",
-                    completed.returncode == spec.expected_exit_code,
-                )
-            ]
-            checks.extend(
-                (f"stdout_contains:{value}", value in completed.stdout)
-                for value in spec.stdout_contains
-            )
-            checks.extend(
-                (f"stderr_contains:{value}", value in completed.stderr)
-                for value in spec.stderr_contains
+            return self._execute_case_in_workspace(
+                test_id,
+                spec,
+                Path(temp_dir),
             )
 
-            file_observations: list[dict[str, object]] = []
-            for expectation in spec.file_expectations:
-                path = _workspace_path(workspace, expectation.path)
-                exists = path.is_file()
-                file_check = exists if expectation.must_exist else not exists
-                checks.append((f"file_exists:{expectation.path}", file_check))
+    def _execute_case_in_workspace(
+        self,
+        test_id: str,
+        spec: ReplayExecutionSpec,
+        workspace: Path,
+    ) -> ReplayCaseResult:
+        self._validate_executable(spec.argv[0])
+        timeout = min(spec.timeout_seconds, self.max_timeout_seconds)
 
-                text_sha256: str | None = None
-                exact_match: bool | None = None
-                if exists:
-                    raw = path.read_bytes()
-                    text_sha256 = sha256(raw).hexdigest()
-                    if expectation.exact_text is not None:
-                        actual_text = raw.decode("utf-8")
-                        exact_match = actual_text == expectation.exact_text
-                        checks.append(
-                            (
-                                f"file_exact:{expectation.path}",
-                                exact_match,
-                            )
-                        )
-                elif expectation.exact_text is not None:
-                    exact_match = False
-                    checks.append((f"file_exact:{expectation.path}", False))
+        for setup in spec.setup_files:
+            path = _workspace_path(workspace, setup.path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(setup.content, encoding="utf-8")
 
-                file_observations.append(
-                    {
-                        "path": expectation.path,
-                        "exists": exists,
-                        "sha256": text_sha256,
-                        "exact_match": exact_match,
-                    }
-                )
-
-            passed = all(ok for _, ok in checks)
-            failed_checks = [name for name, ok in checks if not ok]
+        try:
+            completed = subprocess.run(
+                list(spec.argv),
+                cwd=workspace,
+                capture_output=True,
+                text=True,
+                shell=False,
+                timeout=timeout,
+                check=False,
+                env=os.environ.copy(),
+            )
+        except subprocess.TimeoutExpired:
             observation = {
                 "test_id": test_id,
-                "status": "completed",
+                "status": "timeout",
+                "timeout_seconds": timeout,
                 "manifest_sha256": _manifest_digest(spec),
-                "returncode": completed.returncode,
-                "stdout_sha256": sha256(
-                    completed.stdout.encode("utf-8")
-                ).hexdigest(),
-                "stderr_sha256": sha256(
-                    completed.stderr.encode("utf-8")
-                ).hexdigest(),
-                "file_observations": file_observations,
-                "checks": [{"name": name, "passed": ok} for name, ok in checks],
             }
-            detail = (
-                "deterministic replay passed"
-                if passed
-                else "failed checks: " + ", ".join(failed_checks)
-            )
             return ReplayCaseResult(
                 test_id=test_id,
-                passed=passed,
+                passed=False,
                 evidence_refs=(_evidence_ref(observation),),
-                detail=detail,
+                detail=f"timeout after {timeout:g}s",
             )
+        except OSError as exc:
+            observation = {
+                "test_id": test_id,
+                "status": "os_error",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "manifest_sha256": _manifest_digest(spec),
+            }
+            return ReplayCaseResult(
+                test_id=test_id,
+                passed=False,
+                evidence_refs=(_evidence_ref(observation),),
+                detail=f"{type(exc).__name__}: {exc}",
+            )
+
+        checks: list[tuple[str, bool]] = [
+            (
+                f"exit_code=={spec.expected_exit_code}",
+                completed.returncode == spec.expected_exit_code,
+            )
+        ]
+        checks.extend(
+            (f"stdout_contains:{value}", value in completed.stdout)
+            for value in spec.stdout_contains
+        )
+        checks.extend(
+            (f"stderr_contains:{value}", value in completed.stderr)
+            for value in spec.stderr_contains
+        )
+
+        file_observations: list[dict[str, object]] = []
+        for expectation in spec.file_expectations:
+            path = _workspace_path(workspace, expectation.path)
+            exists = path.is_file()
+            file_check = exists if expectation.must_exist else not exists
+            checks.append((f"file_exists:{expectation.path}", file_check))
+
+            text_sha256: str | None = None
+            exact_match: bool | None = None
+            if exists:
+                raw = path.read_bytes()
+                text_sha256 = sha256(raw).hexdigest()
+                if expectation.exact_text is not None:
+                    actual_text = raw.decode("utf-8")
+                    exact_match = actual_text == expectation.exact_text
+                    checks.append(
+                        (
+                            f"file_exact:{expectation.path}",
+                            exact_match,
+                        )
+                    )
+            elif expectation.exact_text is not None:
+                exact_match = False
+                checks.append((f"file_exact:{expectation.path}", False))
+
+            file_observations.append(
+                {
+                    "path": expectation.path,
+                    "exists": exists,
+                    "sha256": text_sha256,
+                    "exact_match": exact_match,
+                }
+            )
+
+        passed = all(ok for _, ok in checks)
+        failed_checks = [name for name, ok in checks if not ok]
+        observation = {
+            "test_id": test_id,
+            "status": "completed",
+            "manifest_sha256": _manifest_digest(spec),
+            "returncode": completed.returncode,
+            "stdout_sha256": sha256(
+                completed.stdout.encode("utf-8")
+            ).hexdigest(),
+            "stderr_sha256": sha256(
+                completed.stderr.encode("utf-8")
+            ).hexdigest(),
+            "file_observations": file_observations,
+            "checks": [{"name": name, "passed": ok} for name, ok in checks],
+        }
+        detail = (
+            "deterministic replay passed"
+            if passed
+            else "failed checks: " + ", ".join(failed_checks)
+        )
+        return ReplayCaseResult(
+            test_id=test_id,
+            passed=passed,
+            evidence_refs=(_evidence_ref(observation),),
+            detail=detail,
+        )
 
     def _validate_executable(self, executable: str) -> None:
         actual_text = str(executable).strip()

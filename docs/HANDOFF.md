@@ -251,3 +251,19 @@ evidence, exit criteria, and explicit migration boundaries.
   exists.
 - Added yisang-trace-replay-smoke for Trace -> Manifest -> real replay ->
   PromotionGate.
+
+
+## Session 2026-09-22 / GPT-5.6 Sol / ordered multi-step replay
+
+- Added OrderedReplaySequence and DeterministicOrderedReplayExecutor.
+- All steps in one replay case share one isolated temporary workspace.
+- Execution is fail-fast: later steps do not run after a failed step.
+- Added OrderedReplayManifestCompiler that requires exact ActionTrace ordinal
+  tool order to match generalized procedure_steps.
+- Missing, extra, reordered, or non-replayable historical steps are rejected.
+- Kept the existing single-step ReplayManifestCompiler unchanged for backward
+  compatibility.
+- Refactored DeterministicReplayExecutor so a validated spec can execute in a
+  caller-supplied isolated workspace without weakening shell/path/allowlist
+  protections.
+- Added yisang-ordered-replay-smoke.
