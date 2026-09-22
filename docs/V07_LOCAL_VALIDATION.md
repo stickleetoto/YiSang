@@ -21,7 +21,7 @@ python -m pip install -e ".[dev]"
 ## 3. Focused v0.7 tests
 
 ~~~powershell
-python -m pytest tests/test_experience_promotion_v07.py tests/test_experience_application_v07.py tests/test_experience_recorder_v07.py tests/test_experience_store_v07.py tests/test_runtime_experience_v07.py tests/test_experience_smoke_v07.py tests/test_experience_generalizer_v07.py tests/test_experience_replay_plan_v07.py tests/test_experience_generalization_smoke_v07.py tests/test_experience_executor_v07.py tests/test_experience_real_replay_smoke_v07.py tests/test_experience_trace_v07.py tests/test_experience_trace_store_compiler_v07.py tests/test_runtime_trace_v07.py tests/test_experience_trace_replay_smoke_v07.py -q
+python -m pytest tests/test_experience_promotion_v07.py tests/test_experience_application_v07.py tests/test_experience_recorder_v07.py tests/test_experience_store_v07.py tests/test_runtime_experience_v07.py tests/test_experience_smoke_v07.py tests/test_experience_generalizer_v07.py tests/test_experience_replay_plan_v07.py tests/test_experience_generalization_smoke_v07.py tests/test_experience_executor_v07.py tests/test_experience_real_replay_smoke_v07.py tests/test_experience_trace_v07.py tests/test_experience_trace_store_compiler_v07.py tests/test_runtime_trace_v07.py tests/test_experience_trace_replay_smoke_v07.py tests/test_experience_multistep_v07.py tests/test_experience_ordered_replay_smoke_v07.py -q
 ~~~
 
 ## 4. Full regression
@@ -33,7 +33,7 @@ python -m pytest -q
 Expected repository-side CI baseline at the time this document was written:
 
 ~~~text
-301 passed
+307 passed
 ~~~
 
 ## 5. Runtime persistence smoke
@@ -158,3 +158,29 @@ promotion_accepted = true
 
 Replay manifests are opt-in tool evidence. YiSang does not reconstruct shell
 commands from arbitrary model text or raw action arguments.
+
+
+## 11. Ordered multi-step replay smoke
+
+This smoke proves two replayable tool steps execute in order inside the same
+isolated workspace. The second step depends on a file created by the first.
+
+~~~powershell
+yisang-ordered-replay-smoke
+~~~
+
+Expected important values:
+
+~~~text
+ready = true
+sequence_count = 3
+steps_per_sequence = [2, 2, 2]
+shared_workspace_proven = true
+fail_fast = true
+all_replays_passed = true
+promotion_accepted = true
+~~~
+
+The ordered compiler requires the complete ActionTrace tool sequence to match
+the generalized procedure tool order exactly. Missing, extra, reordered, or
+unverified steps are rejected instead of guessed.
