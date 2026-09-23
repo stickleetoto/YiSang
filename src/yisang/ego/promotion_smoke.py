@@ -3,9 +3,18 @@ from __future__ import annotations
 import argparse
 import json
 
+from yisang.context.compiler import ContextCompiler
+from yisang.core.models import YiSangRequest
+from yisang.core.runtime import YiSangRuntime
 from yisang.ego.memory_port import InMemoryEgoPort
 from yisang.ego.registry_view import DurableEgoRegistryView
 from yisang.ego.router_v2 import HybridCapabilityRouter
+from yisang.engines.demo import EchoEngine
+from yisang.engines.router import EngineRouter
+from yisang.identity.models import AgentState, IdentityCharter
+from yisang.memory.governor import MemoryGovernor
+from yisang.memory.in_memory import InMemoryMemoryPort
+from yisang.verification.base import PassThroughVerifier
 from yisang.experience.application import DurableEgoApplyAdapter
 from yisang.experience.ledger import InMemoryPromotionLedger
 from yisang.experience.models import (
@@ -94,6 +103,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     active_before = view.get("ego.learned.python-debug")
 
+    engines = EngineRouter()
+    engines.register(EchoEngine("ego-smoke", "EGO"))
+    runtime = YiSangRuntime(
+        identity=IdentityCharter("ego-promotion-smoke", "YiSang"),
+        state=AgentState(active_engine="ego-smoke"),
+        memory=InMemoryMemoryPort(),
+        governor=MemoryGovernor(),
+        ego_registry=view,
+        capability_router=HybridCapabilityRouter(),
+        context_compiler=ContextCompiler(),
+        engine_router=engines,
+        verifier=PassThroughVerifier(),
+    )
+    runtime_response = runtime.run(
+        YiSangRequest("ego-promotion-runtime", "python pytest failure traceback")
+    )
+
     restored = egos.rollback(
         "ego.learned.python-debug",
         "0.0.1",
@@ -108,6 +134,8 @@ def main(argv: list[str] | None = None) -> int:
             and active_before.version == "0.0.2"
             and routed_before
             and routed_before[0].version == "0.0.2"
+            and runtime_response.used_ego_ids == ["ego.learned.python-debug"]
+            and "1 E.G.O modules" in runtime_response.text
             and restored.version == "0.0.1"
             and active_after.version == "0.0.1"
         ),
@@ -119,6 +147,8 @@ def main(argv: list[str] | None = None) -> int:
         "routed_version": (
             routed_before[0].version if routed_before else None
         ),
+        "runtime_selected_ego_ids": runtime_response.used_ego_ids,
+        "runtime_context_used_promoted_ego": "1 E.G.O modules" in runtime_response.text,
         "rollback_target": restored.version,
         "active_after_rollback": active_after.version,
         "promotion_receipts": (
