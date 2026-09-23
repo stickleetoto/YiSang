@@ -1,4 +1,5 @@
 from .application import (
+    DurableEgoApplyAdapter,
     EgoInstructionPatchAdapter,
     LibraryKnowledgeApplyAdapter,
     PromotionApplicationError,
@@ -54,6 +55,7 @@ from .trace_sqlite import SQLiteActionTracePort
 
 __all__ = [
     "EgoInstructionPatch",
+    "DurableEgoApplyAdapter",
     "EgoInstructionPatchAdapter",
     "DeterministicReplayExecutor",
     "ActionTrace",

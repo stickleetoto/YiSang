@@ -31,6 +31,7 @@ yisang-generalization-smoke = "yisang.experience.generalization_smoke:main"
 yisang-real-replay-smoke = "yisang.experience.real_replay_smoke:main"
 yisang-trace-replay-smoke = "yisang.experience.trace_replay_smoke:main"
 yisang-ego-v2-smoke = "yisang.ego.smoke_v2:main"
+yisang-ego-promotion-smoke = "yisang.ego.promotion_smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

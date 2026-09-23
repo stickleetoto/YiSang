@@ -4,6 +4,8 @@ from dataclasses import replace
 import uuid
 
 from yisang.library import Book, KnowledgeEntry, LibraryPort
+from yisang.ego.generated import build_promoted_ego_manifest
+from yisang.ego.port import EgoPort, InstalledEgoPackage
 
 from .models import (
     EgoInstructionPatch,
@@ -165,3 +167,97 @@ class EgoInstructionPatchAdapter:
             evidence_refs=artifact.evidence_refs,
             approval_ref=request.approval_ref,
         )
+
+
+
+class DurableEgoApplyAdapter:
+    """Install a validated promotion as a durable E.G.O v2 prompt package."""
+
+    def __init__(
+        self,
+        promotions: PromotionPort,
+        egos: EgoPort,
+    ) -> None:
+        self._promotions = promotions
+        self._egos = egos
+
+    def apply(
+        self,
+        request: PromotionApplyRequest,
+        *,
+        ego_id: str,
+        version: str | None = None,
+    ) -> PromotionApplyReceipt:
+        artifact = _load_applicable(
+            self._promotions,
+            request,
+            allowed_targets={"ego_instruction", "ego_procedure"},
+        )
+        expected_target_ref = f"ego:{ego_id}"
+        if request.target_ref != expected_target_ref:
+            raise PromotionApplicationError(
+                f"target_ref must be {expected_target_ref!r}"
+            )
+
+        previous = self._promotions.find_applied(
+            artifact_id=artifact.artifact_id,
+            target_ref=request.target_ref,
+        )
+        if previous is not None:
+            return PromotionApplyReceipt(
+                apply_id=previous.apply_id,
+                artifact_id=previous.artifact_id,
+                target=previous.target,
+                target_ref=previous.target_ref,
+                actor=previous.actor,
+                approval_ref=previous.approval_ref,
+                reason=previous.reason,
+                status="already_applied",
+                result_ref=previous.result_ref,
+                created_at=previous.created_at,
+            )
+
+        manifest = build_promoted_ego_manifest(
+            artifact,
+            ego_id=ego_id,
+            version=version,
+        )
+        existing = self._egos.get(ego_id, manifest.version)
+        if existing is not None:
+            if (
+                existing.source_artifact_id != artifact.artifact_id
+                or existing.manifest.package_digest != manifest.package_digest
+            ):
+                raise PromotionApplicationError(
+                    "E.G.O version already exists with different provenance"
+                )
+            installed = existing
+        else:
+            installed = self._egos.install(
+                InstalledEgoPackage(
+                    ego_id=ego_id,
+                    version=manifest.version,
+                    manifest=manifest,
+                    source_artifact_id=artifact.artifact_id,
+                    approval_ref=request.approval_ref,
+                    status_reason=request.reason,
+                ),
+                supersede_active=True,
+            )
+
+        receipt = PromotionApplyReceipt(
+            apply_id=f"apply-{uuid.uuid4().hex[:12]}",
+            artifact_id=artifact.artifact_id,
+            target=artifact.target,
+            target_ref=request.target_ref,
+            actor=request.actor,
+            approval_ref=request.approval_ref,
+            reason=request.reason,
+            status="applied",
+            result_ref=(
+                f"ego:{installed.ego_id}@{installed.version}"
+                f"#{installed.manifest.package_digest}"
+            ),
+        )
+        self._promotions.record_receipt(receipt)
+        return receipt

@@ -277,3 +277,20 @@ evidence, exit criteria, and explicit migration boundaries.
   not transient progressive-loading state, so metadata -> full activation does
   not change the capability continuity digest.
 - Added yisang-ego-v2-smoke and focused local validation instructions.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / durable E.G.O promotion apply
+
+- Added EgoPort authoritative installation-state boundary.
+- Added InMemoryEgoPort and SQLiteEgoPort.
+- Added active/disabled/superseded lifecycle, automatic supersession, disable,
+  and rollback to an already-installed version.
+- Added deterministic PromotionArtifact -> EgoManifest v2 prompt package builder.
+- Integer promotion versions normalize to semantic 0.0.N versions.
+- Generated package digests bind manifest content and promotion provenance.
+- Added DurableEgoApplyAdapter with explicit approval and promotion receipt
+  idempotence.
+- Added DurableEgoRegistryView exposing only active durable packages to existing
+  runtime/router contracts.
+- Added yisang-ego-promotion-smoke proving apply -> supersede -> route ->
+  rollback.
