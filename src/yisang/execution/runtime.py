@@ -25,6 +25,7 @@ class ActionRuntime:
                 ActionProposal(action=tool.tool_id),
                 selected_egos=selected_egos,
                 tools=self.tools,
+                exposure_only=True,
             )
             if decision.allowed:
                 specs.append(tool.to_context_spec(ego_id=decision.ego_id))

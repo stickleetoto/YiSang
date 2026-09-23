@@ -42,7 +42,13 @@ def failure_from_gate_reason(reason: str, *, tool_id: str) -> ToolFailure:
             recovery_hint="Choose one of the currently exposed tools.",
             evidence={"tool_id": tool_id, "gate_reason": reason},
         )
-    if reason in {"side_effects_disabled", "insufficient_permission", "missing_capability"}:
+    if reason in {
+        "side_effects_disabled",
+        "insufficient_permission",
+        "missing_capability",
+        "policy_denied",
+        "policy_no_permit",
+    }:
         return ToolFailure(
             ToolFailureCategory.PERMISSION,
             retryable=False,

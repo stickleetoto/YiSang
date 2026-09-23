@@ -34,6 +34,7 @@ yisang-ego-v2-smoke = "yisang.ego.smoke_v2:main"
 yisang-ego-promotion-smoke = "yisang.ego.promotion_smoke:main"
 yisang-ego-lifecycle-smoke = "yisang.ego.lifecycle_smoke:main"
 yisang-ego-adaptive-smoke = "yisang.ego.adaptive_smoke:main"
+yisang-policy-smoke = "yisang.policy_smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

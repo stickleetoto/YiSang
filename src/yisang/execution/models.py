@@ -23,6 +23,8 @@ class ActionDecision:
     allowed: bool
     reason: str
     ego_id: str | None = None
+    policy_reason: str | None = None
+    policy_rule_ids: tuple[str, ...] = ()
 
 
 @dataclass
