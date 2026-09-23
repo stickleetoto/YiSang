@@ -53,4 +53,4 @@ a2a_skill_id = ego.python.debug
 python -m pytest -q
 ~~~
 
-Repository-side CI baseline is updated after the branch CI completes.
+Repository-side CI baseline: 314 passed on Python 3.11/3.12.
