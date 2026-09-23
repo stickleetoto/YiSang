@@ -269,3 +269,11 @@ evidence, exit criteria, and explicit migration boundaries.
   priors; embeddings remain a later implementation.
 - V2 capability metadata now participates in E.G.O continuity digest without
   changing v1 digest serialization.
+
+
+- Progressive v2 discovery now computes the immutable package SHA-256 without
+  placing detailed SKILL/schema content into model context.
+- E.G.O continuity serialization for v2 binds the package digest and metadata,
+  not transient progressive-loading state, so metadata -> full activation does
+  not change the capability continuity digest.
+- Added yisang-ego-v2-smoke and focused local validation instructions.

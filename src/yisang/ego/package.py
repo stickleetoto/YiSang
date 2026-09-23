@@ -88,17 +88,11 @@ def load_ego_package(root: str | Path) -> EgoManifest:
     for relative in referenced:
         _safe_file(package_root, relative)
 
-    digest = _package_digest(
-        package_root,
-        data,
-        tuple(dict.fromkeys(referenced)),
-    )
     return replace(
         descriptor.summary,
         instructions=instructions,
         input_schema=input_schema,
         output_schema=output_schema,
-        package_digest=f"sha256:{digest}",
         detail_level="full",
     )
 
@@ -205,6 +199,24 @@ def _descriptor_from_data(
         resources=resources,
         evals=evals,
         detail_level="metadata",
+    )
+    referenced = [
+        instructions_file,
+        *resources,
+        *evals,
+    ]
+    if input_schema_file is not None:
+        referenced.append(input_schema_file)
+    if output_schema_file is not None:
+        referenced.append(output_schema_file)
+    digest = _package_digest(
+        manifest_path.parent,
+        data,
+        tuple(dict.fromkeys(referenced)),
+    )
+    summary = replace(
+        summary,
+        package_digest=f"sha256:{digest}",
     )
     return EgoPackageDescriptor(
         root=manifest_path.parent,

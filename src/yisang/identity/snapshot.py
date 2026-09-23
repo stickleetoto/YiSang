@@ -327,17 +327,14 @@ def ego_registry_payload(registry) -> list[dict[str, Any]]:
         registry.list_all(),
         key=lambda item: item.ego_id,
     ):
-        item = {
-            "ego_id": ego.ego_id,
-            "name": ego.name,
-            "provides": list(ego.provides),
-            "keywords": list(ego.keywords),
-            "instructions": ego.instructions,
-            "permissions": dict(ego.permissions),
-        }
         if getattr(ego, "schema_version", 1) >= 2:
             risk = getattr(ego, "risk", None)
-            item.update({
+            item = {
+                "ego_id": ego.ego_id,
+                "name": ego.name,
+                "provides": list(ego.provides),
+                "keywords": list(ego.keywords),
+                "permissions": dict(ego.permissions),
                 "schema_version": ego.schema_version,
                 "version": ego.version,
                 "description": ego.description,
@@ -351,12 +348,19 @@ def ego_registry_payload(registry) -> list[dict[str, Any]]:
                     if risk is not None
                     else None
                 ),
-                "input_schema": ego.input_schema,
-                "output_schema": ego.output_schema,
                 "resources": list(ego.resources),
                 "evals": list(ego.evals),
                 "package_digest": ego.package_digest,
-            })
+            }
+        else:
+            item = {
+                "ego_id": ego.ego_id,
+                "name": ego.name,
+                "provides": list(ego.provides),
+                "keywords": list(ego.keywords),
+                "instructions": ego.instructions,
+                "permissions": dict(ego.permissions),
+            }
         payload.append(item)
     return payload
 
