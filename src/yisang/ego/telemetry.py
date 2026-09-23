@@ -6,6 +6,7 @@ from hashlib import sha256
 import json
 import math
 import time
+from typing import Callable
 
 
 EGO_TELEMETRY_KINDS = frozenset({"runtime_use", "replay_health"})
@@ -139,6 +140,7 @@ class EgoAdaptiveScorer:
         replay_weight: float = 2.0,
         max_adjustment: float = 0.35,
         prior_strength: float = 2.0,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         if min_samples < 1:
             raise ValueError("min_samples must be positive")
@@ -160,6 +162,7 @@ class EgoAdaptiveScorer:
         self.replay_weight = replay_weight
         self.max_adjustment = max_adjustment
         self.prior_strength = prior_strength
+        self.clock = clock or time.time
 
     def summary(
         self,
@@ -170,7 +173,7 @@ class EgoAdaptiveScorer:
         now: float | None = None,
     ) -> EgoTelemetrySummary:
         items = port.events(ego_id=ego_id, version=version)
-        current = time.time() if now is None else float(now)
+        current = self.clock() if now is None else float(now)
         weighted_success = 0.0
         total_weight = 0.0
         latencies: list[float] = []
