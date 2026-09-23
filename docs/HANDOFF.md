@@ -345,3 +345,17 @@ evidence, exit criteria, and explicit migration boundaries.
 - E.G.O risk hints enter policy context but never create authority.
 - No external Cedar/OPA dependency was added.
 - Added yisang-policy-smoke.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / v0.7 + E.G.O closeout handoff
+
+- Marked the v0.7 Experience + E.G.O v2 line as a closeout candidate.
+- Latest local Windows regression: 346 passed in 8.87s.
+- E.G.O v2, promotion, lifecycle, adaptive routing, and policy smokes all pass.
+- BIO is explicitly parked/reserved behind the optional MemoryProvider seam.
+- BIO must not become a dependency of the next development axis.
+- Superseded the earlier docs-only cleanup plan with a closeout branch based on
+  the latest policy branch.
+- Next major axis: v0.8 Goal / Recovery Runtime.
+- Recommended first v0.8 slice: GoalPort + SQLiteGoalPort + append-only
+  RunJournalPort + deterministic restart/recovery smoke.
