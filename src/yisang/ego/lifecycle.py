@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from hashlib import sha256
 import json
 import time
@@ -30,7 +30,7 @@ class EgoLifecycleReceipt:
     status: str
     candidate_id: str | None = None
     approval_ref: str | None = None
-    created_at: float = time.time()
+    created_at: float = field(default_factory=time.time)
 
     def __post_init__(self) -> None:
         if not self.receipt_id.strip():
