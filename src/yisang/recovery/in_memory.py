@@ -91,6 +91,15 @@ class InMemoryCheckpointPort(CheckpointPort):
         ]
         if not items:
             return None
+        if run_id is None:
+            return max(
+                items,
+                key=lambda item: (
+                    item.created_at,
+                    item.journal_sequence,
+                    item.checkpoint_id,
+                ),
+            )
         return max(
             items,
             key=lambda item: (

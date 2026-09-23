@@ -1,5 +1,6 @@
+from .action_runtime import RecoveryAwareActionRuntime
 from .coordinator import RecoveryCoordinator
-from .idempotency import side_effect_request_digest
+from .idempotency import side_effect_request_digest, side_effect_result_ref
 from .in_memory import (
     InMemoryCheckpointPort,
     InMemoryRunJournalPort,
@@ -23,6 +24,7 @@ __all__ = [
     "InMemorySideEffectReceiptPort",
     "RUN_EVENT_TYPES",
     "RecoveryActionDecision",
+    "RecoveryAwareActionRuntime",
     "RecoveryCheckpoint",
     "RecoveryCoordinator",
     "RecoveryPlan",
@@ -32,4 +34,5 @@ __all__ = [
     "SideEffectReceiptPort",
     "SQLiteRecoveryStore",
     "side_effect_request_digest",
+    "side_effect_result_ref",
 ]

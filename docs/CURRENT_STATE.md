@@ -97,9 +97,32 @@ main
 Old docs-cleanup PR #63 is superseded by the closeout branch because it was
 created before the policy-engine work.
 
-## Next major axis
+## Active next axis
 
 The next major engineering axis is **v0.8 Goal / Recovery Runtime**.
+
+Initial foundation is now under active development on
+`dev/v0.8-goal-recovery-foundation`.
+
+Implemented so far on that branch:
+
+- GoalRecord / GoalBudget
+- GoalPort with in-memory and SQLite implementations
+- explicit goal state transitions
+- append-only RunJournalPort
+- RecoveryCheckpoint / CheckpointPort
+- SQLiteRecoveryStore
+- SideEffectReceiptPort
+- idempotency request/result digests
+- conservative recovery reconciliation
+- RecoveryAwareActionRuntime
+- goal_id/run_id runtime journal context
+- duplicate side-effect suppression from committed receipts
+
+The v0.8 branch has not been declared validated yet; local testing is delegated
+to the development workstation.
+
+Target:
 
 Target:
 

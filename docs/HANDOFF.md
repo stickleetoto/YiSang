@@ -397,3 +397,10 @@ evidence, exit criteria, and explicit migration boundaries.
 - A started receipt after interruption is treated as uncertain and denied
   pending reconciliation.
 - YiSangResponse now exposes goal_id, run_id, and run_journal_sequence.
+
+
+- Corrected latest-checkpoint selection across multiple run_ids: created_at is
+  authoritative across runs; journal_sequence remains authoritative inside one
+  run because sequences restart per run.
+- Exported RecoveryAwareActionRuntime and side-effect result digest helpers.
+- Marked v0.8 Goal / Recovery as active development in CURRENT_STATE/INDEX.

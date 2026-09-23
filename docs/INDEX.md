@@ -41,3 +41,8 @@
 - `docs/ARCHITECTURE.md`
 - `docs/EXECUTION.md`
 - `docs/CODEX_MODEL_SERVER.md`
+
+
+## v0.8 — Goal / Recovery Runtime
+- `docs/V08_GOAL_RECOVERY_FOUNDATION.md`
+- `docs/NEXT_AXIS.md`

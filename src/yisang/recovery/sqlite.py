@@ -255,7 +255,7 @@ class SQLiteRecoveryStore(
                     """
                     SELECT * FROM recovery_checkpoints
                     WHERE goal_id=?
-                    ORDER BY journal_sequence DESC, created_at DESC
+                    ORDER BY created_at DESC, journal_sequence DESC
                     LIMIT 1
                     """,
                     (goal_id,),
