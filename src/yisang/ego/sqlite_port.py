@@ -10,7 +10,12 @@ from typing import Any
 
 from .models import EgoManifest, EgoRiskHints
 from .package import semantic_version_key
-from .port import EgoPort, InstalledEgoPackage
+from .port import (
+    EgoAuditEvent,
+    EgoInvalidationCandidate,
+    EgoPort,
+    InstalledEgoPackage,
+)
 
 
 class SQLiteEgoPort(EgoPort):
@@ -47,6 +52,43 @@ class SQLiteEgoPort(EgoPort):
                 WHERE source_artifact_id IS NOT NULL
                 """
             )
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ego_audit_events (
+                    event_id TEXT PRIMARY KEY,
+                    action TEXT NOT NULL,
+                    ego_id TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    actor TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    approval_ref TEXT,
+                    related_version TEXT,
+                    candidate_id TEXT,
+                    metadata_json TEXT NOT NULL,
+                    created_at REAL NOT NULL
+                )
+                """
+            )
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ego_invalidation_candidates (
+                    candidate_id TEXT PRIMARY KEY,
+                    ego_id TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    replay_run_id TEXT NOT NULL,
+                    failed_tests_json TEXT NOT NULL,
+                    evidence_refs_json TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    source_artifact_id TEXT,
+                    status TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    resolved_at REAL,
+                    resolution_actor TEXT,
+                    approval_ref TEXT,
+                    resolution_reason TEXT
+                )
+                """
+            )
             self._conn.commit()
 
     def install(
@@ -54,6 +96,8 @@ class SQLiteEgoPort(EgoPort):
         package: InstalledEgoPackage,
         *,
         supersede_active: bool = True,
+        actor: str = "system",
+        approval_ref: str | None = None,
     ) -> InstalledEgoPackage:
         now = time.time()
         installed = InstalledEgoPackage(
@@ -72,6 +116,13 @@ class SQLiteEgoPort(EgoPort):
             try:
                 self._conn.execute("BEGIN IMMEDIATE")
                 if supersede_active:
+                    old_rows = self._conn.execute(
+                        """
+                        SELECT ego_id, version FROM ego_packages
+                        WHERE ego_id = ? AND state = 'active'
+                        """,
+                        (installed.ego_id,),
+                    ).fetchall()
                     self._conn.execute(
                         """
                         UPDATE ego_packages
@@ -88,6 +139,19 @@ class SQLiteEgoPort(EgoPort):
                             installed.ego_id,
                         ),
                     )
+                    for old_row in old_rows:
+                        self._insert_audit_locked(
+                            EgoAuditEvent(
+                                event_id=f"ego-event-{__import__('uuid').uuid4().hex[:12]}",
+                                action="supersede",
+                                ego_id=old_row["ego_id"],
+                                version=old_row["version"],
+                                actor=actor,
+                                reason=f"superseded by {installed.version}",
+                                approval_ref=approval_ref,
+                                related_version=installed.version,
+                            )
+                        )
                 self._conn.execute(
                     """
                     INSERT INTO ego_packages (
@@ -113,6 +177,21 @@ class SQLiteEgoPort(EgoPort):
                         installed.installed_at,
                         installed.updated_at,
                     ),
+                )
+                self._insert_audit_locked(
+                    EgoAuditEvent(
+                        event_id=f"ego-event-{__import__('uuid').uuid4().hex[:12]}",
+                        action="install",
+                        ego_id=installed.ego_id,
+                        version=installed.version,
+                        actor=actor,
+                        reason=installed.status_reason or "installed E.G.O package",
+                        approval_ref=approval_ref or installed.approval_ref,
+                        metadata={
+                            "source_artifact_id": installed.source_artifact_id,
+                            "package_digest": installed.manifest.package_digest,
+                        },
+                    )
                 )
                 self._conn.commit()
             except sqlite3.IntegrityError as exc:
@@ -191,6 +270,8 @@ class SQLiteEgoPort(EgoPort):
         version: str,
         *,
         reason: str,
+        actor: str = "system",
+        approval_ref: str | None = None,
     ) -> InstalledEgoPackage:
         normalized = reason.strip()
         if not normalized:
@@ -210,6 +291,17 @@ class SQLiteEgoPort(EgoPort):
             if cursor.rowcount != 1:
                 self._conn.rollback()
                 raise KeyError(f"{ego_id}@{version}")
+            self._insert_audit_locked(
+                EgoAuditEvent(
+                    event_id=f"ego-event-{__import__('uuid').uuid4().hex[:12]}",
+                    action="disable",
+                    ego_id=ego_id,
+                    version=version,
+                    actor=actor,
+                    reason=normalized,
+                    approval_ref=approval_ref,
+                )
+            )
             self._conn.commit()
         item = self.get(ego_id, version)
         assert item is not None
@@ -221,6 +313,8 @@ class SQLiteEgoPort(EgoPort):
         to_version: str,
         *,
         reason: str,
+        actor: str = "system",
+        approval_ref: str | None = None,
     ) -> InstalledEgoPackage:
         normalized = reason.strip()
         if not normalized:
@@ -236,6 +330,13 @@ class SQLiteEgoPort(EgoPort):
             if target is None:
                 raise KeyError(f"{ego_id}@{to_version}")
             now = time.time()
+            old_active_rows = self._conn.execute(
+                """
+                SELECT ego_id, version FROM ego_packages
+                WHERE ego_id=? AND state='active' AND version<>?
+                """,
+                (ego_id, to_version),
+            ).fetchall()
             self._conn.execute("BEGIN IMMEDIATE")
             self._conn.execute(
                 """
@@ -254,6 +355,19 @@ class SQLiteEgoPort(EgoPort):
                     to_version,
                 ),
             )
+            for old_row in old_active_rows:
+                self._insert_audit_locked(
+                    EgoAuditEvent(
+                        event_id=f"ego-event-{__import__('uuid').uuid4().hex[:12]}",
+                        action="supersede",
+                        ego_id=old_row["ego_id"],
+                        version=old_row["version"],
+                        actor=actor,
+                        reason=f"rollback: {normalized}",
+                        approval_ref=approval_ref,
+                        related_version=to_version,
+                    )
+                )
             self._conn.execute(
                 """
                 UPDATE ego_packages
@@ -270,10 +384,178 @@ class SQLiteEgoPort(EgoPort):
                     to_version,
                 ),
             )
+            self._insert_audit_locked(
+                EgoAuditEvent(
+                    event_id=f"ego-event-{__import__('uuid').uuid4().hex[:12]}",
+                    action="rollback",
+                    ego_id=ego_id,
+                    version=to_version,
+                    actor=actor,
+                    reason=normalized,
+                    approval_ref=approval_ref,
+                )
+            )
             self._conn.commit()
         item = self.get(ego_id, to_version)
         assert item is not None
         return item
+
+    def record_audit(self, event: EgoAuditEvent) -> None:
+        with self._lock:
+            try:
+                self._insert_audit_locked(event)
+            except sqlite3.IntegrityError as exc:
+                raise ValueError(
+                    f"duplicate E.G.O audit event: {event.event_id}"
+                ) from exc
+            self._conn.commit()
+
+    def _insert_audit_locked(self, event: EgoAuditEvent) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO ego_audit_events (
+                event_id, action, ego_id, version, actor, reason,
+                approval_ref, related_version, candidate_id,
+                metadata_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.event_id,
+                event.action,
+                event.ego_id,
+                event.version,
+                event.actor,
+                event.reason,
+                event.approval_ref,
+                event.related_version,
+                event.candidate_id,
+                json.dumps(event.metadata, ensure_ascii=False, sort_keys=True),
+                event.created_at,
+            ),
+        )
+
+    def audit_events(
+        self,
+        ego_id: str | None = None,
+    ) -> tuple[EgoAuditEvent, ...]:
+        with self._lock:
+            if ego_id is None:
+                rows = self._conn.execute(
+                    "SELECT * FROM ego_audit_events ORDER BY created_at, event_id"
+                ).fetchall()
+            else:
+                rows = self._conn.execute(
+                    """
+                    SELECT * FROM ego_audit_events
+                    WHERE ego_id=?
+                    ORDER BY created_at, event_id
+                    """,
+                    (ego_id,),
+                ).fetchall()
+        return tuple(_audit_from_row(row) for row in rows)
+
+    def put_invalidation_candidate(
+        self,
+        candidate: EgoInvalidationCandidate,
+    ) -> None:
+        with self._lock:
+            try:
+                self._conn.execute(
+                    """
+                    INSERT INTO ego_invalidation_candidates (
+                        candidate_id, ego_id, version, replay_run_id,
+                        failed_tests_json, evidence_refs_json, reason,
+                        source_artifact_id, status, created_at, resolved_at,
+                        resolution_actor, approval_ref, resolution_reason
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        candidate.candidate_id,
+                        candidate.ego_id,
+                        candidate.version,
+                        candidate.replay_run_id,
+                        json.dumps(candidate.failed_tests),
+                        json.dumps(candidate.evidence_refs),
+                        candidate.reason,
+                        candidate.source_artifact_id,
+                        candidate.status,
+                        candidate.created_at,
+                        candidate.resolved_at,
+                        candidate.resolution_actor,
+                        candidate.approval_ref,
+                        candidate.resolution_reason,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError(
+                    f"duplicate E.G.O invalidation candidate: "
+                    f"{candidate.candidate_id}"
+                ) from exc
+            self._conn.commit()
+
+    def get_invalidation_candidate(
+        self,
+        candidate_id: str,
+    ) -> EgoInvalidationCandidate | None:
+        with self._lock:
+            row = self._conn.execute(
+                """
+                SELECT * FROM ego_invalidation_candidates
+                WHERE candidate_id=?
+                """,
+                (candidate_id,),
+            ).fetchone()
+        return None if row is None else _candidate_from_row(row)
+
+    def list_invalidation_candidates(
+        self,
+        *,
+        status: str | None = None,
+    ) -> tuple[EgoInvalidationCandidate, ...]:
+        with self._lock:
+            if status is None:
+                rows = self._conn.execute(
+                    """
+                    SELECT * FROM ego_invalidation_candidates
+                    ORDER BY created_at, candidate_id
+                    """
+                ).fetchall()
+            else:
+                rows = self._conn.execute(
+                    """
+                    SELECT * FROM ego_invalidation_candidates
+                    WHERE status=?
+                    ORDER BY created_at, candidate_id
+                    """,
+                    (status,),
+                ).fetchall()
+        return tuple(_candidate_from_row(row) for row in rows)
+
+    def update_invalidation_candidate(
+        self,
+        candidate: EgoInvalidationCandidate,
+    ) -> None:
+        with self._lock:
+            cursor = self._conn.execute(
+                """
+                UPDATE ego_invalidation_candidates
+                SET status=?, resolved_at=?, resolution_actor=?,
+                    approval_ref=?, resolution_reason=?
+                WHERE candidate_id=?
+                """,
+                (
+                    candidate.status,
+                    candidate.resolved_at,
+                    candidate.resolution_actor,
+                    candidate.approval_ref,
+                    candidate.resolution_reason,
+                    candidate.candidate_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                self._conn.rollback()
+                raise KeyError(candidate.candidate_id)
+            self._conn.commit()
 
     def close(self) -> None:
         with self._lock:
@@ -335,4 +617,44 @@ def _from_row(row: sqlite3.Row) -> InstalledEgoPackage:
         status_reason=row["status_reason"],
         installed_at=float(row["installed_at"]),
         updated_at=float(row["updated_at"]),
+    )
+
+
+
+def _audit_from_row(row: sqlite3.Row) -> EgoAuditEvent:
+    return EgoAuditEvent(
+        event_id=row["event_id"],
+        action=row["action"],
+        ego_id=row["ego_id"],
+        version=row["version"],
+        actor=row["actor"],
+        reason=row["reason"],
+        approval_ref=row["approval_ref"],
+        related_version=row["related_version"],
+        candidate_id=row["candidate_id"],
+        metadata=json.loads(row["metadata_json"]),
+        created_at=float(row["created_at"]),
+    )
+
+
+def _candidate_from_row(row: sqlite3.Row) -> EgoInvalidationCandidate:
+    return EgoInvalidationCandidate(
+        candidate_id=row["candidate_id"],
+        ego_id=row["ego_id"],
+        version=row["version"],
+        replay_run_id=row["replay_run_id"],
+        failed_tests=tuple(json.loads(row["failed_tests_json"])),
+        evidence_refs=tuple(json.loads(row["evidence_refs_json"])),
+        reason=row["reason"],
+        source_artifact_id=row["source_artifact_id"],
+        status=row["status"],
+        created_at=float(row["created_at"]),
+        resolved_at=(
+            float(row["resolved_at"])
+            if row["resolved_at"] is not None
+            else None
+        ),
+        resolution_actor=row["resolution_actor"],
+        approval_ref=row["approval_ref"],
+        resolution_reason=row["resolution_reason"],
     )

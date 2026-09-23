@@ -243,6 +243,8 @@ class DurableEgoApplyAdapter:
                     status_reason=request.reason,
                 ),
                 supersede_active=True,
+                actor=request.actor,
+                approval_ref=request.approval_ref,
             )
 
         receipt = PromotionApplyReceipt(
