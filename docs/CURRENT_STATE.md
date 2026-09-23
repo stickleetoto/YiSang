@@ -101,21 +101,31 @@ main
        └─ #60  durable E.G.O promotion lifecycle
            └─ #61  replay invalidation lifecycle guard
                └─ #62  adaptive telemetry routing
-                   └─ #63  GitHub/docs cleanup
+                   ├─ #63  GitHub/docs cleanup
+                   └─ #64  permission policy engine
 ~~~
 
 See `docs/PR_STACK.md` for merge/retarget guidance.
 
+## Permission Policy Engine
+
+PR: **#64**
+
+Implemented on the current policy branch:
+
+- principal / action / resource / context authorization requests
+- deny-by-default policy evaluation
+- explicit permit / forbid with forbid precedence
+- resource-scoped policy checks
+- tool-exposure preflight plus execution-time concrete-resource recheck
+- E.G.O version as part of policy principal identity
+- E.G.O risk hints as advisory context only
+
+Repository CI baseline on the policy branch: **346 passed** on Python 3.11/3.12.
+
 ## Next engineering target
 
-After the current v0.7/E.G.O stack is integrated and revalidated, the next
-major E.G.O subsystem should be an explicit permission-policy boundary for
-capabilities such as:
-
-- filesystem.read / filesystem.write
-- process.spawn
-- network access
-- git mutation
-- external tool execution
-
-The policy boundary should remain independent of the attached reasoning model.
+After the current stack is integrated and revalidated, extend policy coverage
+to concrete side-effect capabilities such as filesystem.write, process.spawn,
+network access, git mutation, and external tool execution, then evaluate whether
+a Cedar/OPA adapter is useful without making either a core dependency.
