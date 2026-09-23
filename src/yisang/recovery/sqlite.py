@@ -90,6 +90,8 @@ class SQLiteRecoveryStore(
                     evidence_refs_json TEXT NOT NULL,
                     failure_reason TEXT,
                     metadata_json TEXT NOT NULL,
+                    attempt_count INTEGER NOT NULL DEFAULT 1,
+                    last_retry_reason TEXT,
                     created_at REAL NOT NULL,
                     updated_at REAL NOT NULL,
                     UNIQUE(goal_id, idempotency_key)
@@ -101,6 +103,16 @@ class SQLiteRecoveryStore(
                 CREATE INDEX IF NOT EXISTS idx_side_effect_goal
                 ON side_effect_receipts(goal_id, created_at)
                 """
+            )
+            self._ensure_column(
+                "side_effect_receipts",
+                "attempt_count",
+                "INTEGER NOT NULL DEFAULT 1",
+            )
+            self._ensure_column(
+                "side_effect_receipts",
+                "last_retry_reason",
+                "TEXT",
             )
             self._conn.commit()
 
@@ -335,8 +347,8 @@ class SQLiteRecoveryStore(
                     receipt_id, goal_id, run_id, idempotency_key,
                     tool_id, request_digest, state, result_ref,
                     evidence_refs_json, failure_reason, metadata_json,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    attempt_count, last_retry_reason, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 _receipt_values(receipt),
             )
@@ -452,6 +464,57 @@ class SQLiteRecoveryStore(
             raise KeyError(receipt_id)
         return _receipt_from_row(row)
 
+    def _ensure_column(
+        self,
+        table: str,
+        column: str,
+        declaration: str,
+    ) -> None:
+        rows = self._conn.execute(
+            f"PRAGMA table_info({table})"
+        ).fetchall()
+        if any(row["name"] == column for row in rows):
+            return
+        self._conn.execute(
+            f"ALTER TABLE {table} ADD COLUMN {column} {declaration}"
+        )
+
+    def retry_receipt(
+        self,
+        receipt_id: str,
+        *,
+        run_id: str,
+        reason: str,
+    ) -> SideEffectReceipt:
+        current = self._receipt_by_id(receipt_id)
+        if current.state != "failed":
+            raise ValueError("only failed receipts may be retried")
+        normalized_run = run_id.strip()
+        normalized_reason = reason.strip()
+        if not normalized_run:
+            raise ValueError("run_id must be non-empty")
+        if not normalized_reason:
+            raise ValueError("reason must be non-empty")
+        with self._lock:
+            self._conn.execute(
+                """
+                UPDATE side_effect_receipts
+                SET run_id=?, state='started', result_ref=NULL,
+                    evidence_refs_json='[]', failure_reason=NULL,
+                    attempt_count=attempt_count+1,
+                    last_retry_reason=?, updated_at=?
+                WHERE receipt_id=?
+                """,
+                (
+                    normalized_run,
+                    normalized_reason,
+                    __import__("time").time(),
+                    receipt_id,
+                ),
+            )
+            self._conn.commit()
+        return self._receipt_by_id(receipt_id)
+
     def close(self) -> None:
         with self._lock:
             self._conn.close()
@@ -490,6 +553,8 @@ def _checkpoint_from_row(row: sqlite3.Row) -> RecoveryCheckpoint:
         ),
         blockers=tuple(json.loads(row["blockers_json"])),
         metadata=metadata if isinstance(metadata, dict) else {},
+        attempt_count=int(row["attempt_count"]),
+        last_retry_reason=row["last_retry_reason"],
         created_at=float(row["created_at"]),
     )
 
@@ -508,6 +573,8 @@ def _receipt_values(receipt: SideEffectReceipt) -> tuple[object, ...]:
         json.dumps(receipt.evidence_refs, ensure_ascii=False),
         receipt.failure_reason,
         json.dumps(receipt.metadata, ensure_ascii=False, sort_keys=True),
+        receipt.attempt_count,
+        receipt.last_retry_reason,
         receipt.created_at,
         receipt.updated_at,
     )
