@@ -288,3 +288,23 @@ separate reviewed process.
 ~~~powershell
 yisang-ego-adaptive-smoke
 ~~~
+
+
+## Permission Policy Engine foundation
+
+E.G.O v2 authorization now has a concrete internal policy boundary shaped
+around principal/action/resource/context.
+
+Initial properties:
+
+- deny by default when a policy engine is configured;
+- explicit forbid overrides permit;
+- rules may scope E.G.O id, action, resource type, resource glob, and context;
+- E.G.O version is part of the principal request;
+- legacy E.G.O capability and permission checks still run first;
+- risk hints remain advisory context only;
+- actual execution re-checks the concrete resource after tool exposure;
+- the interface is intended to support a later Cedar/OPA adapter without
+  changing ActionRuntime semantics.
+
+This is an internal deterministic policy engine, not a Cedar dependency.

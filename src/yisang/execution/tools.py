@@ -21,6 +21,9 @@ class ToolDefinition:
         }
     )
     side_effecting: bool = False
+    policy_action: str | None = None
+    resource_type: str = "tool"
+    resource_argument: str | None = None
 
     def __post_init__(self) -> None:
         if not self.tool_id.strip():
@@ -31,6 +34,12 @@ class ToolDefinition:
             raise ValueError("argument_schema must be a mapping")
         if self.argument_schema.get("type", "object") != "object":
             raise ValueError("argument_schema root type must be object")
+        if not self.resource_type.strip():
+            raise ValueError("resource_type must be non-empty")
+        if self.policy_action is not None and not self.policy_action.strip():
+            raise ValueError("policy_action must be non-empty when provided")
+        if self.resource_argument is not None and not self.resource_argument.strip():
+            raise ValueError("resource_argument must be non-empty when provided")
 
     def validate_arguments(self, arguments: dict[str, Any]) -> None:
         if not isinstance(arguments, dict):
@@ -67,6 +76,9 @@ class ToolDefinition:
             "required_permissions": dict(self.required_permissions),
             "argument_schema": dict(self.argument_schema),
             "side_effecting": self.side_effecting,
+            "policy_action": self.policy_action or self.tool_id,
+            "resource_type": self.resource_type,
+            "resource_argument": self.resource_argument,
             "authorized_by_ego": ego_id,
         }
 

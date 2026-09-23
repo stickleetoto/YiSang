@@ -328,3 +328,20 @@ evidence, exit criteria, and explicit migration boundaries.
   exact E.G.O id + version.
 - Telemetry affects ranking only; it cannot disable, install, or grant
   permissions.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / E.G.O permission policy foundation
+
+- Added principal/action/resource/context authorization request models.
+- Added deny-by-default AuthorizationPolicyEngine.
+- Added explicit permit and forbid rules with forbid precedence.
+- Added E.G.O/version, action, resource type/id glob, and context matching.
+- ActionGate keeps legacy capability/permission checks as the first layer and
+  optionally applies the policy engine as a second layer.
+- ToolDefinition now supports policy_action, resource_type, and a resource
+  argument selector.
+- Tool exposure performs policy preflight; concrete execution always rechecks
+  the actual resource.
+- E.G.O risk hints enter policy context but never create authority.
+- No external Cedar/OPA dependency was added.
+- Added yisang-policy-smoke.

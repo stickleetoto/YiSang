@@ -149,3 +149,41 @@ returns `PASS`.
 The source of execution authority is YiSang policy: registered tools, selected
 E.G.O capabilities, permissions, explicit side-effect configuration, and
 bounded runtime rules.
+
+
+## Explicit policy engine
+
+The legacy capability/permission gate remains the first authorization layer.
+An optional policy engine adds a second independent decision boundary:
+
+~~~text
+ActionProposal
+  -> registered tool?
+  -> side-effect global switch?
+  -> selected E.G.O provides capability?
+  -> legacy E.G.O permission sufficient?
+  -> PolicyEngine(principal, action, resource, context)
+       +-- explicit forbid -> DENIED
+       +-- explicit permit -> continue
+       +-- no permit       -> DENIED
+  -> execute
+~~~
+
+The policy engine is deny-by-default and uses a Cedar-inspired request shape:
+
+~~~text
+principal: E.G.O id + version
+action:    filesystem.read / filesystem.write / process.spawn / ...
+resource:  typed resource id
+context:   side-effect flag, requester, runtime type, risk hints
+~~~
+
+E.G.O risk hints are copied into policy context for inspection but never grant
+authority.
+
+Tool exposure uses a policy preflight that may ignore a resource-specific id.
+Actual execution always re-evaluates the concrete resource, so exposing a tool
+does not authorize every argument value.
+
+If no policy engine is configured, the existing v0.3-v0.7 ActionGate behavior
+is preserved for backward compatibility.
