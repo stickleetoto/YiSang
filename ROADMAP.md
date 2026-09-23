@@ -1,5 +1,11 @@
 # YiSang Roadmap
 
+> **Development checkpoint: 2026-09-23** — v0.4/v0.5/v0.6 are validated.
+> v0.7 Experience + E.G.O v2 is at closeout-candidate status with 346 local
+> regression tests passing. BIO is parked/reserved. The next major axis is
+> v0.8 Goal / Recovery Runtime. See `docs/CURRENT_STATE.md`,
+> `docs/V07_EGO_CLOSEOUT.md`, and `docs/NEXT_AXIS.md`.
+
 > **Mission:** build a persistent, model-independent agent runtime in which the attached LLM is replaceable while identity, memory, capability, goals, and verified experience remain.
 
 YiSang is not a model wrapper whose state disappears when the model changes. The long-term target is a persistent agent substrate that survives model swaps, process restarts, backend changes, and context-window limits without letting the attached model become the source of truth.

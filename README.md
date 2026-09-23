@@ -6,6 +6,8 @@
 
 Current release: **v0.6.0 — Roland Library validated**
 
+Development state: **v0.7 Experience + E.G.O v2 closeout candidate**
+
 YiSang keeps durable agent assets outside the attached reasoning model:
 
 - identity and engine-independent runtime state
@@ -64,6 +66,28 @@ See:
 - `docs/VALIDATION_2026-09-20_V06.md`
 - `ROADMAP.md`
 
+## Development closeout status
+
+Current open development has implemented and validated:
+
+- Experience Promotion and deterministic replay
+- ordered multi-step replay
+- E.G.O v2 versioned capability packages
+- durable capability lifecycle and rollback
+- adaptive routing from bounded telemetry
+- deny-by-default permission policy
+
+Latest local Windows full regression: **346 passed in 8.87s**.
+
+BIO integration is **parked/reserved** and is not a current dependency.
+
+See:
+
+- `docs/CURRENT_STATE.md`
+- `docs/V07_EGO_CLOSEOUT.md`
+- `docs/NEXT_AXIS.md`
+- `docs/BIO_RESERVED.md`
+
 ## Install
 
 ~~~bash
@@ -117,18 +141,11 @@ See `docs/CODEX_MODEL_SERVER.md` for that integration path.
 11. Continuity restore is staged and validated before runtime-owned state is swapped.
 12. Core interfaces remain independent of a single model provider or agent framework.
 
-## Next phase
+## Next major axis
 
-v0.7 focuses on **Experience Promotion**:
+After the current v0.7/E.G.O PR stack is integrated, development moves to
+**v0.8 Goal / Recovery Runtime**.
 
-~~~text
-successful experience
-  -> lesson candidate
-  -> generalization
-  -> validation / replay
-  -> promotion gate
-  -> durable skill / Library knowledge / warning
-~~~
+See `docs/NEXT_AXIS.md`.
 
-Raw conversations or failures must never be promoted directly into durable
-capability.
+BIO remains parked behind the optional MemoryProvider seam.
