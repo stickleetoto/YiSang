@@ -126,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
             + len(promotions.receipts(second.artifact_id))
         ),
         "package_digest_bound": bool(
-            active_after.manifest.package_digest
+            active_after.package_digest
         ),
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
