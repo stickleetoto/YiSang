@@ -33,11 +33,13 @@ class HybridCapabilityRouter:
         *,
         required_capabilities: tuple[str, ...] = (),
         success_scores: Mapping[str, float] | None = None,
+        score_adjustments: Mapping[str, float] | None = None,
     ) -> list[EgoRouteScore]:
         query_folded = query.casefold()
         query_tokens = _tokens(query)
         required = set(required_capabilities)
         priors = success_scores or {}
+        adjustments = score_adjustments or {}
         ranked: list[EgoRouteScore] = []
 
         for ego in egos:
@@ -96,6 +98,17 @@ class HybridCapabilityRouter:
                 score += prior * 2.0
                 reasons.append(f"success_prior:{prior:.3f}")
 
+            adjustment = float(
+                adjustments.get(
+                    f"{ego.ego_id}@{ego.version}",
+                    adjustments.get(ego.ego_id, 0.0),
+                )
+            )
+            adjustment = max(-1.0, min(1.0, adjustment))
+            if adjustment:
+                score += adjustment * 2.0
+                reasons.append(f"adaptive:{adjustment:+.3f}")
+
             if score > 0:
                 ranked.append(
                     EgoRouteScore(
@@ -122,6 +135,7 @@ class HybridCapabilityRouter:
         limit: int = 3,
         required_capabilities: tuple[str, ...] = (),
         success_scores: Mapping[str, float] | None = None,
+        score_adjustments: Mapping[str, float] | None = None,
     ) -> list[EgoManifest]:
         if limit <= 0:
             return []
@@ -132,6 +146,7 @@ class HybridCapabilityRouter:
                 egos,
                 required_capabilities=required_capabilities,
                 success_scores=success_scores,
+                score_adjustments=score_adjustments,
             )[:limit]
         ]
 

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import time
+
 from .models import YiSangRequest, YiSangResponse
 from yisang.context.compiler import ContextCompiler
 from yisang.ego.registry import EgoRegistry
+from yisang.ego.telemetry import EgoTelemetryEvent, EgoTelemetryPort
 from yisang.ego.router import CapabilityRouter
 from yisang.engines.router import EngineRouter
 from yisang.execution.failure import failure_from_gate_reason
@@ -46,6 +49,7 @@ class YiSangRuntime:
         experience_recorder: ExperienceRecorder | None = None,
         experience_trace_port: ActionTracePort | None = None,
         experience_trace_recorder: ActionTraceRecorder | None = None,
+        ego_telemetry_port: EgoTelemetryPort | None = None,
         library_limit: int = 3,
         max_action_rounds: int = 3,
     ) -> None:
@@ -87,6 +91,7 @@ class YiSangRuntime:
         self.experience_trace_recorder = (
             experience_trace_recorder or ActionTraceRecorder()
         )
+        self.ego_telemetry_port = ego_telemetry_port
         self.library_limit = library_limit
         self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
             memory=memory,
@@ -96,6 +101,7 @@ class YiSangRuntime:
         self.max_action_rounds = max_action_rounds
 
     def run(self, request: YiSangRequest) -> YiSangResponse:
+        run_started = time.perf_counter()
         session_id = _session_id(request)
         session_history = (
             self.session_port.history(
@@ -299,6 +305,30 @@ class YiSangRuntime:
                 },
             )
 
+        ego_telemetry_event_ids: list[str] = []
+        if self.ego_telemetry_port is not None and selected_egos:
+            latency_ms = (time.perf_counter() - run_started) * 1000.0
+            action_failure_count = sum(
+                item.status != "EXECUTED" for item in action_results
+            )
+            success = (
+                verification.status == "PASS"
+                and action_failure_count == 0
+            )
+            for ego in selected_egos:
+                event = self.ego_telemetry_port.record(
+                    EgoTelemetryEvent.runtime_use(
+                        ego_id=ego.ego_id,
+                        version=getattr(ego, "version", "1.0.0"),
+                        request_id=request.request_id,
+                        success=success,
+                        verification_status=verification.status,
+                        latency_ms=latency_ms,
+                        action_failure_count=action_failure_count,
+                    )
+                )
+                ego_telemetry_event_ids.append(event.event_id)
+
         response = YiSangResponse(
             request_id=request.request_id,
             text=result.text,
@@ -310,6 +340,7 @@ class YiSangRuntime:
             action_results=[item.to_dict() for item in action_results],
             memory_write_results=memory_write_results,
             experience_trace_ids=experience_trace_ids,
+            ego_telemetry_event_ids=ego_telemetry_event_ids,
         )
         if self.experience_port is not None:
             episode = self.experience_recorder.capture(

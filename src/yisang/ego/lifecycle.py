@@ -8,6 +8,8 @@ import uuid
 
 from yisang.experience.models import ReplayReport
 
+from .telemetry import EgoTelemetryEvent, EgoTelemetryPort
+
 from .port import (
     EgoAuditEvent,
     EgoInvalidationCandidate,
@@ -44,8 +46,13 @@ class EgoLifecycleReceipt:
 class EgoLifecycleGuard:
     """Turns later replay regressions into reviewable invalidation candidates."""
 
-    def __init__(self, egos: EgoPort) -> None:
+    def __init__(
+        self,
+        egos: EgoPort,
+        telemetry: EgoTelemetryPort | None = None,
+    ) -> None:
         self.egos = egos
+        self.telemetry = telemetry
 
     def assess_replay(
         self,
@@ -64,6 +71,15 @@ class EgoLifecycleGuard:
             )
 
         failed = tuple(result for result in replay.results if not result.passed)
+        if self.telemetry is not None:
+            self.telemetry.record(
+                EgoTelemetryEvent.replay_health(
+                    ego_id=ego_id,
+                    version=version,
+                    replay_run_id=replay.run_id,
+                    success=not failed,
+                )
+            )
         if not failed:
             return None
         failed_tests = tuple(result.test_id for result in failed)

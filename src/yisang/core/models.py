@@ -22,3 +22,4 @@ class YiSangResponse:
     memory_write_results: list[dict[str, Any]] = field(default_factory=list)
     experience_episode_id: str | None = None
     experience_trace_ids: list[str] = field(default_factory=list)
+    ego_telemetry_event_ids: list[str] = field(default_factory=list)
