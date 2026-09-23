@@ -231,3 +231,42 @@ RecoveryRunController provides explicit lifecycle operations:
 
 These operations update GoalRecord through GoalService and emit durable journal
 evidence. The controller does not autonomously choose a new plan.
+
+
+## Crash-point recovery directive
+
+CrashRecoveryPlanner reduces restart state to one of five safe directives:
+
+~~~text
+resume_next_action
+reconcile_side_effect
+verify_prior_action
+write_checkpoint
+stop
+~~~
+
+Examples:
+
+- unresolved started receipt -> reconcile_side_effect;
+- action/side effect executed but no verification -> verify_prior_action;
+- PASS verification after latest checkpoint -> write_checkpoint;
+- current checkpoint with no newer events -> resume_next_action;
+- completed/cancelled/blocked goal -> stop.
+
+The planner returns a directive only. It does not execute recovery automatically.
+
+## Verified checkpoint orchestration
+
+VerifiedCheckpointOrchestrator can be attached to YiSangRuntime.
+
+It writes a checkpoint only when:
+
+- goal_id + run_id are present;
+- verification status is PASS;
+- every action result is EXECUTED.
+
+Checkpoint creation is idempotent per goal + run + request_id.
+
+The checkpoint records committed side-effect receipt ids as completed action
+references. YiSangResponse exposes recovery_checkpoint_id when a checkpoint is
+created or reused.

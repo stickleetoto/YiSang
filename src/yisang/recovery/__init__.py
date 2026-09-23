@@ -1,3 +1,5 @@
+from .checkpoint_orchestrator import VerifiedCheckpointOrchestrator
+from .crash_planner import CrashRecoveryPlanner
 from .run_controller import RecoveryRunController
 from .action_runtime import RecoveryAwareActionRuntime
 from .coordinator import RecoveryCoordinator
@@ -9,6 +11,7 @@ from .in_memory import (
 )
 from .models import (
     RUN_EVENT_TYPES,
+    CrashRecoveryDirective,
     RecoveryActionDecision,
     RecoveryCheckpoint,
     RecoveryPlan,
@@ -21,6 +24,8 @@ from .sqlite import SQLiteRecoveryStore
 
 __all__ = [
     "CheckpointPort",
+    "CrashRecoveryDirective",
+    "CrashRecoveryPlanner",
     "InMemoryCheckpointPort",
     "InMemoryRunJournalPort",
     "InMemorySideEffectReceiptPort",
@@ -37,6 +42,7 @@ __all__ = [
     "SideEffectReceipt",
     "SideEffectReceiptPort",
     "SQLiteRecoveryStore",
+    "VerifiedCheckpointOrchestrator",
     "side_effect_request_digest",
     "side_effect_result_ref",
 ]
