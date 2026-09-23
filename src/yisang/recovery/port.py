@@ -99,6 +99,16 @@ class SideEffectReceiptPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def retry_receipt(
+        self,
+        receipt_id: str,
+        *,
+        run_id: str,
+        reason: str,
+    ) -> SideEffectReceipt:
+        raise NotImplementedError
+
+    @abstractmethod
     def receipts(
         self,
         goal_id: str,

@@ -188,3 +188,46 @@ crash-point state machine
 + checkpoint-after-verification controller
 + restart/resume orchestration
 ~~~
+
+
+## Restart assessment
+
+RecoveryCoordinator.assess_restart() combines:
+
+- current GoalRecord state;
+- latest checkpoint;
+- journal events after the checkpoint;
+- all durable side-effect receipts for the goal.
+
+Automatic resume is blocked when any receipt is still in started state because
+the external mutation may have happened before the crash even though commit was
+not recorded.
+
+~~~text
+started receipt
+  -> uncertain_side_effects
+  -> resume_allowed = false
+  -> explicit reconciliation required
+~~~
+
+A failed receipt is retryable only after an explicit authorize_retry() call.
+Retry reopens the same logical receipt, increments attempt_count, records the
+new run_id, and appends a recovery_decision journal event.
+
+Uncertain started receipts can be explicitly resolved as committed or failed
+after external inspection.
+
+## Recovery run controller
+
+RecoveryRunController provides explicit lifecycle operations:
+
+- start
+- checkpoint
+- block
+- unblock
+- complete
+- cancel
+- assess_restart
+
+These operations update GoalRecord through GoalService and emit durable journal
+evidence. The controller does not autonomously choose a new plan.

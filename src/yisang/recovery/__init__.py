@@ -1,3 +1,4 @@
+from .run_controller import RecoveryRunController
 from .action_runtime import RecoveryAwareActionRuntime
 from .coordinator import RecoveryCoordinator
 from .idempotency import side_effect_request_digest, side_effect_result_ref
@@ -11,6 +12,7 @@ from .models import (
     RecoveryActionDecision,
     RecoveryCheckpoint,
     RecoveryPlan,
+    RestartAssessment,
     RunJournalEvent,
     SideEffectReceipt,
 )
@@ -28,6 +30,8 @@ __all__ = [
     "RecoveryCheckpoint",
     "RecoveryCoordinator",
     "RecoveryPlan",
+    "RecoveryRunController",
+    "RestartAssessment",
     "RunJournalEvent",
     "RunJournalPort",
     "SideEffectReceipt",

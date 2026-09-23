@@ -105,6 +105,8 @@ class SideEffectReceipt:
     evidence_refs: tuple[str, ...] = ()
     failure_reason: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    attempt_count: int = 1
+    last_retry_reason: str | None = None
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
@@ -125,6 +127,8 @@ class SideEffectReceipt:
             raise ValueError(
                 f"unsupported side-effect receipt state: {self.state}"
             )
+        if self.attempt_count <= 0:
+            raise ValueError("attempt_count must be positive")
         if self.updated_at < self.created_at:
             raise ValueError("updated_at cannot be before created_at")
 
@@ -143,3 +147,15 @@ class RecoveryActionDecision:
             raise ValueError(
                 f"unsupported recovery action decision: {self.decision}"
             )
+
+
+
+@dataclass(frozen=True)
+class RestartAssessment:
+    plan: RecoveryPlan
+    resume_allowed: bool
+    reason: str
+    uncertain_receipt_ids: tuple[str, ...] = ()
+    retryable_receipt_ids: tuple[str, ...] = ()
+    committed_receipt_ids: tuple[str, ...] = ()
+    post_checkpoint_event_ids: tuple[str, ...] = ()

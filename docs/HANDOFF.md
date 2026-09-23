@@ -404,3 +404,14 @@ evidence, exit criteria, and explicit migration boundaries.
   run because sequences restart per run.
 - Exported RecoveryAwareActionRuntime and side-effect result digest helpers.
 - Marked v0.8 Goal / Recovery as active development in CURRENT_STATE/INDEX.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / v0.8 restart controller
+
+- Added RestartAssessment combining goal/checkpoint/journal/receipt state.
+- Any unresolved started side-effect receipt blocks automatic resume.
+- Added explicit uncertain-receipt resolution as committed or failed.
+- Added explicit failed-receipt retry authorization with attempt_count.
+- Added SQLite migration for receipt retry metadata.
+- Added RecoveryRunController for start/checkpoint/block/unblock/complete/cancel.
+- Goal lifecycle transitions remain explicit; recovery never invents a new plan.

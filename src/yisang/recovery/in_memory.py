@@ -227,6 +227,36 @@ class InMemorySideEffectReceiptPort(SideEffectReceiptPort):
         self._items[receipt_id] = updated
         return updated
 
+    def retry_receipt(
+        self,
+        receipt_id: str,
+        *,
+        run_id: str,
+        reason: str,
+    ) -> SideEffectReceipt:
+        current = self._required(receipt_id)
+        if current.state != "failed":
+            raise ValueError("only failed receipts may be retried")
+        normalized_run = run_id.strip()
+        normalized_reason = reason.strip()
+        if not normalized_run:
+            raise ValueError("run_id must be non-empty")
+        if not normalized_reason:
+            raise ValueError("reason must be non-empty")
+        updated = replace(
+            current,
+            run_id=normalized_run,
+            state="started",
+            result_ref=None,
+            evidence_refs=(),
+            failure_reason=None,
+            attempt_count=current.attempt_count + 1,
+            last_retry_reason=normalized_reason,
+            updated_at=time.time(),
+        )
+        self._items[receipt_id] = updated
+        return updated
+
     def receipts(
         self,
         goal_id: str,
