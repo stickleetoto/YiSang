@@ -359,3 +359,19 @@ evidence, exit criteria, and explicit migration boundaries.
 - Next major axis: v0.8 Goal / Recovery Runtime.
 - Recommended first v0.8 slice: GoalPort + SQLiteGoalPort + append-only
   RunJournalPort + deterministic restart/recovery smoke.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / v0.8 Goal + Recovery foundation
+
+- Started v0.8 on dev/v0.8-goal-recovery-foundation.
+- Added GoalRecord + GoalBudget and explicit goal state machine.
+- Added GoalPort with in-memory and SQLite implementations.
+- Added append-only RunJournalPort with per-goal/run sequence numbers.
+- Added RecoveryCheckpoint + CheckpointPort.
+- Added SQLiteRecoveryStore for journal + checkpoint durability.
+- Added RecoveryCoordinator for checkpoint creation and conservative resume
+  planning.
+- Completed/cancelled/blocked goals are not auto-resumed.
+- BIO remains parked and is not a v0.8 dependency.
+- Runtime wiring and side-effect receipts are intentionally deferred to the
+  next slice.
