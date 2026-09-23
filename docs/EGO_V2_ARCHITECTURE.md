@@ -219,3 +219,44 @@ Embedding retrieval can be added later behind the same rank/route contract.
 - E.G.O telemetry and eval feedback
 - learned routing weights
 - optional signed LoRA adapter runtime
+
+
+## Durable E.G.O installation and promotion bridge
+
+The next v2 layer adds an authoritative EgoPort separate from the legacy
+file-based registry.
+
+~~~text
+PromotionArtifact
+      |
+      | explicit approved apply
+      v
+DurableEgoApplyAdapter
+      |
+      v
+EgoManifest v2 (prompt runtime)
+      |
+      v
+EgoPort
+  +-- active
+  +-- disabled
+  +-- superseded
+      |
+      v
+DurableEgoRegistryView
+      |
+      v
+HybridCapabilityRouter / YiSangRuntime
+~~~
+
+Rules:
+
+- promotion never mutates an E.G.O store without an explicit PromotionApplyRequest;
+- a promoted artifact becomes a new immutable semantic version;
+- integer promotion versions map deterministically to 0.0.N;
+- installing a newer version supersedes the currently active version;
+- rollback reactivates an already installed version instead of rewriting it;
+- only active E.G.O packages are exposed through DurableEgoRegistryView;
+- every promoted package carries a SHA-256 digest bound to promotion provenance;
+- generated promoted E.G.O packages use prompt runtime only in this phase;
+- risk hints remain conservative and do not grant execution permission.
