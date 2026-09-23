@@ -64,6 +64,26 @@ See:
 - `docs/VALIDATION_2026-09-20_V06.md`
 - `ROADMAP.md`
 
+## Active development
+
+Current work is on the **v0.7 / E.G.O v2** line.
+
+Latest validated local E.G.O stack on Windows:
+
+~~~text
+E.G.O v2 package discovery / activation  PASS
+Promotion -> durable E.G.O              PASS
+Lifecycle invalidation / rollback       PASS
+Adaptive telemetry routing              PASS
+Full suite                              336 passed
+~~~
+
+The open work is intentionally split into stacked PRs. See:
+
+- `docs/CURRENT_STATE.md`
+- `docs/PR_STACK.md`
+- `docs/INDEX.md`
+
 ## Install
 
 ~~~bash

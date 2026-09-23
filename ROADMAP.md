@@ -1,5 +1,7 @@
 # YiSang Roadmap
 
+> **Development status (2026-09-23):** v0.4, v0.5, and v0.6 are validated. v0.7 Experience Promotion is active development, with ordered replay and the E.G.O v2 capability lifecycle implemented on open PR branches. See `docs/CURRENT_STATE.md` and `docs/PR_STACK.md` for the current branch/PR graph and validation state.
+
 > **Mission:** build a persistent, model-independent agent runtime in which the attached LLM is replaceable while identity, memory, capability, goals, and verified experience remain.
 
 YiSang is not a model wrapper whose state disappears when the model changes. The long-term target is a persistent agent substrate that survives model swaps, process restarts, backend changes, and context-window limits without letting the attached model become the source of truth.
