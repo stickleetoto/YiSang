@@ -16,7 +16,8 @@ main
        └─ #60 [E.G.O v2 2/4] Durable promotion lifecycle
            └─ #61 [E.G.O v2 3/4] Replay invalidation lifecycle guard
                └─ #62 [E.G.O v2 4/4] Adaptive telemetry routing
-                   └─ #63 [chore] GitHub/docs cleanup
+                   ├─ #63 [chore] GitHub/docs cleanup
+                   └─ #64 [E.G.O v2 policy] Permission policy engine
 ~~~
 
 ## Recommended integration sequence
@@ -25,8 +26,9 @@ main
 2. Retarget #58 and #59 to main after #56 lands.
 3. Merge #58.
 4. Merge the E.G.O stack in order: #59 -> #60 -> #61 -> #62.
-5. Merge #63 after #62.
-6. Treat #57 separately; merge it after #56 when BIO interoperability is wanted.
+5. Merge #64 after #62.
+6. Merge #63 after #64 so the repository status docs reflect the policy PR.
+7. Treat #57 separately; merge it after #56 when BIO interoperability is wanted.
 
 #57 is intentionally not part of the E.G.O stack.
 
@@ -62,7 +64,11 @@ Expected progression:
   -> #62 base = main
 
 #62 merged
+  -> #64 base = main
   -> #63 base = main
+
+#64 merged
+  -> #63 remains docs-only against main
 ~~~
 
 This keeps GitHub diffs understandable and avoids preserving obsolete stack
@@ -79,6 +85,7 @@ bases after their contents are already on main.
 | #60 | Durable E.G.O lifecycle | 320 passed |
 | #61 | Lifecycle guard | 326 passed |
 | #62 | Adaptive routing | 336 passed + local Windows smoke suite |
+| #64 | Permission policy engine | 346 passed |
 | #63 | GitHub/docs cleanup | docs-only |
 
 These counts are branch-specific snapshots, not cumulative release numbers.
