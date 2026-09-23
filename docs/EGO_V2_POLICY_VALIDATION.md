@@ -67,3 +67,19 @@ Repository-side CI baseline: 346 passed on Python 3.11/3.12.
 - E.G.O risk hints are advisory context only and never grant authority.
 - The policy engine does not install, enable, disable, or mutate E.G.O packages.
 - No Cedar/OPA runtime dependency is required by this foundation.
+
+
+## Windows local validation
+
+Validated on the user's Windows development environment on 2026-09-23:
+
+~~~text
+yisang-policy-smoke
+ready = true
+
+python -m pytest -q
+346 passed in 8.87s
+~~~
+
+This confirms the policy smoke and the full repository regression suite pass
+outside GitHub Actions as well as in Python 3.11/3.12 CI.
