@@ -133,7 +133,12 @@ class AuthorizationPolicyEngine:
             for rule in self._rules
             if rule.matches(request, exposure_only=exposure_only)
         )
-        forbids = tuple(rule for rule in matched if rule.effect == "forbid")
+        forbids = tuple(
+            rule
+            for rule in matched
+            if rule.effect == "forbid"
+            and (not exposure_only or rule.resource == "*")
+        )
         if forbids:
             return PolicyDecision(
                 allowed=False,
