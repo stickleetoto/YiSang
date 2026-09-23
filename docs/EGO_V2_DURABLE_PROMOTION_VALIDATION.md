@@ -71,7 +71,7 @@ prompt runtime only and retain conservative risk hints.
 python -m pytest -q
 ~~~
 
-Repository-side CI baseline before lifecycle guard: 320 passed on Python 3.11/3.12.
+Repository-side CI baseline with lifecycle guard: 326 passed on Python 3.11/3.12.
 
 
 ## Post-install lifecycle guard
@@ -105,3 +105,19 @@ rejected_candidate_keeps_active = true
 approved_candidate_disables = true
 rollback_version = 0.0.1
 ~~~
+
+
+## Focused lifecycle guard tests
+
+~~~powershell
+python -m pytest `
+  tests/test_ego_durable_port.py `
+  tests/test_ego_promotion_apply.py `
+  tests/test_ego_lifecycle_guard.py `
+  tests/test_ego_lifecycle_smoke.py `
+  -q
+~~~
+
+These tests cover in-memory and SQLite persistence, pending/rejected/approved
+invalidation states, audit survival across restart, and disable-on-approved-
+regression behavior.
