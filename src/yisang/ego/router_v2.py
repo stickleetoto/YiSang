@@ -98,6 +98,7 @@ class HybridCapabilityRouter:
                 score += prior * 2.0
                 reasons.append(f"success_prior:{prior:.3f}")
 
+            semantic_or_explicit_score = score
             adjustment = float(
                 adjustments.get(
                     f"{ego.ego_id}@{ego.version}",
@@ -105,7 +106,7 @@ class HybridCapabilityRouter:
                 )
             )
             adjustment = max(-1.0, min(1.0, adjustment))
-            if adjustment:
+            if adjustment and semantic_or_explicit_score > 0:
                 score += adjustment * 2.0
                 reasons.append(f"adaptive:{adjustment:+.3f}")
 
