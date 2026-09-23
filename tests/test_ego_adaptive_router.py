@@ -72,3 +72,58 @@ def test_adaptive_router_does_not_use_two_sample_noise():
     )
 
     assert [ego.ego_id for ego in found] == ["ego.a", "ego.b"]
+
+
+
+def test_adaptive_history_cannot_route_semantically_irrelevant_ego():
+    port = InMemoryEgoTelemetryPort()
+    _record(port, "ego.python", [True, True, True, True])
+    python = _ego("ego.python")
+    git = EgoManifest(
+        ego_id="ego.git",
+        name="ego.git",
+        provides=("git.commit",),
+        schema_version=2,
+        version="1.0.0",
+        description="git branch commit repository",
+        tags=("git",),
+        detail_level="metadata",
+    )
+    router = AdaptiveCapabilityRouter(
+        port,
+        scorer=EgoAdaptiveScorer(
+            min_samples=3,
+            saturation_samples=3,
+            clock=lambda: 1020.0,
+        ),
+    )
+
+    found = router.route("git repository commit", [python, git], limit=2)
+
+    assert [ego.ego_id for ego in found] == ["ego.git"]
+
+
+def test_adaptive_telemetry_is_version_scoped():
+    port = InMemoryEgoTelemetryPort()
+    _record(port, "ego.old", [True, True, True, True])
+    scorer = EgoAdaptiveScorer(
+        min_samples=3,
+        saturation_samples=3,
+        clock=lambda: 1020.0,
+    )
+    old = scorer.summary(
+        port,
+        ego_id="ego.old",
+        version="1.0.0",
+        now=1020.0,
+    )
+    unseen = scorer.summary(
+        port,
+        ego_id="ego.old",
+        version="2.0.0",
+        now=1020.0,
+    )
+
+    assert old.routing_adjustment > 0
+    assert unseen.sample_count == 0
+    assert unseen.routing_adjustment == 0.0
