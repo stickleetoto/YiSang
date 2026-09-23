@@ -36,6 +36,7 @@ class ActionRuntime:
         proposal: ActionProposal,
         *,
         selected_egos: list[EgoManifest],
+        execution_context: dict[str, str] | None = None,
     ) -> ActionResult:
         decision = self.gate.evaluate(
             proposal,

@@ -23,6 +23,7 @@ from yisang.memory.governor import MemoryGovernor
 from yisang.memory.pipeline import MemoryWritePipeline
 from yisang.memory.port import MemoryPort
 from yisang.memory.quarantine import InMemoryQuarantinePort
+from yisang.recovery.port import RunJournalPort
 from yisang.session.port import SessionPort
 from yisang.verification.base import Verifier
 
@@ -50,6 +51,7 @@ class YiSangRuntime:
         experience_trace_port: ActionTracePort | None = None,
         experience_trace_recorder: ActionTraceRecorder | None = None,
         ego_telemetry_port: EgoTelemetryPort | None = None,
+        run_journal_port: RunJournalPort | None = None,
         library_limit: int = 3,
         max_action_rounds: int = 3,
     ) -> None:
@@ -92,6 +94,22 @@ class YiSangRuntime:
             experience_trace_recorder or ActionTraceRecorder()
         )
         self.ego_telemetry_port = ego_telemetry_port
+        if (
+            run_journal_port is None
+            and action_runtime is not None
+            and hasattr(action_runtime, "journal")
+        ):
+            run_journal_port = getattr(action_runtime, "journal")
+        if (
+            run_journal_port is not None
+            and action_runtime is not None
+            and hasattr(action_runtime, "journal")
+            and getattr(action_runtime, "journal") is not run_journal_port
+        ):
+            raise ValueError(
+                "run_journal_port must match recovery-aware ActionRuntime journal"
+            )
+        self.run_journal_port = run_journal_port
         self.library_limit = library_limit
         self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
             memory=memory,
@@ -103,6 +121,21 @@ class YiSangRuntime:
     def run(self, request: YiSangRequest) -> YiSangResponse:
         run_started = time.perf_counter()
         session_id = _session_id(request)
+        goal_run = _goal_run_context(request)
+        goal_id = goal_run[0] if goal_run is not None else None
+        run_id = goal_run[1] if goal_run is not None else None
+        if (
+            self.run_journal_port is not None
+            and goal_id is not None
+            and run_id is not None
+            and self.run_journal_port.latest_sequence(goal_id, run_id) == 0
+        ):
+            self.run_journal_port.append(
+                goal_id,
+                run_id,
+                "goal_started",
+                payload={"request_id": request.request_id},
+            )
         session_history = (
             self.session_port.history(
                 session_id,
@@ -210,6 +243,11 @@ class YiSangRuntime:
                     executed = self.action_runtime.execute(
                         proposal,
                         selected_egos=selected_egos,
+                        execution_context=(
+                            {"goal_id": goal_id, "run_id": run_id}
+                            if goal_id is not None and run_id is not None
+                            else None
+                        ),
                     )
 
                 action_results.append(executed)
@@ -260,6 +298,21 @@ class YiSangRuntime:
             request=request,
             engine_result=result,
         )
+        if (
+            self.run_journal_port is not None
+            and goal_id is not None
+            and run_id is not None
+        ):
+            self.run_journal_port.append(
+                goal_id,
+                run_id,
+                "verification_result",
+                payload={
+                    "request_id": request.request_id,
+                    "status": verification.status,
+                    "reason": verification.reason,
+                },
+            )
 
         if memories:
             self.memory.record_outcome(
@@ -341,6 +394,17 @@ class YiSangRuntime:
             memory_write_results=memory_write_results,
             experience_trace_ids=experience_trace_ids,
             ego_telemetry_event_ids=ego_telemetry_event_ids,
+            goal_id=goal_id,
+            run_id=run_id,
+            run_journal_sequence=(
+                self.run_journal_port.latest_sequence(goal_id, run_id)
+                if (
+                    self.run_journal_port is not None
+                    and goal_id is not None
+                    and run_id is not None
+                )
+                else None
+            ),
         )
         if self.experience_port is not None:
             episode = self.experience_recorder.capture(
@@ -360,6 +424,7 @@ def _history_item(proposal, result: ActionResult) -> dict:
             "tool_id": proposal.action,
             "arguments": dict(proposal.arguments),
             "requested_by": proposal.requested_by,
+            "idempotency_key": proposal.idempotency_key,
         },
         "result": result.to_dict(),
     }
@@ -371,3 +436,16 @@ def _session_id(request: YiSangRequest) -> str | None:
         return None
     value = value.strip()
     return value or None
+
+
+
+def _goal_run_context(request: YiSangRequest) -> tuple[str, str] | None:
+    raw_goal = request.metadata.get("goal_id")
+    raw_run = request.metadata.get("run_id")
+    if raw_goal is None and raw_run is None:
+        return None
+    if not isinstance(raw_goal, str) or not raw_goal.strip():
+        raise ValueError("goal_id must be a non-empty string when run_id is set")
+    if not isinstance(raw_run, str) or not raw_run.strip():
+        raise ValueError("run_id must be a non-empty string when goal_id is set")
+    return raw_goal.strip(), raw_run.strip()

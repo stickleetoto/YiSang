@@ -15,6 +15,7 @@ class ActionProposal:
     action: str
     arguments: dict[str, Any] = field(default_factory=dict)
     requested_by: str | None = None
+    idempotency_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,8 @@ class ActionResult:
     goal_satisfied: bool = False
     completion_text: str | None = None
     completion_evidence: dict[str, Any] = field(default_factory=dict)
+    side_effect_receipt_id: str | None = None
+    recovered_skip: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -52,4 +55,6 @@ class ActionResult:
             "goal_satisfied": self.goal_satisfied,
             "completion_text": self.completion_text,
             "completion_evidence": dict(self.completion_evidence),
+            "side_effect_receipt_id": self.side_effect_receipt_id,
+            "recovered_skip": self.recovered_skip,
         }

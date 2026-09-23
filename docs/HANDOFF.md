@@ -385,3 +385,15 @@ evidence, exit criteria, and explicit migration boundaries.
 - A started receipt is treated as uncertain after crash and requires review;
   YiSang does not guess that the side effect succeeded or failed.
 - Reusing an idempotency key for a different request is a recovery conflict.
+
+
+- Added RecoveryAwareActionRuntime.
+- YiSangRequest may carry goal_id + run_id metadata for durable journal context.
+- Runtime records goal_started and verification_result journal events.
+- Recovery-aware actions record proposal/authorization/execution evidence.
+- Side-effecting tools require a stable ActionProposal.idempotency_key when
+  recovery context is active.
+- A committed receipt suppresses duplicate handler execution.
+- A started receipt after interruption is treated as uncertain and denied
+  pending reconciliation.
+- YiSangResponse now exposes goal_id, run_id, and run_journal_sequence.

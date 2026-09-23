@@ -56,6 +56,37 @@ def failure_from_gate_reason(reason: str, *, tool_id: str) -> ToolFailure:
             recovery_hint="Request or select an authorized capability before retrying.",
             evidence={"tool_id": tool_id, "gate_reason": reason},
         )
+    if reason in {"missing_recovery_context", "recovery_uncertain_side_effect"}:
+        return ToolFailure(
+            ToolFailureCategory.VERIFICATION,
+            retryable=False,
+            blame="recovery",
+            recovery_hint=(
+                "Inspect the durable receipt and external state before retrying."
+            ),
+            evidence={"tool_id": tool_id, "gate_reason": reason},
+        )
+    if reason in {"missing_idempotency_key", "recovery_idempotency_conflict"}:
+        return ToolFailure(
+            ToolFailureCategory.INVALID_ARGUMENTS,
+            retryable=False,
+            blame="recovery",
+            recovery_hint=(
+                "Provide a stable idempotency key that uniquely identifies "
+                "this logical side effect."
+            ),
+            evidence={"tool_id": tool_id, "gate_reason": reason},
+        )
+    if reason == "recovery_retry_required":
+        return ToolFailure(
+            ToolFailureCategory.VERIFICATION,
+            retryable=True,
+            blame="recovery",
+            recovery_hint=(
+                "Explicitly authorize a retry after reviewing the failed receipt."
+            ),
+            evidence={"tool_id": tool_id, "gate_reason": reason},
+        )
     if reason == "action_runtime_not_configured":
         return ToolFailure(
             ToolFailureCategory.ENVIRONMENT,

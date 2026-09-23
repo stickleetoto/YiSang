@@ -134,14 +134,47 @@ tool/request digest is treated as a conflict rather than guessed.
 
 A canonical SHA-256 helper is provided for tool id + arguments.
 
+## Runtime goal/run integration
+
+YiSangRequest metadata may now carry:
+
+~~~text
+goal_id
+run_id
+~~~
+
+When a RunJournalPort is configured, YiSangRuntime records goal-start and
+verification events and returns the durable journal cursor in YiSangResponse.
+
+RecoveryAwareActionRuntime adds action-level evidence:
+
+~~~text
+action_proposed
+-> action_authorized
+-> [side_effect_reserved]
+-> action_executed
+-> [side_effect_committed | side_effect_failed]
+~~~
+
+For side-effecting tools, recovery-aware execution requires:
+
+- goal_id + run_id execution context;
+- a stable ActionProposal.idempotency_key.
+
+If an identical committed receipt already exists, the handler is not invoked
+again and the action is returned as a recovered skip.
+
+If only a started receipt exists, execution is denied as uncertain. YiSang does
+not guess whether the external side effect happened before the crash.
+
 ## Deliberate non-goals
 
 This slice still does not:
 
-- connect GoalPort directly to YiSangRuntime;
-- automatically execute a recovered action;
+- automatically transition GoalRecord based on runtime output;
+- automatically retry failed side effects;
+- infer uncertain external state;
 - autonomously create or replan goals;
-- infer whether an uncertain started receipt actually mutated the world;
 - depend on BIO.
 
 ## Next slice
@@ -149,9 +182,9 @@ This slice still does not:
 Recommended:
 
 ~~~text
-Runtime goal/run integration
-+ automatic journal events around ActionRuntime
-+ receipt reservation/commit around side-effecting tools
-+ crash-point state machine
-+ deterministic resume controller
+crash-point state machine
++ explicit retry/reconcile decisions
++ GoalRecord/runtime progress integration
++ checkpoint-after-verification controller
++ restart/resume orchestration
 ~~~
