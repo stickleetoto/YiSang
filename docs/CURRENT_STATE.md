@@ -118,8 +118,12 @@ Implemented so far on that branch:
 - RecoveryAwareActionRuntime
 - goal_id/run_id runtime journal context
 - duplicate side-effect suppression from committed receipts
+- RestartAssessment and explicit retry/reconciliation controls
+- RecoveryRunController
+- CrashRecoveryPlanner
+- idempotent verified checkpoint orchestration
 
-The v0.8 branch has not been declared validated yet; local testing is delegated
+The v0.8 branches have not been declared validated yet; local testing is delegated
 to the development workstation.
 
 Target:

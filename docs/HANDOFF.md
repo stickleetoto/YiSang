@@ -415,3 +415,17 @@ evidence, exit criteria, and explicit migration boundaries.
 - Added SQLite migration for receipt retry metadata.
 - Added RecoveryRunController for start/checkpoint/block/unblock/complete/cancel.
 - Goal lifecycle transitions remain explicit; recovery never invents a new plan.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / v0.8 crash recovery orchestration
+
+- Added CrashRecoveryPlanner with five non-executing directives:
+  resume_next_action / reconcile_side_effect / verify_prior_action /
+  write_checkpoint / stop.
+- Crash planning uses post-checkpoint journal events and RestartAssessment.
+- Added VerifiedCheckpointOrchestrator.
+- PASS verification with no failed/denied actions can produce an idempotent
+  per-request checkpoint.
+- Checkpoints bind committed side-effect receipt ids as completed action refs.
+- YiSangRuntime optionally invokes checkpoint orchestration after verification.
+- YiSangResponse exposes recovery_checkpoint_id.

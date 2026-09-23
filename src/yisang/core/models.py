@@ -26,3 +26,4 @@ class YiSangResponse:
     goal_id: str | None = None
     run_id: str | None = None
     run_journal_sequence: int | None = None
+    recovery_checkpoint_id: str | None = None

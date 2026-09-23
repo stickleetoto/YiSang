@@ -23,6 +23,9 @@ from yisang.memory.governor import MemoryGovernor
 from yisang.memory.pipeline import MemoryWritePipeline
 from yisang.memory.port import MemoryPort
 from yisang.memory.quarantine import InMemoryQuarantinePort
+from yisang.recovery.checkpoint_orchestrator import (
+    VerifiedCheckpointOrchestrator,
+)
 from yisang.recovery.port import RunJournalPort
 from yisang.session.port import SessionPort
 from yisang.verification.base import Verifier
@@ -52,6 +55,7 @@ class YiSangRuntime:
         experience_trace_recorder: ActionTraceRecorder | None = None,
         ego_telemetry_port: EgoTelemetryPort | None = None,
         run_journal_port: RunJournalPort | None = None,
+        checkpoint_orchestrator: VerifiedCheckpointOrchestrator | None = None,
         library_limit: int = 3,
         max_action_rounds: int = 3,
     ) -> None:
@@ -110,6 +114,7 @@ class YiSangRuntime:
                 "run_journal_port must match recovery-aware ActionRuntime journal"
             )
         self.run_journal_port = run_journal_port
+        self.checkpoint_orchestrator = checkpoint_orchestrator
         self.library_limit = library_limit
         self.memory_pipeline = memory_pipeline or MemoryWritePipeline(
             memory=memory,
@@ -314,6 +319,22 @@ class YiSangRuntime:
                 },
             )
 
+        recovery_checkpoint_id = None
+        if (
+            self.checkpoint_orchestrator is not None
+            and goal_id is not None
+            and run_id is not None
+        ):
+            checkpoint = self.checkpoint_orchestrator.after_verification(
+                goal_id=goal_id,
+                run_id=run_id,
+                request_id=request.request_id,
+                verification_status=verification.status,
+                action_results=action_results,
+            )
+            if checkpoint is not None:
+                recovery_checkpoint_id = checkpoint.checkpoint_id
+
         if memories:
             self.memory.record_outcome(
                 [memory.memory_id for memory in memories],
@@ -405,6 +426,7 @@ class YiSangRuntime:
                 )
                 else None
             ),
+            recovery_checkpoint_id=recovery_checkpoint_id,
         )
         if self.experience_port is not None:
             episode = self.experience_recorder.capture(

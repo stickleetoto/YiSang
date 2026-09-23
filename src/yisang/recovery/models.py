@@ -26,6 +26,15 @@ RUN_EVENT_TYPES = frozenset(
 
 SIDE_EFFECT_RECEIPT_STATES = frozenset({"started", "committed", "failed"})
 RECOVERY_ACTION_DECISIONS = frozenset({"execute", "skip", "review", "retry"})
+CRASH_RECOVERY_MODES = frozenset(
+    {
+        "resume_next_action",
+        "reconcile_side_effect",
+        "verify_prior_action",
+        "write_checkpoint",
+        "stop",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -159,3 +168,22 @@ class RestartAssessment:
     retryable_receipt_ids: tuple[str, ...] = ()
     committed_receipt_ids: tuple[str, ...] = ()
     post_checkpoint_event_ids: tuple[str, ...] = ()
+
+
+
+@dataclass(frozen=True)
+class CrashRecoveryDirective:
+    goal_id: str
+    run_id: str | None
+    mode: str
+    reason: str
+    checkpoint_id: str | None = None
+    post_checkpoint_event_ids: tuple[str, ...] = ()
+    uncertain_receipt_ids: tuple[str, ...] = ()
+    retryable_receipt_ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.mode not in CRASH_RECOVERY_MODES:
+            raise ValueError(
+                f"unsupported crash recovery mode: {self.mode}"
+            )
