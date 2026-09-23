@@ -1,23 +1,35 @@
 from .coordinator import RecoveryCoordinator
-from .in_memory import InMemoryCheckpointPort, InMemoryRunJournalPort
+from .idempotency import side_effect_request_digest
+from .in_memory import (
+    InMemoryCheckpointPort,
+    InMemoryRunJournalPort,
+    InMemorySideEffectReceiptPort,
+)
 from .models import (
     RUN_EVENT_TYPES,
+    RecoveryActionDecision,
     RecoveryCheckpoint,
     RecoveryPlan,
     RunJournalEvent,
+    SideEffectReceipt,
 )
-from .port import CheckpointPort, RunJournalPort
+from .port import CheckpointPort, RunJournalPort, SideEffectReceiptPort
 from .sqlite import SQLiteRecoveryStore
 
 __all__ = [
     "CheckpointPort",
     "InMemoryCheckpointPort",
     "InMemoryRunJournalPort",
+    "InMemorySideEffectReceiptPort",
     "RUN_EVENT_TYPES",
+    "RecoveryActionDecision",
     "RecoveryCheckpoint",
     "RecoveryCoordinator",
     "RecoveryPlan",
     "RunJournalEvent",
     "RunJournalPort",
+    "SideEffectReceipt",
+    "SideEffectReceiptPort",
     "SQLiteRecoveryStore",
+    "side_effect_request_digest",
 ]

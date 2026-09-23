@@ -4,8 +4,12 @@ import uuid
 
 from yisang.goal import GoalPort
 
-from .models import RecoveryCheckpoint, RecoveryPlan
-from .port import CheckpointPort, RunJournalPort
+from .models import (
+    RecoveryActionDecision,
+    RecoveryCheckpoint,
+    RecoveryPlan,
+)
+from .port import CheckpointPort, RunJournalPort, SideEffectReceiptPort
 
 
 class RecoveryCoordinator:
@@ -17,10 +21,12 @@ class RecoveryCoordinator:
         goals: GoalPort,
         journal: RunJournalPort,
         checkpoints: CheckpointPort,
+        side_effects: SideEffectReceiptPort | None = None,
     ) -> None:
         self.goals = goals
         self.journal = journal
         self.checkpoints = checkpoints
+        self.side_effects = side_effects
 
     def write_checkpoint(
         self,
@@ -147,4 +153,66 @@ class RecoveryCoordinator:
             completed_action_refs=completed_refs,
             blockers=blockers,
             journal_sequence=journal_sequence,
+        )
+
+
+    def reconcile_side_effect(
+        self,
+        *,
+        goal_id: str,
+        idempotency_key: str,
+        request_digest: str,
+    ) -> RecoveryActionDecision:
+        if self.side_effects is None:
+            return RecoveryActionDecision(
+                goal_id=goal_id,
+                idempotency_key=idempotency_key,
+                decision="review",
+                reason="side_effect_store_unavailable",
+            )
+        receipt = self.side_effects.get_receipt(
+            goal_id,
+            idempotency_key,
+        )
+        if receipt is None:
+            return RecoveryActionDecision(
+                goal_id=goal_id,
+                idempotency_key=idempotency_key,
+                decision="execute",
+                reason="no_prior_receipt",
+            )
+        if receipt.request_digest != request_digest:
+            return RecoveryActionDecision(
+                goal_id=goal_id,
+                idempotency_key=idempotency_key,
+                decision="review",
+                reason="idempotency_key_digest_conflict",
+                receipt_id=receipt.receipt_id,
+                receipt_state=receipt.state,
+            )
+        if receipt.state == "committed":
+            return RecoveryActionDecision(
+                goal_id=goal_id,
+                idempotency_key=idempotency_key,
+                decision="skip",
+                reason="side_effect_already_committed",
+                receipt_id=receipt.receipt_id,
+                receipt_state=receipt.state,
+            )
+        if receipt.state == "started":
+            return RecoveryActionDecision(
+                goal_id=goal_id,
+                idempotency_key=idempotency_key,
+                decision="review",
+                reason="side_effect_outcome_uncertain",
+                receipt_id=receipt.receipt_id,
+                receipt_state=receipt.state,
+            )
+        return RecoveryActionDecision(
+            goal_id=goal_id,
+            idempotency_key=idempotency_key,
+            decision="retry",
+            reason="previous_attempt_failed",
+            receipt_id=receipt.receipt_id,
+            receipt_state=receipt.state,
         )

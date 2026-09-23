@@ -100,27 +100,58 @@ RecoveryCoordinator.plan_resume() currently returns:
 When a checkpoint exists, its recovery cursor and completed action references
 are preferred over reconstructing from free-form model state.
 
+## Side-effect receipts and idempotency
+
+The foundation now includes a durable SideEffectReceiptPort.
+
+Receipt states:
+
+~~~text
+started
+  -> committed
+  -> failed
+~~~
+
+Recovery interpretation:
+
+~~~text
+no receipt
+  -> execute
+
+committed
+  -> skip; already completed
+
+started
+  -> review; the process may have crashed after the external effect but
+     before commit was recorded
+
+failed
+  -> retry may be allowed
+~~~
+
+An idempotency key is unique per goal. Reusing the same key with a different
+tool/request digest is treated as a conflict rather than guessed.
+
+A canonical SHA-256 helper is provided for tool id + arguments.
+
 ## Deliberate non-goals
 
-This slice does not yet:
+This slice still does not:
 
 - connect GoalPort directly to YiSangRuntime;
-- execute a recovered action;
-- deduplicate external side effects;
-- implement SideEffectReceipt;
+- automatically execute a recovered action;
 - autonomously create or replan goals;
+- infer whether an uncertain started receipt actually mutated the world;
 - depend on BIO.
-
-Those belong to the next v0.8 slices.
 
 ## Next slice
 
 Recommended:
 
 ~~~text
-SideEffectReceiptPort
-+ idempotency keys
-+ recovery reconciliation
-+ Runtime goal/run integration
+Runtime goal/run integration
++ automatic journal events around ActionRuntime
++ receipt reservation/commit around side-effecting tools
 + crash-point state machine
++ deterministic resume controller
 ~~~

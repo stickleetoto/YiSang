@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from .models import RecoveryCheckpoint, RunJournalEvent
+from .models import RecoveryCheckpoint, RunJournalEvent, SideEffectReceipt
 
 
 class RunJournalPort(ABC):
@@ -52,4 +52,55 @@ class CheckpointPort(ABC):
         self,
         goal_id: str,
     ) -> tuple[RecoveryCheckpoint, ...]:
+        raise NotImplementedError
+
+
+
+class SideEffectReceiptPort(ABC):
+    @abstractmethod
+    def reserve(
+        self,
+        *,
+        goal_id: str,
+        run_id: str,
+        idempotency_key: str,
+        tool_id: str,
+        request_digest: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> SideEffectReceipt:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_receipt(
+        self,
+        goal_id: str,
+        idempotency_key: str,
+    ) -> SideEffectReceipt | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def commit_receipt(
+        self,
+        receipt_id: str,
+        *,
+        result_ref: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> SideEffectReceipt:
+        raise NotImplementedError
+
+    @abstractmethod
+    def fail_receipt(
+        self,
+        receipt_id: str,
+        *,
+        reason: str,
+        evidence_refs: tuple[str, ...] = (),
+    ) -> SideEffectReceipt:
+        raise NotImplementedError
+
+    @abstractmethod
+    def receipts(
+        self,
+        goal_id: str,
+    ) -> tuple[SideEffectReceipt, ...]:
         raise NotImplementedError

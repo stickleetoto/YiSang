@@ -375,3 +375,13 @@ evidence, exit criteria, and explicit migration boundaries.
 - BIO remains parked and is not a v0.8 dependency.
 - Runtime wiring and side-effect receipts are intentionally deferred to the
   next slice.
+
+
+- Added SideEffectReceiptPort with in-memory and SQLite durability.
+- Receipt lifecycle: started / committed / failed.
+- Added per-goal idempotency keys and canonical request digest helper.
+- Recovery reconciliation returns execute / skip / review / retry.
+- A committed receipt prevents duplicate execution.
+- A started receipt is treated as uncertain after crash and requires review;
+  YiSang does not guess that the side effect succeeded or failed.
+- Reusing an idempotency key for a different request is a recovery conflict.
