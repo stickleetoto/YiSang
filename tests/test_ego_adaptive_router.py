@@ -43,6 +43,7 @@ def test_adaptive_router_uses_bounded_feedback_to_break_metadata_tie():
             min_samples=3,
             saturation_samples=3,
             half_life_days=365,
+            clock=lambda: 1020.0,
         ),
     )
 
