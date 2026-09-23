@@ -311,3 +311,20 @@ evidence, exit criteria, and explicit migration boundaries.
 - DurableEgoApplyAdapter now forwards the human apply actor/approval reference
   into EgoPort audit events.
 - Added yisang-ego-lifecycle-smoke.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / adaptive E.G.O routing
+
+- Added E.G.O runtime-use and replay-health telemetry events.
+- Added in-memory and SQLite telemetry ports with idempotent event ids.
+- YiSangRuntime optionally records selected E.G.O verification outcome,
+  action-failure count, and request latency.
+- EgoLifecycleGuard optionally records replay-health pass/fail telemetry.
+- Added EgoAdaptiveScorer with minimum samples, Bayesian smoothing, time decay,
+  heavier replay-health weighting, and bounded signed routing adjustment.
+- Extended HybridCapabilityRouter with optional signed score_adjustments while
+  retaining the previous success_scores API.
+- Added AdaptiveCapabilityRouter that derives adjustments from telemetry by
+  exact E.G.O id + version.
+- Telemetry affects ranking only; it cannot disable, install, or grant
+  permissions.

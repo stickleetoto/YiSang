@@ -260,3 +260,31 @@ Rules:
 - every promoted package carries a SHA-256 digest bound to promotion provenance;
 - generated promoted E.G.O packages use prompt runtime only in this phase;
 - risk hints remain conservative and do not grant execution permission.
+
+
+## Adaptive telemetry routing
+
+E.G.O routing may consume historical outcome telemetry, but only as a bounded
+secondary signal.
+
+Recorded event kinds:
+
+- runtime_use: verification result, action failure count, latency;
+- replay_health: later deterministic replay pass/fail.
+
+Adaptive scoring rules:
+
+- fewer than 3 observations: zero routing adjustment;
+- runtime outcomes use weight 1;
+- replay-health outcomes use weight 2 by default;
+- observations decay with a configurable half-life;
+- neutral Bayesian smoothing prevents extreme early rates;
+- adjustment is signed and capped at +/-0.35 by default;
+- semantic metadata relevance remains the dominant routing signal.
+
+The telemetry scorer does not disable packages. Lifecycle invalidation remains a
+separate reviewed process.
+
+~~~powershell
+yisang-ego-adaptive-smoke
+~~~
