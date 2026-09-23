@@ -359,3 +359,48 @@ evidence, exit criteria, and explicit migration boundaries.
 - Next major axis: v0.8 Goal / Recovery Runtime.
 - Recommended first v0.8 slice: GoalPort + SQLiteGoalPort + append-only
   RunJournalPort + deterministic restart/recovery smoke.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / v0.8 Goal + Recovery foundation
+
+- Started v0.8 on dev/v0.8-goal-recovery-foundation.
+- Added GoalRecord + GoalBudget and explicit goal state machine.
+- Added GoalPort with in-memory and SQLite implementations.
+- Added append-only RunJournalPort with per-goal/run sequence numbers.
+- Added RecoveryCheckpoint + CheckpointPort.
+- Added SQLiteRecoveryStore for journal + checkpoint durability.
+- Added RecoveryCoordinator for checkpoint creation and conservative resume
+  planning.
+- Completed/cancelled/blocked goals are not auto-resumed.
+- BIO remains parked and is not a v0.8 dependency.
+- Runtime wiring and side-effect receipts are intentionally deferred to the
+  next slice.
+
+
+- Added SideEffectReceiptPort with in-memory and SQLite durability.
+- Receipt lifecycle: started / committed / failed.
+- Added per-goal idempotency keys and canonical request digest helper.
+- Recovery reconciliation returns execute / skip / review / retry.
+- A committed receipt prevents duplicate execution.
+- A started receipt is treated as uncertain after crash and requires review;
+  YiSang does not guess that the side effect succeeded or failed.
+- Reusing an idempotency key for a different request is a recovery conflict.
+
+
+- Added RecoveryAwareActionRuntime.
+- YiSangRequest may carry goal_id + run_id metadata for durable journal context.
+- Runtime records goal_started and verification_result journal events.
+- Recovery-aware actions record proposal/authorization/execution evidence.
+- Side-effecting tools require a stable ActionProposal.idempotency_key when
+  recovery context is active.
+- A committed receipt suppresses duplicate handler execution.
+- A started receipt after interruption is treated as uncertain and denied
+  pending reconciliation.
+- YiSangResponse now exposes goal_id, run_id, and run_journal_sequence.
+
+
+- Corrected latest-checkpoint selection across multiple run_ids: created_at is
+  authoritative across runs; journal_sequence remains authoritative inside one
+  run because sequences restart per run.
+- Exported RecoveryAwareActionRuntime and side-effect result digest helpers.
+- Marked v0.8 Goal / Recovery as active development in CURRENT_STATE/INDEX.
