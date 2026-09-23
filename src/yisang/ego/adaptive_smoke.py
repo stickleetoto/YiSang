@@ -73,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         min_samples=3,
         saturation_samples=3,
         half_life_days=365,
+        clock=lambda: 1020.0,
     )
     router = AdaptiveCapabilityRouter(port, scorer=scorer)
     stable = scorer.summary(
