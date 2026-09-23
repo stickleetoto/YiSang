@@ -251,3 +251,21 @@ evidence, exit criteria, and explicit migration boundaries.
   exists.
 - Added yisang-trace-replay-smoke for Trace -> Manifest -> real replay ->
   PromotionGate.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / E.G.O v2 foundation
+
+- Researched Agent Skills progressive disclosure, A2A AgentSkill discovery,
+  JSON Schema 2020-12, MCP-style risk hints, Cedar authorization concepts,
+  OCI artifact packaging, and Sigstore signing.
+- Added E.G.O v2 capability-package architecture document.
+- Preserved legacy E.G.O v1 model/loader behavior.
+- Added metadata-only v2 package discovery and selected-package full loading.
+- Added safe package path enforcement and content SHA-256 package digest.
+- Added input/output JSON Schema loading with 2020-12 dialect guard.
+- Added semantic-version-aware lazy VersionedEgoRegistry.
+- Added A2A AgentSkill-shaped discovery export.
+- Added deterministic HybridCapabilityRouter using metadata and bounded success
+  priors; embeddings remain a later implementation.
+- V2 capability metadata now participates in E.G.O continuity digest without
+  changing v1 digest serialization.

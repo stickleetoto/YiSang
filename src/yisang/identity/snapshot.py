@@ -322,8 +322,12 @@ def _runtime_library_reference(runtime) -> SnapshotReference | None:
 
 
 def ego_registry_payload(registry) -> list[dict[str, Any]]:
-    return [
-        {
+    payload: list[dict[str, Any]] = []
+    for ego in sorted(
+        registry.list_all(),
+        key=lambda item: item.ego_id,
+    ):
+        item = {
             "ego_id": ego.ego_id,
             "name": ego.name,
             "provides": list(ego.provides),
@@ -331,11 +335,30 @@ def ego_registry_payload(registry) -> list[dict[str, Any]]:
             "instructions": ego.instructions,
             "permissions": dict(ego.permissions),
         }
-        for ego in sorted(
-            registry.list_all(),
-            key=lambda item: item.ego_id,
-        )
-    ]
+        if getattr(ego, "schema_version", 1) >= 2:
+            risk = getattr(ego, "risk", None)
+            item.update({
+                "schema_version": ego.schema_version,
+                "version": ego.version,
+                "description": ego.description,
+                "tags": list(ego.tags),
+                "examples": list(ego.examples),
+                "requires": list(ego.requires),
+                "conflicts": list(ego.conflicts),
+                "runtime_type": ego.runtime_type,
+                "risk": (
+                    asdict(risk)
+                    if risk is not None
+                    else None
+                ),
+                "input_schema": ego.input_schema,
+                "output_schema": ego.output_schema,
+                "resources": list(ego.resources),
+                "evals": list(ego.evals),
+                "package_digest": ego.package_digest,
+            })
+        payload.append(item)
+    return payload
 
 
 def ego_registry_digest(registry) -> str:
