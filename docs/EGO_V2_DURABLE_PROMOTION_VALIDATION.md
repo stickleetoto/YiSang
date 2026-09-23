@@ -71,4 +71,37 @@ prompt runtime only and retain conservative risk hints.
 python -m pytest -q
 ~~~
 
-Repository-side CI baseline: 320 passed on Python 3.11/3.12.
+Repository-side CI baseline before lifecycle guard: 320 passed on Python 3.11/3.12.
+
+
+## Post-install lifecycle guard
+
+A later replay failure does not automatically remove or disable an installed
+E.G.O. It creates a pending invalidation candidate.
+
+~~~text
+active E.G.O
+  -> later replay failure
+  -> pending invalidation candidate
+  -> review
+       +-- reject -> keep active
+       +-- approve -> disable
+  -> optional rollback to an earlier installed version
+~~~
+
+All install, supersede, disable, rollback, candidate-create, approve, and reject
+operations are recorded as append-only audit events.
+
+~~~powershell
+yisang-ego-lifecycle-smoke
+~~~
+
+Expected important values:
+
+~~~text
+ready = true
+pending_candidate_does_not_disable = true
+rejected_candidate_keeps_active = true
+approved_candidate_disables = true
+rollback_version = 0.0.1
+~~~

@@ -294,3 +294,20 @@ evidence, exit criteria, and explicit migration boundaries.
   runtime/router contracts.
 - Added yisang-ego-promotion-smoke proving apply -> supersede -> route ->
   rollback.
+
+
+## Session 2026-09-23 / GPT-5.6 Sol / E.G.O lifecycle guard
+
+- Added append-only E.G.O lifecycle audit events for install, supersede,
+  disable, rollback, invalidation-candidate creation, approval, and rejection.
+- Added durable replay-regression invalidation candidates.
+- A failed post-install replay creates a pending candidate only; it never
+  auto-disables an E.G.O.
+- Candidate rejection preserves the active E.G.O.
+- Candidate approval requires actor + approval_ref + reason and disables only
+  the still-active target version.
+- Added lifecycle receipts for approve/reject decisions.
+- Added SQLite persistence for audit events and invalidation candidates.
+- DurableEgoApplyAdapter now forwards the human apply actor/approval reference
+  into EgoPort audit events.
+- Added yisang-ego-lifecycle-smoke.
