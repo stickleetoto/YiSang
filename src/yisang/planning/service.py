@@ -8,6 +8,7 @@ from .models import (
     GoalPlan,
     PlanExecutionDecision,
     PlanProposal,
+    PlanRevisionProposal,
     PlanStep,
 )
 from .port import PlanPort
@@ -51,6 +52,37 @@ class PlanService:
         )
         self.port.append(plan)
         return plan
+
+    def accept_revision(
+        self,
+        proposal: PlanRevisionProposal,
+        *,
+        actor: str,
+        reason: str,
+        approval_ref: str | None = None,
+    ) -> GoalPlan:
+        current = self._required(proposal.plan_id)
+        if proposal.base_revision != current.revision:
+            raise PlanStateError(
+                f"stale revision proposal: expected {current.revision}, "
+                f"got {proposal.base_revision}"
+            )
+        actor = _required(actor, "actor")
+        reason = _required(reason, "reason")
+        try:
+            revised = self.compiler.compile_revision(
+                current,
+                proposal,
+                provenance={
+                    "accepted_by": actor,
+                    "accept_reason": reason,
+                    "approval_ref": approval_ref,
+                },
+            )
+        except ValueError as exc:
+            raise PlanStateError(str(exc)) from exc
+        self.port.append(revised)
+        return revised
 
     def ready_steps(self, plan_id: str) -> tuple[PlanStep, ...]:
         plan = self._required(plan_id)

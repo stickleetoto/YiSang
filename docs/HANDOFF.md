@@ -479,3 +479,16 @@ evidence, exit criteria, and explicit migration boundaries.
 - Failed steps block the goal; budgeted retry unblocks it with a new run_id.
 - assess_resume() routes an interrupted running step through CrashRecoveryPlanner.
 - Added yisang-long-horizon-smoke and local tests; assistant did not run them.
+
+
+## Session 2026-09-24 / GPT-5.6 Sol / v0.9 governed replanning
+
+- Added PlanRevisionProposal with explicit base_revision.
+- Added PlanCompiler.compile_revision.
+- Replan proposals are rejected when stale or while a step is running.
+- Completed steps are mandatory and immutable across replans.
+- Existing step ids cannot change semantics; alternate approaches require new ids.
+- Future non-completed steps may be removed/replaced.
+- Replan acceptance remains explicit through PlanService.accept_revision.
+- Replan provenance is appended to replan_history.
+- Added yisang-replan-smoke and local tests; assistant did not run them.

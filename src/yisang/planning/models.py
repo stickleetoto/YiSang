@@ -71,6 +71,35 @@ class PlanProposal:
 
 
 @dataclass(frozen=True)
+class PlanRevisionProposal:
+    revision_proposal_id: str
+    plan_id: str
+    goal_id: str
+    base_revision: int
+    steps: tuple[PlanStepSpec, ...]
+    proposed_by: str
+    reason: str
+    provenance: dict[str, Any] = field(default_factory=dict)
+    created_at: float = field(default_factory=time.time)
+
+    def __post_init__(self) -> None:
+        if not self.revision_proposal_id.strip():
+            raise ValueError("revision_proposal_id must be non-empty")
+        if not self.plan_id.strip():
+            raise ValueError("plan_id must be non-empty")
+        if not self.goal_id.strip():
+            raise ValueError("goal_id must be non-empty")
+        if self.base_revision <= 0:
+            raise ValueError("base_revision must be positive")
+        if not self.steps:
+            raise ValueError("revision proposal requires at least one step")
+        if not self.proposed_by.strip():
+            raise ValueError("proposed_by must be non-empty")
+        if not self.reason.strip():
+            raise ValueError("reason must be non-empty")
+
+
+@dataclass(frozen=True)
 class PlanStep:
     step_id: str
     title: str

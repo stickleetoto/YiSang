@@ -38,6 +38,7 @@ yisang-policy-smoke = "yisang.policy_smoke:main"
 yisang-workspace-recovery-smoke = "yisang.recovery.workspace_smoke:main"
 yisang-planner-smoke = "yisang.planning.smoke:main"
 yisang-long-horizon-smoke = "yisang.planning.long_horizon_smoke:main"
+yisang-replan-smoke = "yisang.planning.replan_smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
