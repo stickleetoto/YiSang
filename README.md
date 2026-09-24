@@ -6,7 +6,7 @@
 
 Current release: **v0.6.0 — Roland Library validated**
 
-Development state: **v0.7 Experience + E.G.O v2 closeout candidate**
+Development state: **v0.9 Planner / Long-Horizon Execution closeout candidate**
 
 YiSang keeps durable agent assets outside the attached reasoning model:
 
@@ -36,6 +36,9 @@ Codex / UI / agent harness
           |      +-- rebuildable retrieval index
           |      +-- request-aware delivery
           |
+          +-- Goal / Recovery Runtime
+          +-- durable Plan / Scheduler
+          +-- governed Replanning
           +-- ContextCompiler
           +-- continuity snapshot / restore
           |
@@ -68,24 +71,30 @@ See:
 
 ## Development closeout status
 
-Current open development has implemented and validated:
+Current stacked development now covers:
 
-- Experience Promotion and deterministic replay
-- ordered multi-step replay
-- E.G.O v2 versioned capability packages
-- durable capability lifecycle and rollback
-- adaptive routing from bounded telemetry
-- deny-by-default permission policy
+- v0.7 Experience Promotion, E.G.O v2 lifecycle, adaptive routing, and policy
+- v0.8 durable Goal / Recovery, side-effect receipts, crash recovery, and real workspace writes
+- v0.9 durable planning, PlanStep-to-recovery bridging, and governed replanning
 
-Latest local Windows full regression: **346 passed in 8.87s**.
+Latest Windows validation on the top-of-stack branch:
 
-BIO integration is **parked/reserved** and is not a current dependency.
+~~~text
+workspace recovery smoke  PASS
+planner smoke             PASS
+long-horizon smoke        PASS
+governed replan smoke     PASS
+focused v0.8/v0.9         23 passed in 0.41s
+full repository           369 passed in 9.13s
+~~~
+
+BIO integration is **parked/reserved** as draft PR #57 and is not a v0.8/v0.9 dependency.
 
 See:
 
 - `docs/CURRENT_STATE.md`
-- `docs/V07_EGO_CLOSEOUT.md`
-- `docs/NEXT_AXIS.md`
+- `docs/PR_STACK.md`
+- `docs/V09_LOCAL_VALIDATION.md`
 - `docs/BIO_RESERVED.md`
 
 ## Install
@@ -141,10 +150,12 @@ See `docs/CODEX_MODEL_SERVER.md` for that integration path.
 11. Continuity restore is staged and validated before runtime-owned state is swapped.
 12. Core interfaces remain independent of a single model provider or agent framework.
 
-## Next major axis
+## Current next work
 
-After the current v0.7/E.G.O PR stack is integrated, development moves to
-**v0.8 Goal / Recovery Runtime**.
+The v0.8/v0.9 foundation is now a **local closeout candidate**. New work should
+strengthen v0.9 rather than rebuild its foundations: planner adapters, explicit
+plan JSON contracts, budgets/deadlines, parallel-ready scheduling, and
+long-horizon/replan evaluation.
 
 See `docs/NEXT_AXIS.md`.
 
