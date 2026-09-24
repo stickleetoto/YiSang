@@ -176,9 +176,19 @@ class RecoveryAwareActionRuntime(ActionRuntime):
                     receipt_id=existing.receipt_id,
                 )
 
-            recovery_metadata = tool.build_recovery_metadata(
-                dict(proposal.arguments)
-            )
+            try:
+                recovery_metadata = tool.build_recovery_metadata(
+                    dict(proposal.arguments)
+                )
+            except Exception as exc:
+                return self._error(
+                    proposal,
+                    decision.reason,
+                    decision.ego_id,
+                    exc,
+                    goal_id=goal_id,
+                    run_id=run_id,
+                )
             receipt = self.side_effects.reserve(
                 goal_id=goal_id,
                 run_id=run_id,
