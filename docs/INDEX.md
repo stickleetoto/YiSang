@@ -46,3 +46,9 @@
 ## v0.8 — Goal / Recovery Runtime
 - `docs/V08_GOAL_RECOVERY_FOUNDATION.md`
 - `docs/NEXT_AXIS.md`
+
+
+## v0.9 — Planner / Long-Horizon Execution
+- `docs/V09_PLANNER_FOUNDATION.md`
+- `docs/CURRENT_STATE.md`
+- `docs/PR_STACK.md`

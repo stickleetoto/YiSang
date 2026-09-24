@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import time
 
 from .models import (
     GoalPlan,
@@ -57,7 +58,7 @@ class PlanCompiler:
             steps=compiled,
             provenance=merged_provenance,
             created_at=proposal.created_at,
-            updated_at=proposal.created_at,
+            updated_at=max(time.time(), current.updated_at),
         )
 
     def compile_revision(
