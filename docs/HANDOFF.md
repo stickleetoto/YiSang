@@ -429,3 +429,24 @@ evidence, exit criteria, and explicit migration boundaries.
 - Checkpoints bind committed side-effect receipt ids as completed action refs.
 - YiSangRuntime optionally invokes checkpoint orchestration after verification.
 - YiSangResponse exposes recovery_checkpoint_id.
+
+
+## Session 2026-09-24 / GPT-5.6 Sol / v0.8 real workspace side effects
+
+- Added workspace.write_text as the first real recovery-aware side effect.
+- Writes are workspace-confined and atomic via temp file + os.replace.
+- Added SHA-256 and must-not-exist preconditions.
+- Tool policy action is filesystem.write and requires repository_edit plus
+  filesystem=workspace.
+- Recovery receipt metadata stores path + expected hash, not raw content.
+- Added deterministic crash injection at reserve / post-handler / post-commit.
+- Added WorkspaceWriteReconciler for exact-hash confirmation of uncertain
+  post-write crashes.
+- Committed receipts continue to suppress duplicate handler execution.
+- Tests were added for local execution by the development workstation; they
+  were not run by the assistant.
+
+
+- Added yisang-workspace-recovery-smoke for local end-to-end validation:
+  policy permit -> atomic write -> injected crash -> reconcile directive -> exact
+  file-hash confirmation -> receipt commit -> duplicate execution skip.

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 ToolHandler = Callable[[dict[str, Any]], Any]
+RecoveryMetadataBuilder = Callable[[dict[str, Any]], dict[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,7 @@ class ToolDefinition:
     policy_action: str | None = None
     resource_type: str = "tool"
     resource_argument: str | None = None
+    recovery_metadata_builder: RecoveryMetadataBuilder | None = None
 
     def __post_init__(self) -> None:
         if not self.tool_id.strip():
@@ -68,6 +70,17 @@ class ToolDefinition:
             if isinstance(spec, dict):
                 _validate_value_type(key, value, spec.get("type"))
 
+    def build_recovery_metadata(
+        self,
+        arguments: dict[str, Any],
+    ) -> dict[str, Any]:
+        if self.recovery_metadata_builder is None:
+            return {}
+        payload = self.recovery_metadata_builder(dict(arguments))
+        if not isinstance(payload, dict):
+            raise ValueError("recovery metadata builder must return a mapping")
+        return dict(payload)
+
     def to_context_spec(self, *, ego_id: str | None = None) -> dict[str, Any]:
         return {
             "tool_id": self.tool_id,
@@ -79,6 +92,7 @@ class ToolDefinition:
             "policy_action": self.policy_action or self.tool_id,
             "resource_type": self.resource_type,
             "resource_argument": self.resource_argument,
+            "recovery_supported": self.recovery_metadata_builder is not None,
             "authorized_by_ego": ego_id,
         }
 

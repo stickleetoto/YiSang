@@ -11,6 +11,7 @@ from yisang.execution.runtime import ActionRuntime
 from yisang.execution.tools import ToolRegistry
 from yisang.execution.gate import ActionGate
 
+from .faults import RecoveryFaultInjector
 from .idempotency import side_effect_request_digest, side_effect_result_ref
 from .port import RunJournalPort, SideEffectReceiptPort
 
@@ -25,10 +26,12 @@ class RecoveryAwareActionRuntime(ActionRuntime):
         journal: RunJournalPort,
         side_effects: SideEffectReceiptPort,
         gate: ActionGate | None = None,
+        fault_injector: RecoveryFaultInjector | None = None,
     ) -> None:
         super().__init__(tools=tools, gate=gate)
         self.journal = journal
         self.side_effects = side_effects
+        self.fault_injector = fault_injector
 
     def execute(
         self,
@@ -173,13 +176,29 @@ class RecoveryAwareActionRuntime(ActionRuntime):
                     receipt_id=existing.receipt_id,
                 )
 
+            try:
+                recovery_metadata = tool.build_recovery_metadata(
+                    dict(proposal.arguments)
+                )
+            except Exception as exc:
+                return self._error(
+                    proposal,
+                    decision.reason,
+                    decision.ego_id,
+                    exc,
+                    goal_id=goal_id,
+                    run_id=run_id,
+                )
             receipt = self.side_effects.reserve(
                 goal_id=goal_id,
                 run_id=run_id,
                 idempotency_key=key,
                 tool_id=proposal.action,
                 request_digest=digest,
-                metadata={"requested_by": proposal.requested_by},
+                metadata={
+                    "requested_by": proposal.requested_by,
+                    **recovery_metadata,
+                },
             )
             self.journal.append(
                 goal_id,
@@ -190,6 +209,15 @@ class RecoveryAwareActionRuntime(ActionRuntime):
                     "tool_id": proposal.action,
                     "idempotency_key": key,
                     "request_digest": digest,
+                },
+            )
+            self._hit_fault(
+                "after_side_effect_reserved",
+                {
+                    "goal_id": goal_id,
+                    "run_id": run_id,
+                    "receipt_id": receipt.receipt_id,
+                    "tool_id": proposal.action,
                 },
             )
 
@@ -231,6 +259,17 @@ class RecoveryAwareActionRuntime(ActionRuntime):
                 receipt_id=receipt.receipt_id if receipt is not None else None,
             )
 
+        if receipt is not None:
+            self._hit_fault(
+                "after_handler_success_before_receipt_commit",
+                {
+                    "goal_id": goal_id,
+                    "run_id": run_id,
+                    "receipt_id": receipt.receipt_id,
+                    "tool_id": proposal.action,
+                },
+            )
+
         result_ref = None
         if receipt is not None:
             result_ref = side_effect_result_ref(proposal.action, output)
@@ -250,6 +289,16 @@ class RecoveryAwareActionRuntime(ActionRuntime):
             )
             completion_evidence["side_effect_receipt_id"] = committed.receipt_id
             completion_evidence["result_ref"] = result_ref
+            self._hit_fault(
+                "after_side_effect_committed",
+                {
+                    "goal_id": goal_id,
+                    "run_id": run_id,
+                    "receipt_id": committed.receipt_id,
+                    "tool_id": proposal.action,
+                    "result_ref": result_ref,
+                },
+            )
 
         if goal_id and run_id:
             self.journal.append(
@@ -334,3 +383,12 @@ class RecoveryAwareActionRuntime(ActionRuntime):
             ),
             side_effect_receipt_id=receipt_id,
         )
+
+
+    def _hit_fault(
+        self,
+        point: str,
+        context: dict,
+    ) -> None:
+        if self.fault_injector is not None:
+            self.fault_injector.hit(point, context)
