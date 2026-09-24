@@ -58,7 +58,8 @@ Implemented:
 - exact-hash uncertain-write reconciliation
 - duplicate side-effect suppression after committed receipt
 
-Local validation for v0.8 is pending on the development workstation.
+Local validation for v0.8 is complete as part of the full v0.8/v0.9 stack:
+`369 passed in 9.13s`.
 
 ## v0.9 Planner / Long-Horizon Execution
 
@@ -90,7 +91,9 @@ Implemented:
 - existing step-id semantic immutability
 - future failed/pending path replacement through new step ids
 
-Local validation for v0.9 is pending on the development workstation.
+Local validation for v0.9 is complete:
+all four new smoke paths passed and the full repository regression finished at
+`369 passed in 9.13s`.
 
 ## Active PR graph
 
@@ -125,3 +128,20 @@ Do not automatically repeat uncertain side effects.
 Do not erase completed plan evidence during replanning.
 
 Local smoke/pytest execution is delegated to the development workstation.
+
+
+## v0.8 / v0.9 closeout status
+
+Current branch is a **closeout candidate**.
+
+Validated locally on Windows:
+
+- workspace recovery smoke: PASS
+- planner smoke: PASS
+- long-horizon smoke: PASS
+- governed replan smoke: PASS
+- focused v0.8/v0.9 tests: 23 passed in 0.41s
+- full repository regression: 369 passed in 9.13s
+
+Further work should now be treated as v0.9 strengthening rather than foundation
+construction.
