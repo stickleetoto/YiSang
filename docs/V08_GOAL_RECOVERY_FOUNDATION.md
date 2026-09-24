@@ -270,3 +270,52 @@ Checkpoint creation is idempotent per goal + run + request_id.
 The checkpoint records committed side-effect receipt ids as completed action
 references. YiSangResponse exposes recovery_checkpoint_id when a checkpoint is
 created or reused.
+
+
+## Real workspace side-effect integration
+
+The v0.8 real-side-effect slice adds workspace.write_text.
+
+Properties:
+
+- workspace-relative path enforcement;
+- UTF-8 size limit;
+- atomic temp-file + os.replace write;
+- optional expected SHA-256 precondition;
+- optional must-not-exist precondition;
+- optional parent creation inside the workspace only;
+- filesystem.write policy action;
+- repository_edit E.G.O capability requirement;
+- filesystem=workspace permission requirement;
+- side-effect receipt + idempotency key integration.
+
+Recovery metadata stores only the workspace-relative path and expected content
+hash/size, not the raw file content.
+
+## Deterministic crash injection
+
+RecoveryAwareActionRuntime accepts an optional fault injector for development
+and local validation.
+
+Supported fault points:
+
+~~~text
+after_side_effect_reserved
+after_handler_success_before_receipt_commit
+after_side_effect_committed
+~~~
+
+Injected crashes inherit directly from BaseException so normal tool exception
+handling does not incorrectly convert a simulated process death into an
+ordinary failed tool call.
+
+## Workspace uncertain-write reconciliation
+
+WorkspaceWriteReconciler can inspect a started workspace.write_text receipt.
+
+If the actual file SHA-256 exactly matches the expected hash stored in receipt
+metadata, the uncertain receipt can be explicitly resolved as committed with
+filesystem evidence.
+
+Missing or mismatched files are not auto-classified as failed because the file
+may have changed again after the original side effect.

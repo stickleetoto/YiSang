@@ -1,3 +1,9 @@
+from .faults import (
+    DeterministicRecoveryFaultInjector,
+    InjectedRecoveryCrash,
+    RecoveryFaultInjector,
+)
+from .workspace_reconcile import WorkspaceWriteInspection, WorkspaceWriteReconciler
 from .checkpoint_orchestrator import VerifiedCheckpointOrchestrator
 from .crash_planner import CrashRecoveryPlanner
 from .run_controller import RecoveryRunController
@@ -24,6 +30,8 @@ from .sqlite import SQLiteRecoveryStore
 
 __all__ = [
     "CheckpointPort",
+    "DeterministicRecoveryFaultInjector",
+    "InjectedRecoveryCrash",
     "CrashRecoveryDirective",
     "CrashRecoveryPlanner",
     "InMemoryCheckpointPort",
@@ -36,6 +44,7 @@ __all__ = [
     "RecoveryCoordinator",
     "RecoveryPlan",
     "RecoveryRunController",
+    "RecoveryFaultInjector",
     "RestartAssessment",
     "RunJournalEvent",
     "RunJournalPort",
@@ -43,6 +52,8 @@ __all__ = [
     "SideEffectReceiptPort",
     "SQLiteRecoveryStore",
     "VerifiedCheckpointOrchestrator",
+    "WorkspaceWriteInspection",
+    "WorkspaceWriteReconciler",
     "side_effect_request_digest",
     "side_effect_result_ref",
 ]

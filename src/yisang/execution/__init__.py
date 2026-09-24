@@ -1,4 +1,4 @@
-from .builtin import register_workspace_read_tools
+from .builtin import register_workspace_read_tools, register_workspace_write_tools
 from .completion import ToolOutcome
 from .failure import ToolFailure, ToolFailureCategory
 from .gate import ActionGate
@@ -18,4 +18,5 @@ __all__ = [
     "ToolDefinition",
     "ToolRegistry",
     "register_workspace_read_tools",
+    "register_workspace_write_tools",
 ]
