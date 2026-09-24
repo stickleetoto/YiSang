@@ -104,3 +104,13 @@ def test_sqlite_plan_history_survives_restart(tmp_path):
         assert latest is not None
         assert latest.revision == 2
         assert [item.revision for item in port.history("plan-1")] == [1, 2]
+
+
+
+def test_initial_compile_uses_proposal_timestamp():
+    proposal = _proposal()
+    compiled = PlanCompiler().compile(proposal)
+
+    assert compiled.created_at == proposal.created_at
+    assert compiled.updated_at == proposal.created_at
+    assert compiled.revision == 1
