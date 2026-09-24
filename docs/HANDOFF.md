@@ -466,3 +466,16 @@ evidence, exit criteria, and explicit migration boundaries.
 - Exhausted failed steps surface replan_required instead of infinite retry.
 - Added yisang-planner-smoke and focused tests for local execution by the user.
 - Assistant did not run local tests.
+
+
+## Session 2026-09-24 / GPT-5.6 Sol / v0.9 plan-recovery bridge
+
+- Added run_id binding to each running PlanStep revision.
+- Added LongHorizonExecutionCoordinator linking PlanService to GoalService and
+  RecoveryRunController.
+- Starting a step creates/continues a v0.8 run and records step_planned.
+- Completing a non-final step updates Goal progress and writes a checkpoint.
+- Completing the final step completes both plan and goal.
+- Failed steps block the goal; budgeted retry unblocks it with a new run_id.
+- assess_resume() routes an interrupted running step through CrashRecoveryPlanner.
+- Added yisang-long-horizon-smoke and local tests; assistant did not run them.

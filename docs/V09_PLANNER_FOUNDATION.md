@@ -105,3 +105,30 @@ v0.8 remains responsible for:
 - crash reconciliation.
 
 The next v0.9 slice connects one PlanStep to one durable v0.8 run.
+
+
+## v0.8 recovery bridge
+
+PlanStep now carries the run_id of its current attempt.
+
+LongHorizonExecutionCoordinator connects durable plan progression to v0.8:
+
+~~~text
+scheduler chooses step
+  -> Goal becomes/returns active
+  -> PlanStep becomes running with run_id
+  -> v0.8 RunJournal gets step_planned
+  -> recovery-aware runtime performs work
+  -> explicit complete_step / fail_step
+  -> checkpoint or blocker
+  -> next plan decision
+~~~
+
+A running step can be recovered after restart because its durable run_id is
+passed directly to CrashRecoveryPlanner.
+
+Step completion updates Goal.completed_work / next_action and writes a recovery
+checkpoint before advancing.
+
+A failed step blocks the Goal. If attempt budget remains, starting the retry
+unblocks the Goal and binds a new run_id.

@@ -166,6 +166,7 @@ def _step_to_dict(step: PlanStep) -> dict:
         "evidence_refs": list(step.evidence_refs),
         "blocker": step.blocker,
         "last_error": step.last_error,
+        "run_id": step.run_id,
     }
 
 
@@ -188,6 +189,7 @@ def _step_from_dict(raw: dict) -> PlanStep:
         evidence_refs=tuple(str(x) for x in raw.get("evidence_refs", [])),
         blocker=raw.get("blocker"),
         last_error=raw.get("last_error"),
+        run_id=raw.get("run_id"),
     )
 
 

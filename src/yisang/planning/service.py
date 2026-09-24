@@ -164,7 +164,13 @@ class PlanService:
             "dependencies_not_ready",
         )
 
-    def start_step(self, plan_id: str, step_id: str) -> GoalPlan:
+    def start_step(
+        self,
+        plan_id: str,
+        step_id: str,
+        *,
+        run_id: str | None = None,
+    ) -> GoalPlan:
         plan = self._required(plan_id)
         if plan.state not in {"active", "blocked"}:
             raise PlanStateError(
@@ -190,6 +196,7 @@ class PlanService:
             attempt_count=step.attempt_count + 1,
             blocker=None,
             last_error=None,
+            run_id=_optional_text(run_id, "run_id"),
         )
         return self._replace_step(plan, updated, plan_state="active")
 
@@ -250,7 +257,13 @@ class PlanService:
         )
         return self._replace_step(plan, updated, plan_state="blocked")
 
-    def retry_step(self, plan_id: str, step_id: str) -> GoalPlan:
+    def retry_step(
+        self,
+        plan_id: str,
+        step_id: str,
+        *,
+        run_id: str | None = None,
+    ) -> GoalPlan:
         plan = self._required(plan_id)
         step = self._step(plan, step_id)
         if step.state != "failed":
@@ -264,6 +277,8 @@ class PlanService:
             state="running",
             attempt_count=step.attempt_count + 1,
             last_error=None,
+            blocker=None,
+            run_id=_optional_text(run_id, "run_id"),
         )
         return self._replace_step(plan, updated, plan_state="active")
 
@@ -374,4 +389,14 @@ def _required(value: str, name: str) -> str:
     normalized = str(value).strip()
     if not normalized:
         raise ValueError(f"{name} must be non-empty")
+    return normalized
+
+
+
+def _optional_text(value: str | None, name: str) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    if not normalized:
+        raise ValueError(f"{name} must be non-empty when provided")
     return normalized

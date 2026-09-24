@@ -9,6 +9,9 @@ RUN_EVENT_TYPES = frozenset(
     {
         "goal_started",
         "step_planned",
+        "step_completed",
+        "step_failed",
+        "plan_completed",
         "action_proposed",
         "action_authorized",
         "action_executed",

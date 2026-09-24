@@ -87,6 +87,7 @@ class PlanStep:
     evidence_refs: tuple[str, ...] = ()
     blocker: str | None = None
     last_error: str | None = None
+    run_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.step_id.strip():
@@ -149,3 +150,31 @@ class PlanExecutionDecision:
             raise ValueError(
                 f"unsupported plan execution decision: {self.decision}"
             )
+
+
+
+@dataclass(frozen=True)
+class PlanStepRun:
+    plan_id: str
+    plan_revision: int
+    goal_id: str
+    step_id: str
+    run_id: str
+    title: str
+    attempt_count: int
+
+    def __post_init__(self) -> None:
+        if not self.run_id.strip():
+            raise ValueError("run_id must be non-empty")
+
+
+@dataclass(frozen=True)
+class LongHorizonResumeDecision:
+    plan_id: str
+    plan_revision: int
+    decision: str
+    reason: str
+    step_id: str | None = None
+    run_id: str | None = None
+    recovery_mode: str | None = None
+    recovery_reason: str | None = None
