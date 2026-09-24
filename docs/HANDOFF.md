@@ -450,3 +450,19 @@ evidence, exit criteria, and explicit migration boundaries.
 - Added yisang-workspace-recovery-smoke for local end-to-end validation:
   policy permit -> atomic write -> injected crash -> reconcile directive -> exact
   file-hash confirmation -> receipt commit -> duplicate execution skip.
+
+
+## Session 2026-09-24 / GPT-5.6 Sol / v0.9 planner foundation
+
+- Reassigned v0.9 to Planner / Long-Horizon Execution by explicit project
+  decision; Multi-engine/BIO moved to a deferred interoperability track.
+- BIO remains parked and is not a v0.9 dependency.
+- Added PlanProposal / PlanStepSpec / GoalPlan / PlanStep.
+- Added PlanCompiler with dependency existence and DAG cycle validation.
+- Added append-only PlanPort with in-memory and SQLite implementations.
+- Added PlanService with explicit proposal acceptance and versioned transitions.
+- Added deterministic LongHorizonScheduler.
+- Step lifecycle supports start / complete / fail / retry / block / unblock.
+- Exhausted failed steps surface replan_required instead of infinite retry.
+- Added yisang-planner-smoke and focused tests for local execution by the user.
+- Assistant did not run local tests.

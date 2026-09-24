@@ -775,11 +775,48 @@ MCP Tasks may map onto this abstraction through an adapter. MCP Tasks must not b
 
 ---
 
-# Phase G — Multi-engine and BIO interoperability
+# Phase G — Long-horizon planning
 
-## v0.9 — Multi-engine / BIO
+## v0.9 — Planner / Long-Horizon Execution
 
 ### Objective
+
+Represent long-running work as a durable, governed plan graph that can advance
+across many model calls and process restarts.
+
+The planner/model proposes structure; YiSang validates and explicitly accepts
+it before durable mutation.
+
+Core path:
+
+~~~text
+Goal
+  -> PlanProposal
+  -> DAG validation
+  -> explicit acceptance
+  -> append-only PlanPort revisions
+  -> deterministic next-step scheduling
+  -> v0.8 recovery-aware run
+~~~
+
+Initial requirements:
+
+- durable plan and step state;
+- dependency validation and cycle rejection;
+- deterministic ready-step selection;
+- explicit retry budgets;
+- append-only revision history;
+- completed-step evidence;
+- no direct durable plan mutation by the attached model;
+- recovery integration through v0.8.
+
+### Deferred interoperability track — Multi-engine / BIO
+
+Multi-engine and BIO interoperability remains important but is explicitly
+deferred. BIO stays optional and parked behind MemoryProvider. It is not a v0.9
+dependency.
+
+Original objective retained for later work:
 
 Prove that YiSang remains portable across reasoning engines and memory backends.
 
@@ -1069,7 +1106,7 @@ v0.7    Experience promotion
 v0.8    Goal / recovery runtime
    |
    v
-v0.9    Multi-engine / BIO
+v0.9    Planner / long-horizon execution
    |
    v
 v1.0    Persistent Agent continuity release
