@@ -1,10 +1,11 @@
 # YiSang Roadmap
 
-> **Development checkpoint: 2026-09-23** — v0.4/v0.5/v0.6 are validated.
-> v0.7 Experience + E.G.O v2 is at closeout-candidate status with 346 local
-> regression tests passing. BIO is parked/reserved. The next major axis is
-> v0.8 Goal / Recovery Runtime. See `docs/CURRENT_STATE.md`,
-> `docs/V07_EGO_CLOSEOUT.md`, and `docs/NEXT_AXIS.md`.
+> **Development checkpoint: 2026-09-24** — v0.4/v0.5/v0.6 are validated.
+> v0.7 Experience/E.G.O, v0.8 Goal/Recovery, and the v0.9 Planner foundation
+> are implemented in the active stacked PR line. The integrated top-of-stack
+> Windows regression is **369 passed in 9.13s**. BIO remains parked/reserved.
+> See `docs/CURRENT_STATE.md`, `docs/PR_STACK.md`,
+> `docs/V09_LOCAL_VALIDATION.md`, and `docs/NEXT_AXIS.md`.
 
 > **Mission:** build a persistent, model-independent agent runtime in which the attached LLM is replaceable while identity, memory, capability, goals, and verified experience remain.
 
