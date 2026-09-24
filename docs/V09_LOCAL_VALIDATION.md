@@ -96,8 +96,12 @@ Validated locally:
 - governed replanning
 - preservation of completed step evidence
 
-Pending before declaring the complete v0.8/v0.9 stack regression-clean:
+Full repository regression:
 
-~~~powershell
+~~~text
 python -m pytest -q
+369 passed in 9.13s
 ~~~
+
+The complete v0.8/v0.9 stack is locally regression-clean on the Windows
+development workstation.
