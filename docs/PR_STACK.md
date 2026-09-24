@@ -53,9 +53,17 @@ Current active sequence after v0.7 closeout:
 
 v0.7/E.G.O through #64 has local Windows validation evidence.
 
-v0.8/v0.9 PRs contain tests and smoke commands but are intentionally marked
-**local validation pending** because local execution is delegated to the
-development workstation.
+The top-of-stack v0.8/v0.9 branch has completed Windows local validation:
+
+~~~text
+workspace recovery / planner / long-horizon / replan smokes: PASS
+focused v0.8/v0.9: 23 passed in 0.41s
+full repository: 369 passed in 9.13s
+~~~
+
+This validates the integrated stack through #72. Individual child PRs should
+still be revalidated after each retarget/merge because their base commits will
+change during stack integration.
 
 ## Superseded
 
