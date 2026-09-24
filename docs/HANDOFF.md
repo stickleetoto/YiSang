@@ -445,3 +445,8 @@ evidence, exit criteria, and explicit migration boundaries.
 - Committed receipts continue to suppress duplicate handler execution.
 - Tests were added for local execution by the development workstation; they
   were not run by the assistant.
+
+
+- Added yisang-workspace-recovery-smoke for local end-to-end validation:
+  policy permit -> atomic write -> injected crash -> reconcile directive -> exact
+  file-hash confirmation -> receipt commit -> duplicate execution skip.
