@@ -132,3 +132,32 @@ checkpoint before advancing.
 
 A failed step blocks the Goal. If attempt budget remains, starting the retry
 unblocks the Goal and binds a new run_id.
+
+
+## Governed replanning
+
+Long-horizon work can require a new future path after failure or environment
+change. Replanning is explicit and revision-based.
+
+~~~text
+current plan revision N
+  -> PlanRevisionProposal(base_revision=N)
+  -> structural validation
+  -> preservation checks
+  -> explicit accept(actor, reason)
+  -> plan revision N+1
+~~~
+
+Rules:
+
+- stale base revisions are rejected;
+- a running step must be recovered/resolved before replanning;
+- completed steps cannot be removed;
+- completed step definitions cannot be changed;
+- any existing step_id keeps immutable semantics;
+- changing an approach requires a new step_id;
+- non-completed future steps may be removed or replaced;
+- completed result/evidence remains attached to preserved completed steps.
+
+These rules prevent a planner from erasing completed evidence, resetting failed
+attempt history under the same id, or silently rewriting what a past step meant.

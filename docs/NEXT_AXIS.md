@@ -1,135 +1,49 @@
-# Next Axis — v0.8 Goal / Recovery Runtime
+# Development Axis Status
 
-> Proposed start after v0.7/E.G.O closeout integration
+> Updated: 2026-09-24
 
-## Why this is the next axis
+## v0.8 — Goal / Recovery Runtime
 
-YiSang can now preserve identity, memory, Library knowledge, learned
-capabilities, capability lifecycle, and execution policy.
+Foundation implementation now spans PR #66 through #69.
 
-The next missing persistence layer is **ongoing work itself**.
-
-A persistent agent should survive interruption without:
-
-- forgetting what it was doing;
-- repeating already-completed irreversible actions;
-- losing blockers or partial results;
-- restarting a long task from zero.
-
-## Primary objective
+Core path:
 
 ~~~text
 Goal
-  -> Plan / milestones
-  -> RunJournal
-  -> Action receipts
-  -> Checkpoint
-  -> interruption
-  -> restore
-  -> reconcile completed work
-  -> resume next safe action
+-> RunJournal
+-> Action receipt
+-> checkpoint
+-> crash/restart
+-> reconcile external side effect
+-> resume safely
 ~~~
 
-## Phase 1 — Goal model
+The first real side effect is workspace.write_text with atomic file replacement,
+policy integration, idempotency receipts, deterministic crash injection, and
+hash-based reconciliation.
 
-Introduce an authoritative GoalPort with:
+Local validation remains pending on the development workstation.
 
-- goal_id
-- description
-- state: planned / active / blocked / completed / cancelled
-- milestones
-- completed_work
-- blockers
-- next_action
-- exit_condition
-- attempt / time / token / failure budgets
-- created_at / updated_at
-- provenance
+## v0.9 — Planner / Long-Horizon Execution
 
-## Phase 2 — Run journal
+Active implementation spans PR #70 through #72.
 
-Persist append-only run events:
-
-- goal started
-- step planned
-- action proposed
-- action authorized
-- action executed
-- verification result
-- checkpoint written
-- blocker detected
-- goal completed
-
-The journal is evidence, not model memory.
-
-## Phase 3 — Side-effect receipts
-
-Every externally meaningful mutation should eventually have an idempotency /
-receipt identity so recovery can answer:
-
-> Did this already happen before the crash?
-
-Initial targets:
-
-- filesystem write
-- git mutation
-- process execution with output artifact
-- network mutation when later enabled
-
-## Phase 4 — Checkpoint / recovery
-
-On restart:
-
-1. load goal;
-2. load latest checkpoint;
-3. replay journal metadata;
-4. inspect side-effect receipts;
-5. validate current environment;
-6. reconstruct next safe action;
-7. do not repeat completed irreversible effects.
-
-## Phase 5 — Recovery evaluation
-
-Create deterministic crash/restart tests:
-
-- crash before action;
-- crash after action but before verification;
-- crash after verification but before checkpoint;
-- crash after checkpoint;
-- resume blocked goal;
-- cancelled goal must not resume;
-- completed side effect must not duplicate.
-
-## Supporting track — policy-backed real side effects
-
-The permission engine is ready to guard concrete side-effect tools. Add them
-only as v0.8 needs them.
-
-Suggested order:
-
-1. filesystem.write inside workspace
-2. git status/read operations
-3. git local mutation
-4. process.spawn with allowlist/resource limits
-5. network operations last
-
-## BIO
-
-BIO is explicitly out of scope for v0.8 foundation. The MemoryProvider slot is
-reserved and must not become a dependency.
-
-## First implementation slice
-
-Recommended first PR:
+Core path:
 
 ~~~text
-Goal model
-+ GoalPort
-+ InMemoryGoalPort
-+ SQLiteGoalPort
-+ append-only RunJournalPort
-+ deterministic restart smoke
+Goal
+-> PlanProposal
+-> DAG validation
+-> explicit acceptance
+-> append-only plan revisions
+-> deterministic step selection
+-> v0.8 recovery-aware run per step
+-> governed replan when future path changes
 ~~~
 
-Do not start with autonomous planning. Start with durable state and recovery
-semantics.
+BIO is not part of either axis and remains parked.
+
+## Deferred interoperability
+
+Multi-engine/BIO interoperability remains a later track. The MemoryProvider
+seam is preserved so BIO can be resumed without becoming a core dependency.

@@ -1,67 +1,70 @@
 # Pull Request Stack
 
-> Updated: 2026-09-23
+> Updated: 2026-09-24
 
-## Active integration graph
+## Active stack
 
 ~~~text
 main
-└─ #56 [v0.7 core] Experience promotion foundation
+└─ #56 [v0.7 core] Experience promotion
    ├─ #57 [PARKED/BIO] Memory provider adapter
-   ├─ #58 [v0.7 replay] Ordered multi-step replay
-   └─ #59 [E.G.O v2 1/4] Capability package foundation
-       └─ #60 [E.G.O v2 2/4] Durable promotion lifecycle
-           └─ #61 [E.G.O v2 3/4] Replay invalidation lifecycle guard
-               └─ #62 [E.G.O v2 4/4] Adaptive telemetry routing
-                   └─ #64 [E.G.O v2 policy] Permission policy engine
-                       └─ closeout/docs PR
+   ├─ #58 [v0.7 replay] Ordered replay
+   └─ #59 [E.G.O v2 1/4] Capability package
+       └─ #60 [E.G.O v2 2/4] Durable lifecycle
+           └─ #61 [E.G.O v2 3/4] Invalidation guard
+               └─ #62 [E.G.O v2 4/4] Adaptive routing
+                   └─ #64 [E.G.O policy] Permission policy
+                       └─ #65 [closeout] v0.7/E.G.O freeze
+                           └─ #66 [v0.8 1/4] Goal/recovery foundation
+                               └─ #67 [v0.8 2/4] Restart controller
+                                   └─ #68 [v0.8 3/4] Crash orchestration
+                                       └─ #69 [v0.8 4/4] Real side effects
+                                           └─ #70 [v0.9 1/3] Planner
+                                               └─ #71 [v0.9 2/3] Recovery bridge
+                                                   └─ #72 [v0.9 3/3] Replanning
 ~~~
 
 ## BIO
 
-#57 is parked and is not part of the current integration sequence.
+#57 stays open but parked. It is outside the active integration sequence.
 
-Keep the branch and adapter seam. Do not merge it until BIO work is resumed
-explicitly.
+## Recommended integration
 
-## Recommended integration order
+Merge/retarget from the root downward. After each parent lands:
 
-1. #56 -> main
-2. retarget #58 and #59 to main
-3. merge #58
-4. merge #59 -> #60 -> #61 -> #62 in order
-5. merge #64
-6. merge the closeout/docs PR
-7. leave #57 parked
+1. retarget its child to main;
+2. run CI/local validation against the new base;
+3. only then delete the merged parent branch.
 
-After each parent merge, retarget the next child to main and re-run CI before
-deleting the merged parent branch.
+Current active sequence after v0.7 closeout:
 
-## Validation snapshots
+~~~text
+#65
+-> #66
+-> #67
+-> #68
+-> #69
+-> #70
+-> #71
+-> #72
+~~~
 
-| PR | Area | Latest known validation |
-| --- | --- | --- |
-| #56 | Experience Promotion | 301 passed |
-| #57 | BIO adapter | 320 passed; PARKED |
-| #58 | Ordered replay | 307 passed |
-| #59 | E.G.O v2 foundation | 314 passed |
-| #60 | Durable E.G.O lifecycle | 320 passed |
-| #61 | Lifecycle guard | 326 passed |
-| #62 | Adaptive routing | 336 passed + Windows smoke suite |
-| #64 | Permission policy | 346 passed + Windows policy smoke |
+## Validation state
 
-These are branch-specific snapshots, not release-level cumulative guarantees.
+v0.7/E.G.O through #64 has local Windows validation evidence.
 
-## Superseded PR
+The top-of-stack v0.8/v0.9 branch has completed Windows local validation:
 
-#63 was an earlier docs-cleanup PR created before #64. The closeout/docs branch
-replaces it and carries forward the useful repository-organization content plus
-the final policy/BIO/next-axis state.
+~~~text
+workspace recovery / planner / long-horizon / replan smokes: PASS
+focused v0.8/v0.9: 23 passed in 0.41s
+full repository: 369 passed in 9.13s
+~~~
 
-## Branch cleanup rule
+This validates the integrated stack through #72. Individual child PRs should
+still be revalidated after each retarget/merge because their base commits will
+change during stack integration.
 
-Delete a merged feature branch only after:
+## Superseded
 
-1. its child PR has been retargeted successfully;
-2. child CI passes against the new base;
-3. no open PR still uses the branch as a base.
+#63 old docs cleanup is closed/superseded by #65 and later state documents.
