@@ -58,7 +58,7 @@ class PlanCompiler:
             steps=compiled,
             provenance=merged_provenance,
             created_at=proposal.created_at,
-            updated_at=max(time.time(), current.updated_at),
+            updated_at=proposal.created_at,
         )
 
     def compile_revision(
@@ -170,7 +170,7 @@ class PlanCompiler:
             steps=tuple(compiled),
             provenance=merged,
             created_at=current.created_at,
-            updated_at=proposal.created_at,
+            updated_at=max(time.time(), current.updated_at),
         )
 
     def _validate_specs(self, specs) -> None:
