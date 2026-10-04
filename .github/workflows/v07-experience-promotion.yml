@@ -1,0 +1,33 @@
+name: v0.7 Experience Promotion
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/yisang/experience/**"
+      - "src/yisang/library/**"
+      - "tests/test_experience_promotion.py"
+      - "pyproject.toml"
+      - ".github/workflows/v07-experience-promotion.yml"
+
+jobs:
+  focused-tests:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run v0.7 focused tests
+        run: python -m pytest -q tests/test_experience_promotion.py
+
+      - name: Run core regression smoke
+        run: python -m pytest -q tests/test_runtime.py tests/test_memory_governance.py tests/test_memory_write_pipeline.py
