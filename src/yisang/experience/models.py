@@ -11,6 +11,9 @@ EXPERIENCE_OUTCOMES = frozenset({"success", "failure"})
 EXPERIENCE_RISK_CLASSES = frozenset(
     {"normal", "privileged", "security_sensitive"}
 )
+EXPERIENCE_VALIDATION_METHODS = frozenset(
+    {"external", "manual", "test", "replay"}
+)
 EXPERIENCE_CANDIDATE_STATUSES = frozenset(
     {"candidate", "promoted", "needs_review", "blocked"}
 )
@@ -32,6 +35,7 @@ class ExperienceObservation:
     outcome: str = "success"
     verified: bool = False
     verification_ref: str | None = None
+    validation_method: str = "external"
     risk_class: str = "normal"
     source_episode_id: str | None = None
     created_at: float = field(default_factory=time.time)
@@ -49,6 +53,10 @@ class ExperienceObservation:
             raise ValueError("lesson must be non-empty")
         if self.outcome not in EXPERIENCE_OUTCOMES:
             raise ValueError(f"unsupported outcome: {self.outcome}")
+        if self.validation_method not in EXPERIENCE_VALIDATION_METHODS:
+            raise ValueError(
+                f"unsupported validation_method: {self.validation_method}"
+            )
         if self.risk_class not in EXPERIENCE_RISK_CLASSES:
             raise ValueError(f"unsupported risk_class: {self.risk_class}")
         if self.schema_version <= 0:
