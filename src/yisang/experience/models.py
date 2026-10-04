@@ -11,6 +11,9 @@ EXPERIENCE_OUTCOMES = frozenset({"success", "failure"})
 EXPERIENCE_RISK_CLASSES = frozenset(
     {"normal", "privileged", "security_sensitive"}
 )
+EXPERIENCE_VALIDATION_METHODS = frozenset(
+    {"external", "manual", "test", "replay"}
+)
 EXPERIENCE_CANDIDATE_STATUSES = frozenset(
     {"candidate", "promoted", "needs_review", "blocked"}
 )
@@ -32,6 +35,7 @@ class ExperienceObservation:
     outcome: str = "success"
     verified: bool = False
     verification_ref: str | None = None
+    validation_method: str = "external"
     risk_class: str = "normal"
     source_episode_id: str | None = None
     created_at: float = field(default_factory=time.time)
@@ -49,6 +53,10 @@ class ExperienceObservation:
             raise ValueError("lesson must be non-empty")
         if self.outcome not in EXPERIENCE_OUTCOMES:
             raise ValueError(f"unsupported outcome: {self.outcome}")
+        if self.validation_method not in EXPERIENCE_VALIDATION_METHODS:
+            raise ValueError(
+                f"unsupported validation_method: {self.validation_method}"
+            )
         if self.risk_class not in EXPERIENCE_RISK_CLASSES:
             raise ValueError(f"unsupported risk_class: {self.risk_class}")
         if self.schema_version <= 0:
@@ -57,6 +65,15 @@ class ExperienceObservation:
             raise ValueError(
                 "verified observations require a non-empty verification_ref"
             )
+        if self.validation_method == "replay":
+            if not (self.verification_ref or "").startswith("replay:"):
+                raise ValueError(
+                    "replay validation requires a replay: verification_ref"
+                )
+            if not (self.source_episode_id or "").strip():
+                raise ValueError(
+                    "replay validation requires source_episode_id"
+                )
 
     @property
     def candidate_key(self) -> str:
@@ -84,6 +101,7 @@ class ExperienceCandidate:
     applies_when: tuple[str, ...] = ()
     evidence_ids: tuple[str, ...] = ()
     verification_refs: tuple[str, ...] = ()
+    source_episode_ids: tuple[str, ...] = ()
     success_count: int = 0
     failure_count: int = 0
     risk_class: str = "normal"
@@ -113,6 +131,8 @@ class ExperienceCandidate:
             raise ValueError("evidence_ids must be unique")
         if len(set(self.verification_refs)) != len(self.verification_refs):
             raise ValueError("verification_refs must be unique")
+        if len(set(self.source_episode_ids)) != len(self.source_episode_ids):
+            raise ValueError("source_episode_ids must be unique")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -123,6 +143,7 @@ class ExperienceCandidate:
             "applies_when": list(self.applies_when),
             "evidence_ids": list(self.evidence_ids),
             "verification_refs": list(self.verification_refs),
+            "source_episode_ids": list(self.source_episode_ids),
             "success_count": self.success_count,
             "failure_count": self.failure_count,
             "risk_class": self.risk_class,
@@ -143,6 +164,9 @@ class ExperienceCandidate:
             evidence_ids=_normalized_strings(data.get("evidence_ids", ())),
             verification_refs=_normalized_strings(
                 data.get("verification_refs", ())
+            ),
+            source_episode_ids=_normalized_strings(
+                data.get("source_episode_ids", ())
             ),
             success_count=int(data.get("success_count", 0)),
             failure_count=int(data.get("failure_count", 0)),
