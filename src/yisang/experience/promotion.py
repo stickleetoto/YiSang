@@ -41,14 +41,22 @@ class ExperiencePromotionEngine:
                 status="rejected",
                 reason="unverified_observation",
             )
-        if (
-            self.require_replay
-            and observation.validation_method != "replay"
-        ):
-            return ExperiencePromotionResult(
-                status="rejected",
-                reason="replay_verification_required",
-            )
+        if self.require_replay:
+            if observation.validation_method != "replay":
+                return ExperiencePromotionResult(
+                    status="rejected",
+                    reason="replay_verification_required",
+                )
+            if not (observation.verification_ref or "").startswith("replay:"):
+                return ExperiencePromotionResult(
+                    status="rejected",
+                    reason="invalid_replay_verification_ref",
+                )
+            if not (observation.source_episode_id or "").strip():
+                return ExperiencePromotionResult(
+                    status="rejected",
+                    reason="missing_source_episode",
+                )
 
         existing = self.experience.get(observation.candidate_key)
         if existing is None:
@@ -88,6 +96,10 @@ class ExperiencePromotionEngine:
             verification_refs=_append_unique(
                 candidate.verification_refs,
                 observation.verification_ref,
+            ),
+            source_episode_ids=_append_unique(
+                candidate.source_episode_ids,
+                observation.source_episode_id,
             ),
             success_count=(
                 candidate.success_count
