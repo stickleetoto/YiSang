@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 ToolHandler = Callable[[dict[str, Any]], Any]
+RecoveryMetadataBuilder = Callable[[dict[str, Any]], dict[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,10 @@ class ToolDefinition:
         }
     )
     side_effecting: bool = False
+    policy_action: str | None = None
+    resource_type: str = "tool"
+    resource_argument: str | None = None
+    recovery_metadata_builder: RecoveryMetadataBuilder | None = None
 
     def __post_init__(self) -> None:
         if not self.tool_id.strip():
@@ -31,6 +36,12 @@ class ToolDefinition:
             raise ValueError("argument_schema must be a mapping")
         if self.argument_schema.get("type", "object") != "object":
             raise ValueError("argument_schema root type must be object")
+        if not self.resource_type.strip():
+            raise ValueError("resource_type must be non-empty")
+        if self.policy_action is not None and not self.policy_action.strip():
+            raise ValueError("policy_action must be non-empty when provided")
+        if self.resource_argument is not None and not self.resource_argument.strip():
+            raise ValueError("resource_argument must be non-empty when provided")
 
     def validate_arguments(self, arguments: dict[str, Any]) -> None:
         if not isinstance(arguments, dict):
@@ -59,6 +70,17 @@ class ToolDefinition:
             if isinstance(spec, dict):
                 _validate_value_type(key, value, spec.get("type"))
 
+    def build_recovery_metadata(
+        self,
+        arguments: dict[str, Any],
+    ) -> dict[str, Any]:
+        if self.recovery_metadata_builder is None:
+            return {}
+        payload = self.recovery_metadata_builder(dict(arguments))
+        if not isinstance(payload, dict):
+            raise ValueError("recovery metadata builder must return a mapping")
+        return dict(payload)
+
     def to_context_spec(self, *, ego_id: str | None = None) -> dict[str, Any]:
         return {
             "tool_id": self.tool_id,
@@ -67,6 +89,10 @@ class ToolDefinition:
             "required_permissions": dict(self.required_permissions),
             "argument_schema": dict(self.argument_schema),
             "side_effecting": self.side_effecting,
+            "policy_action": self.policy_action or self.tool_id,
+            "resource_type": self.resource_type,
+            "resource_argument": self.resource_argument,
+            "recovery_supported": self.recovery_metadata_builder is not None,
             "authorized_by_ego": ego_id,
         }
 
