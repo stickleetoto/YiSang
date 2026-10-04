@@ -7,6 +7,7 @@ from .episode import (
     EpisodeStep,
     InMemoryEpisodePort,
     SQLiteEpisodePort,
+    build_runtime_episode,
 )
 from .in_memory import InMemoryExperiencePort
 from .models import (
@@ -57,5 +58,6 @@ __all__ = [
     "ReplayValidator",
     "SQLiteEpisodePort",
     "SQLiteExperiencePort",
+    "build_runtime_episode",
     "observation_from_replay",
 ]
