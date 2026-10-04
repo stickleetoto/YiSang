@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import time
+
 from .models import YiSangRequest, YiSangResponse
 from yisang.context.compiler import ContextCompiler
 from yisang.ego.registry import EgoRegistry
+from yisang.ego.telemetry import EgoTelemetryEvent, EgoTelemetryPort
 from yisang.ego.router import CapabilityRouter
 from yisang.engines.router import EngineRouter
 from yisang.execution.failure import failure_from_gate_reason
@@ -20,6 +23,8 @@ from yisang.memory.governor import MemoryGovernor
 from yisang.memory.pipeline import MemoryWritePipeline
 from yisang.memory.port import MemoryPort
 from yisang.memory.quarantine import InMemoryQuarantinePort
+from yisang.recovery.checkpoint_orchestrator import VerifiedCheckpointOrchestrator
+from yisang.recovery.port import RunJournalPort
 from yisang.session.port import SessionPort
 from yisang.verification.base import Verifier
 
@@ -42,6 +47,9 @@ class YiSangRuntime:
         session_port: SessionPort | None = None,
         library_port: LibraryPort | None = None,
         library_retriever: LexicalLibraryRetriever | None = None,
+        ego_telemetry_port: EgoTelemetryPort | None = None,
+        run_journal_port: RunJournalPort | None = None,
+        checkpoint_orchestrator: VerifiedCheckpointOrchestrator | None = None,
         library_limit: int = 3,
         max_action_rounds: int = 3,
         episode_port: EpisodePort | None = None,
@@ -86,9 +94,43 @@ class YiSangRuntime:
         )
         self.max_action_rounds = max_action_rounds
         self.episode_port = episode_port
+        self.ego_telemetry_port = ego_telemetry_port
+        if (
+            run_journal_port is None
+            and action_runtime is not None
+            and hasattr(action_runtime, "journal")
+        ):
+            run_journal_port = getattr(action_runtime, "journal")
+        if (
+            run_journal_port is not None
+            and action_runtime is not None
+            and hasattr(action_runtime, "journal")
+            and getattr(action_runtime, "journal") is not run_journal_port
+        ):
+            raise ValueError(
+                "run_journal_port must match recovery-aware ActionRuntime journal"
+            )
+        self.run_journal_port = run_journal_port
+        self.checkpoint_orchestrator = checkpoint_orchestrator
 
     def run(self, request: YiSangRequest) -> YiSangResponse:
+        run_started = time.perf_counter()
         session_id = _session_id(request)
+        goal_run = _goal_run_context(request)
+        goal_id = goal_run[0] if goal_run is not None else None
+        run_id = goal_run[1] if goal_run is not None else None
+        if (
+            self.run_journal_port is not None
+            and goal_id is not None
+            and run_id is not None
+            and self.run_journal_port.latest_sequence(goal_id, run_id) == 0
+        ):
+            self.run_journal_port.append(
+                goal_id,
+                run_id,
+                "goal_started",
+                payload={"request_id": request.request_id},
+            )
         session_history = (
             self.session_port.history(
                 session_id,
@@ -184,6 +226,11 @@ class YiSangRuntime:
                     executed = self.action_runtime.execute(
                         proposal,
                         selected_egos=selected_egos,
+                        execution_context=(
+                            {"goal_id": goal_id, "run_id": run_id}
+                            if goal_id is not None and run_id is not None
+                            else None
+                        ),
                     )
 
                 action_results.append(executed)
@@ -224,6 +271,37 @@ class YiSangRuntime:
             request=request,
             engine_result=result,
         )
+        if (
+            self.run_journal_port is not None
+            and goal_id is not None
+            and run_id is not None
+        ):
+            self.run_journal_port.append(
+                goal_id,
+                run_id,
+                "verification_result",
+                payload={
+                    "request_id": request.request_id,
+                    "status": verification.status,
+                    "reason": verification.reason,
+                },
+            )
+
+        recovery_checkpoint_id: str | None = None
+        if (
+            self.checkpoint_orchestrator is not None
+            and goal_id is not None
+            and run_id is not None
+        ):
+            checkpoint = self.checkpoint_orchestrator.after_verification(
+                goal_id=goal_id,
+                run_id=run_id,
+                request_id=request.request_id,
+                verification_status=verification.status,
+                action_results=action_results,
+            )
+            if checkpoint is not None:
+                recovery_checkpoint_id = checkpoint.checkpoint_id
 
         if memories:
             self.memory.record_outcome(
@@ -269,6 +347,30 @@ class YiSangRuntime:
                 },
             )
 
+        ego_telemetry_event_ids: list[str] = []
+        if self.ego_telemetry_port is not None and selected_egos:
+            latency_ms = (time.perf_counter() - run_started) * 1000.0
+            action_failure_count = sum(
+                item.status != "EXECUTED" for item in action_results
+            )
+            success = (
+                verification.status == "PASS"
+                and action_failure_count == 0
+            )
+            for ego in selected_egos:
+                event = self.ego_telemetry_port.record(
+                    EgoTelemetryEvent.runtime_use(
+                        ego_id=ego.ego_id,
+                        version=getattr(ego, "version", "1.0.0"),
+                        request_id=request.request_id,
+                        success=success,
+                        verification_status=verification.status,
+                        latency_ms=latency_ms,
+                        action_failure_count=action_failure_count,
+                    )
+                )
+                ego_telemetry_event_ids.append(event.event_id)
+
         episode_id: str | None = None
         if self.episode_port is not None:
             episode = build_runtime_episode(
@@ -296,6 +398,19 @@ class YiSangRuntime:
             action_results=[item.to_dict() for item in action_results],
             memory_write_results=memory_write_results,
             episode_id=episode_id,
+            ego_telemetry_event_ids=ego_telemetry_event_ids,
+            goal_id=goal_id,
+            run_id=run_id,
+            run_journal_sequence=(
+                self.run_journal_port.latest_sequence(goal_id, run_id)
+                if (
+                    self.run_journal_port is not None
+                    and goal_id is not None
+                    and run_id is not None
+                )
+                else None
+            ),
+            recovery_checkpoint_id=recovery_checkpoint_id,
         )
 
 
@@ -305,6 +420,7 @@ def _history_item(proposal, result: ActionResult) -> dict:
             "tool_id": proposal.action,
             "arguments": dict(proposal.arguments),
             "requested_by": proposal.requested_by,
+            "idempotency_key": proposal.idempotency_key,
         },
         "result": result.to_dict(),
     }
@@ -316,3 +432,15 @@ def _session_id(request: YiSangRequest) -> str | None:
         return None
     value = value.strip()
     return value or None
+
+
+def _goal_run_context(request: YiSangRequest) -> tuple[str, str] | None:
+    raw_goal = request.metadata.get("goal_id")
+    raw_run = request.metadata.get("run_id")
+    if raw_goal is None and raw_run is None:
+        return None
+    if not isinstance(raw_goal, str) or not raw_goal.strip():
+        raise ValueError("goal_id must be a non-empty string when run_id is set")
+    if not isinstance(raw_run, str) or not raw_run.strip():
+        raise ValueError("run_id must be a non-empty string when goal_id is set")
+    return raw_goal.strip(), raw_run.strip()
