@@ -615,10 +615,19 @@ Roland Library Usage Notes:
 - `InMemoryExperiencePort` and durable `SQLiteExperiencePort`
 - promotion only into an existing Book/KnowledgeEntry
 - reinforcement of an existing matching Usage Note without duplication
+- compact `EpisodeRecord` / `EpisodeStep` contracts with deterministic fingerprinting
+- opt-in Runtime -> `EpisodePort` persistence without changing legacy behavior
+- restart-safe `SQLiteEpisodePort` with integrity/collision checks
+- adapter-based `ReplayValidator` that keeps shell/build/test execution outside Core
+- required replay evidence and fail-closed adapter/check handling
+- replay evidence bound to the exact Episode fingerprint
+- `observation_from_replay()` bridge with deterministic evidence identity
+- optional `require_replay=True` promotion policy for autonomous/strict learning
 
 This intentionally does **not** yet auto-generate lessons from raw trajectories
 or modify E.G.O capabilities. See
-`docs/V07_EXPERIENCE_PROMOTION_FOUNDATION.md`.
+`docs/V07_EXPERIENCE_PROMOTION_FOUNDATION.md` and
+`docs/V07_EPISODE_REPLAY_VALIDATION.md`.
 
 ### E.G.O integration
 
