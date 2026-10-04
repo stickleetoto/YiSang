@@ -9,6 +9,7 @@ import sqlite3
 from threading import RLock
 import time
 from typing import Any
+import uuid
 
 EPISODE_SCHEMA_VERSION = 1
 EPISODE_OUTCOMES = frozenset({"success", "failure", "unknown"})
@@ -255,3 +256,96 @@ class SQLiteEpisodePort(EpisodePort):
             for row in rows
             if (episode := self.get(str(row["episode_id"]))) is not None
         )
+
+
+def build_runtime_episode(
+    *,
+    request_id: str,
+    goal: str,
+    engine_id: str,
+    verification_status: str,
+    verification_reason: str,
+    action_results: tuple[dict[str, Any], ...] | list[dict[str, Any]] = (),
+    active_project: str | None = None,
+) -> EpisodeRecord:
+    """Build a compact episode from one completed YiSang Runtime request.
+
+    Raw tool output is intentionally excluded. The episode keeps action outcome,
+    gate/failure summaries, completion evidence, and verifier identity evidence.
+    """
+    steps: list[EpisodeStep] = []
+    for index, item in enumerate(action_results, start=1):
+        if not isinstance(item, dict):
+            continue
+        failure = item.get("failure")
+        completion_evidence = item.get("completion_evidence")
+        steps.append(
+            EpisodeStep(
+                step_id=f"action-{index:03d}",
+                kind="action",
+                status=str(item.get("status", "UNKNOWN")),
+                action=str(item.get("tool_id", "unknown")),
+                evidence_refs=_runtime_evidence_refs(item),
+                data={
+                    "gate_reason": str(item.get("gate_reason", "")),
+                    "error": item.get("error"),
+                    "failure": (
+                        dict(failure)
+                        if isinstance(failure, dict)
+                        else None
+                    ),
+                    "goal_satisfied": bool(
+                        item.get("goal_satisfied", False)
+                    ),
+                    "completion_evidence": (
+                        dict(completion_evidence)
+                        if isinstance(completion_evidence, dict)
+                        else {}
+                    ),
+                },
+            )
+        )
+
+    verification_ref = (
+        f"verifier:{verification_status}:{verification_reason}"
+    )
+    steps.append(
+        EpisodeStep(
+            step_id="verification",
+            kind="verification",
+            status=verification_status,
+            evidence_refs=(verification_ref,),
+            data={"reason": verification_reason},
+        )
+    )
+
+    return EpisodeRecord(
+        episode_id=f"ep-{uuid.uuid4().hex[:12]}",
+        request_id=request_id,
+        goal=goal,
+        outcome=(
+            "success"
+            if verification_status == "PASS"
+            else "failure"
+        ),
+        steps=tuple(steps),
+        verification_refs=(verification_ref,),
+        metadata={
+            "engine_id": engine_id,
+            "active_project": active_project,
+        },
+    )
+
+
+def _runtime_evidence_refs(item: dict[str, Any]) -> tuple[str, ...]:
+    refs: list[str] = []
+    tool_id = str(item.get("tool_id", "unknown"))
+    status = str(item.get("status", "UNKNOWN"))
+    refs.append(f"action:{tool_id}:{status}")
+
+    completion_evidence = item.get("completion_evidence")
+    if isinstance(completion_evidence, dict):
+        for key, value in sorted(completion_evidence.items()):
+            refs.append(f"completion:{key}={value}")
+
+    return tuple(refs)
