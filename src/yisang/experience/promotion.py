@@ -23,12 +23,14 @@ class ExperiencePromotionEngine:
         experience: ExperiencePort,
         library: LibraryPort,
         min_successes: int = 3,
+        require_replay: bool = False,
     ) -> None:
         if min_successes < 1:
             raise ValueError("min_successes must be >= 1")
         self.experience = experience
         self.library = library
         self.min_successes = min_successes
+        self.require_replay = require_replay
 
     def observe(
         self,
@@ -38,6 +40,14 @@ class ExperiencePromotionEngine:
             return ExperiencePromotionResult(
                 status="rejected",
                 reason="unverified_observation",
+            )
+        if (
+            self.require_replay
+            and observation.validation_method != "replay"
+        ):
+            return ExperiencePromotionResult(
+                status="rejected",
+                reason="replay_verification_required",
             )
 
         existing = self.experience.get(observation.candidate_key)
