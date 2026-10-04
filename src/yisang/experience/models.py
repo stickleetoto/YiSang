@@ -65,6 +65,15 @@ class ExperienceObservation:
             raise ValueError(
                 "verified observations require a non-empty verification_ref"
             )
+        if self.validation_method == "replay":
+            if not (self.verification_ref or "").startswith("replay:"):
+                raise ValueError(
+                    "replay validation requires a replay: verification_ref"
+                )
+            if not (self.source_episode_id or "").strip():
+                raise ValueError(
+                    "replay validation requires source_episode_id"
+                )
 
     @property
     def candidate_key(self) -> str:
@@ -92,6 +101,7 @@ class ExperienceCandidate:
     applies_when: tuple[str, ...] = ()
     evidence_ids: tuple[str, ...] = ()
     verification_refs: tuple[str, ...] = ()
+    source_episode_ids: tuple[str, ...] = ()
     success_count: int = 0
     failure_count: int = 0
     risk_class: str = "normal"
@@ -121,6 +131,8 @@ class ExperienceCandidate:
             raise ValueError("evidence_ids must be unique")
         if len(set(self.verification_refs)) != len(self.verification_refs):
             raise ValueError("verification_refs must be unique")
+        if len(set(self.source_episode_ids)) != len(self.source_episode_ids):
+            raise ValueError("source_episode_ids must be unique")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -131,6 +143,7 @@ class ExperienceCandidate:
             "applies_when": list(self.applies_when),
             "evidence_ids": list(self.evidence_ids),
             "verification_refs": list(self.verification_refs),
+            "source_episode_ids": list(self.source_episode_ids),
             "success_count": self.success_count,
             "failure_count": self.failure_count,
             "risk_class": self.risk_class,
@@ -151,6 +164,9 @@ class ExperienceCandidate:
             evidence_ids=_normalized_strings(data.get("evidence_ids", ())),
             verification_refs=_normalized_strings(
                 data.get("verification_refs", ())
+            ),
+            source_episode_ids=_normalized_strings(
+                data.get("source_episode_ids", ())
             ),
             success_count=int(data.get("success_count", 0)),
             failure_count=int(data.get("failure_count", 0)),
