@@ -15,7 +15,7 @@ EXPERIENCE_VALIDATION_METHODS = frozenset(
     {"external", "manual", "test", "replay"}
 )
 EXPERIENCE_CANDIDATE_STATUSES = frozenset(
-    {"candidate", "promoted", "needs_review", "blocked"}
+    {"candidate", "promoted", "needs_review", "blocked", "revoked"}
 )
 
 
