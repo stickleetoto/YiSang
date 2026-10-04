@@ -601,6 +601,25 @@ A candidate should carry:
 
 Automatic promotion of privileged or security-sensitive capabilities should be prohibited.
 
+### Foundation progress
+
+The first v0.7 slice now implements a governed, restart-safe promotion path for
+Roland Library Usage Notes:
+
+- YiSang-native `ExperienceObservation` and `ExperienceCandidate` contracts
+- deterministic candidate identity from target + lesson + applies_when
+- duplicate evidence suppression
+- distinct verified-success threshold (default: 3)
+- failure evidence -> `needs_review` instead of silent positive learning
+- privileged/security-sensitive automatic-promotion block
+- `InMemoryExperiencePort` and durable `SQLiteExperiencePort`
+- promotion only into an existing Book/KnowledgeEntry
+- reinforcement of an existing matching Usage Note without duplication
+
+This intentionally does **not** yet auto-generate lessons from raw trajectories
+or modify E.G.O capabilities. See
+`docs/V07_EXPERIENCE_PROMOTION_FOUNDATION.md`.
+
 ### E.G.O integration
 
 Validated procedural knowledge may become:

@@ -130,5 +130,11 @@ successful experience
   -> durable skill / Library knowledge / warning
 ~~~
 
+The first v0.7 foundation slice is now implemented on the development branch:
+verified distinct experience can accumulate durably and promote or reinforce an
+existing Roland Library Usage Note after the promotion gate. Duplicate evidence,
+failure evidence, privileged/security-sensitive candidates, and missing Library
+targets fail closed.
+
 Raw conversations or failures must never be promoted directly into durable
 capability.
