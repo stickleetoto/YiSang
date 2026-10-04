@@ -166,19 +166,36 @@ class ExperiencePromotionEngine:
             None,
         )
 
-        note = LibraryUsageNote(
-            note=candidate.lesson,
-            applies_when=tuple(candidate.applies_when),
-            successful_uses=candidate.success_count,
-            verification=tuple(candidate.verification_refs),
-        )
-
         notes = list(entry.usage_notes)
         promoted = matching_index is None
         reinforced = matching_index is not None
+
         if matching_index is None:
+            note = LibraryUsageNote(
+                note=candidate.lesson,
+                applies_when=tuple(candidate.applies_when),
+                successful_uses=candidate.success_count,
+                verification=tuple(candidate.verification_refs),
+            )
             notes.append(note)
         else:
+            previous = notes[matching_index]
+            note = LibraryUsageNote(
+                note=candidate.lesson,
+                applies_when=tuple(candidate.applies_when),
+                successful_uses=max(
+                    previous.successful_uses,
+                    candidate.success_count,
+                ),
+                verification=tuple(
+                    dict.fromkeys(
+                        (
+                            *previous.verification,
+                            *candidate.verification_refs,
+                        )
+                    )
+                ),
+            )
             notes[matching_index] = note
 
         updated_entry = replace(entry, usage_notes=tuple(notes))
