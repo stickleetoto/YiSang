@@ -25,6 +25,7 @@ class ActionRuntime:
                 ActionProposal(action=tool.tool_id),
                 selected_egos=selected_egos,
                 tools=self.tools,
+                exposure_only=True,
             )
             if decision.allowed:
                 specs.append(tool.to_context_spec(ego_id=decision.ego_id))
@@ -35,6 +36,7 @@ class ActionRuntime:
         proposal: ActionProposal,
         *,
         selected_egos: list[EgoManifest],
+        execution_context: dict[str, str] | None = None,
     ) -> ActionResult:
         decision = self.gate.evaluate(
             proposal,
