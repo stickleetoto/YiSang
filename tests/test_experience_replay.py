@@ -330,3 +330,86 @@ def test_fabricated_replay_result_cannot_cross_episode_binding():
             target_entry_id="pytest-debug",
             lesson="Fabricated evidence.",
         )
+
+
+def test_runtime_optionally_persists_episode():
+    from yisang.context.compiler import ContextCompiler
+    from yisang.core.models import YiSangRequest
+    from yisang.core.runtime import YiSangRuntime
+    from yisang.ego.registry import EgoRegistry
+    from yisang.ego.router import CapabilityRouter
+    from yisang.engines.demo import EchoEngine
+    from yisang.engines.router import EngineRouter
+    from yisang.experience import InMemoryEpisodePort
+    from yisang.identity.models import AgentState, IdentityCharter
+    from yisang.memory.governor import MemoryGovernor
+    from yisang.memory.in_memory import InMemoryMemoryPort
+    from yisang.verification.base import PassThroughVerifier
+
+    episodes = InMemoryEpisodePort()
+    engines = EngineRouter()
+    engines.register(EchoEngine("small", "SMALL"))
+
+    runtime = YiSangRuntime(
+        identity=IdentityCharter("yisang-001", "YiSang"),
+        state=AgentState(
+            active_engine="small",
+            active_project="YiSang",
+            current_goal="preserve verified experience",
+        ),
+        memory=InMemoryMemoryPort(),
+        governor=MemoryGovernor(),
+        ego_registry=EgoRegistry(),
+        capability_router=CapabilityRouter(),
+        context_compiler=ContextCompiler(),
+        engine_router=engines,
+        verifier=PassThroughVerifier(),
+        episode_port=episodes,
+    )
+
+    response = runtime.run(
+        YiSangRequest("req-episode", "record this run")
+    )
+
+    assert response.episode_id is not None
+    episode = episodes.get(response.episode_id)
+    assert episode is not None
+    assert episode.request_id == "req-episode"
+    assert episode.goal == "preserve verified experience"
+    assert episode.outcome == "success"
+    assert episode.metadata["engine_id"] == "small"
+    assert episode.metadata["active_project"] == "YiSang"
+    assert episode.steps[-1].kind == "verification"
+    assert episode.steps[-1].status == "PASS"
+
+
+def test_runtime_without_episode_port_preserves_legacy_response_shape():
+    from yisang.context.compiler import ContextCompiler
+    from yisang.core.models import YiSangRequest
+    from yisang.core.runtime import YiSangRuntime
+    from yisang.ego.registry import EgoRegistry
+    from yisang.ego.router import CapabilityRouter
+    from yisang.engines.demo import EchoEngine
+    from yisang.engines.router import EngineRouter
+    from yisang.identity.models import AgentState, IdentityCharter
+    from yisang.memory.governor import MemoryGovernor
+    from yisang.memory.in_memory import InMemoryMemoryPort
+    from yisang.verification.base import PassThroughVerifier
+
+    engines = EngineRouter()
+    engines.register(EchoEngine("small", "SMALL"))
+    runtime = YiSangRuntime(
+        identity=IdentityCharter("yisang-001", "YiSang"),
+        state=AgentState(active_engine="small"),
+        memory=InMemoryMemoryPort(),
+        governor=MemoryGovernor(),
+        ego_registry=EgoRegistry(),
+        capability_router=CapabilityRouter(),
+        context_compiler=ContextCompiler(),
+        engine_router=engines,
+        verifier=PassThroughVerifier(),
+    )
+
+    response = runtime.run(YiSangRequest("req-legacy", "hello"))
+
+    assert response.episode_id is None
