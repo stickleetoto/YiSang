@@ -1,3 +1,12 @@
+from .audit import (
+    InMemoryPromotionAuditPort,
+    PROMOTION_MUTATION_OPERATIONS,
+    PromotionAuditPort,
+    PromotionMutation,
+    PromotionRevokeResult,
+    SQLitePromotionAuditPort,
+    new_promotion_mutation,
+)
 from .bridge import observation_from_replay
 from .episode import (
     EPISODE_OUTCOMES,
@@ -34,6 +43,10 @@ from .sqlite import SQLiteExperiencePort
 
 __all__ = [
     "EXPERIENCE_CANDIDATE_STATUSES",
+    "PROMOTION_MUTATION_OPERATIONS",
+    "PromotionAuditPort",
+    "PromotionMutation",
+    "PromotionRevokeResult",
     "EXPERIENCE_OUTCOMES",
     "EXPERIENCE_RISK_CLASSES",
     "EXPERIENCE_SCHEMA_VERSION",
@@ -49,6 +62,7 @@ __all__ = [
     "ExperiencePromotionEngine",
     "ExperiencePromotionResult",
     "InMemoryEpisodePort",
+    "InMemoryPromotionAuditPort",
     "InMemoryExperiencePort",
     "CallableReplayAdapter",
     "ReplayAdapter",
@@ -57,7 +71,9 @@ __all__ = [
     "ReplayValidationResult",
     "ReplayValidator",
     "SQLiteEpisodePort",
+    "SQLitePromotionAuditPort",
     "SQLiteExperiencePort",
     "build_runtime_episode",
+    "new_promotion_mutation",
     "observation_from_replay",
 ]
