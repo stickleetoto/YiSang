@@ -623,11 +623,18 @@ Roland Library Usage Notes:
 - replay evidence bound to the exact Episode fingerprint
 - `observation_from_replay()` bridge with deterministic evidence identity
 - optional `require_replay=True` promotion policy for autonomous/strict learning
+- append-only promotion mutation audit with in-memory and SQLite stores
+- exact before/after Usage Note provenance for promote/reinforce operations
+- conservative revocation that restores the pre-promotion note state
+- divergence detection so rollback never overwrites a newer/manual note
+- `revoked` candidate lifecycle state that blocks silent re-promotion
+- compensation rollback if promotion/revocation audit persistence fails
 
 This intentionally does **not** yet auto-generate lessons from raw trajectories
 or modify E.G.O capabilities. See
-`docs/V07_EXPERIENCE_PROMOTION_FOUNDATION.md` and
-`docs/V07_EPISODE_REPLAY_VALIDATION.md`.
+`docs/V07_EXPERIENCE_PROMOTION_FOUNDATION.md`,
+`docs/V07_EPISODE_REPLAY_VALIDATION.md`, and
+`docs/V07_PROMOTION_AUDIT_ROLLBACK.md`.
 
 ### E.G.O integration
 
