@@ -413,3 +413,56 @@ def test_runtime_without_episode_port_preserves_legacy_response_shape():
     response = runtime.run(YiSangRequest("req-legacy", "hello"))
 
     assert response.episode_id is None
+
+
+def test_replay_observation_contract_requires_replay_ref_and_source_episode():
+    with pytest.raises(ValueError, match="replay: verification_ref"):
+        ExperienceObservation(
+            evidence_id="bad-replay-ref",
+            target_book_id="book.python",
+            target_entry_id="pytest-debug",
+            lesson="Bad replay claim.",
+            verified=True,
+            verification_ref="manual:claim",
+            validation_method="replay",
+            source_episode_id="ep-1",
+        )
+
+    with pytest.raises(ValueError, match="source_episode_id"):
+        ExperienceObservation(
+            evidence_id="missing-episode",
+            target_book_id="book.python",
+            target_entry_id="pytest-debug",
+            lesson="Missing episode.",
+            verified=True,
+            verification_ref="replay:" + "1" * 64,
+            validation_method="replay",
+        )
+
+
+def test_promoted_candidate_retains_source_episode_provenance():
+    episode = _episode(episode_id="ep-provenance")
+    replay = ReplayValidator(
+        adapter=CallableReplayAdapter(_pass_runner)
+    ).validate(
+        episode,
+        (ReplayCheck("unit", "pytest"),),
+    )
+    observation = observation_from_replay(
+        episode=episode,
+        replay=replay,
+        target_book_id="book.python",
+        target_entry_id="pytest-debug",
+        lesson="Keep episode provenance.",
+    )
+
+    engine = ExperiencePromotionEngine(
+        experience=InMemoryExperiencePort(),
+        library=_library(),
+        min_successes=1,
+        require_replay=True,
+    )
+    result = engine.observe(observation)
+
+    assert result.candidate is not None
+    assert result.candidate.source_episode_ids == ("ep-provenance",)
