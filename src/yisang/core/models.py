@@ -21,3 +21,8 @@ class YiSangResponse:
     action_results: list[dict[str, Any]] = field(default_factory=list)
     memory_write_results: list[dict[str, Any]] = field(default_factory=list)
     episode_id: str | None = None
+    ego_telemetry_event_ids: list[str] = field(default_factory=list)
+    goal_id: str | None = None
+    run_id: str | None = None
+    run_journal_sequence: int | None = None
+    recovery_checkpoint_id: str | None = None

@@ -1,3 +1,9 @@
+from .application import (
+    DurableEgoApplyAdapter,
+    EgoInstructionPatchAdapter,
+    LibraryKnowledgeApplyAdapter,
+    PromotionApplicationError,
+)
 from .audit import (
     InMemoryPromotionAuditPort,
     PROMOTION_MUTATION_OPERATIONS,
@@ -19,17 +25,29 @@ from .episode import (
     build_runtime_episode,
 )
 from .in_memory import InMemoryExperiencePort
+from .ledger import InMemoryPromotionLedger
+from .legacy_promotion import PromotionGate
 from .models import (
     EXPERIENCE_CANDIDATE_STATUSES,
     EXPERIENCE_OUTCOMES,
     EXPERIENCE_RISK_CLASSES,
     EXPERIENCE_SCHEMA_VERSION,
     EXPERIENCE_VALIDATION_METHODS,
+    EgoInstructionPatch,
     ExperienceCandidate,
+    ExperienceEvidence,
     ExperienceObservation,
     ExperiencePromotionResult,
+    LessonCandidate,
+    PromotionApplyReceipt,
+    PromotionApplyRequest,
+    PromotionArtifact,
+    PromotionDecision,
+    PromotionOutcome,
+    ReplayCaseResult,
+    ReplayReport,
 )
-from .port import ExperiencePort
+from .port import ExperiencePort, PromotionPort
 from .promotion import ExperiencePromotionEngine
 from .replay import (
     CallableReplayAdapter,
@@ -56,20 +74,37 @@ __all__ = [
     "EpisodePort",
     "EpisodeRecord",
     "EpisodeStep",
+    "DurableEgoApplyAdapter",
+    "EgoInstructionPatch",
+    "EgoInstructionPatchAdapter",
     "ExperienceCandidate",
+    "ExperienceEvidence",
     "ExperienceObservation",
     "ExperiencePort",
     "ExperiencePromotionEngine",
     "ExperiencePromotionResult",
+    "InMemoryPromotionLedger",
+    "LessonCandidate",
+    "LibraryKnowledgeApplyAdapter",
+    "PromotionApplicationError",
+    "PromotionApplyReceipt",
+    "PromotionApplyRequest",
+    "PromotionArtifact",
+    "PromotionDecision",
+    "PromotionGate",
+    "PromotionOutcome",
+    "PromotionPort",
     "InMemoryEpisodePort",
     "InMemoryPromotionAuditPort",
     "InMemoryExperiencePort",
     "CallableReplayAdapter",
     "ReplayAdapter",
+    "ReplayCaseResult",
     "ReplayCheck",
     "ReplayCheckResult",
     "ReplayValidationResult",
     "ReplayValidator",
+    "ReplayReport",
     "SQLiteEpisodePort",
     "SQLitePromotionAuditPort",
     "SQLiteExperiencePort",

@@ -4,7 +4,7 @@
 
 > Models are replaceable. Memory and capability remain.
 
-Current release: **v0.6.0 — Roland Library validated**
+Current development line: **v0.9.0.dev0 — Experience + E.G.O v2 + Recovery + Planner integrated**
 
 YiSang keeps durable agent assets outside the attached reasoning model:
 
@@ -27,7 +27,10 @@ Codex / UI / agent harness
           |
           +-- Identity / State
           +-- Memory
-          +-- E.G.O
+          +-- E.G.O v2 / Policy
+          +-- Experience / Replay / Audit
+          +-- Goals / Recovery
+          +-- Planner / Replanning
           +-- Roland Library
           |      |
           |      +-- authoritative LibraryPort
@@ -117,24 +120,38 @@ See `docs/CODEX_MODEL_SERVER.md` for that integration path.
 11. Continuity restore is staged and validated before runtime-owned state is swapped.
 12. Core interfaces remain independent of a single model provider or agent framework.
 
-## Next phase
+## Current development line
 
-v0.7 focuses on **Experience Promotion**:
+The v0.9 development line consolidates the previously stacked work onto one
+main-compatible architecture:
 
 ~~~text
-successful experience
-  -> lesson candidate
-  -> generalization
-  -> validation / replay
-  -> promotion gate
-  -> durable skill / Library knowledge / warning
+verified Runtime episode
+  -> replay evidence
+  -> governed Experience Promotion
+  -> audited / reversible Roland knowledge
+  -> optional E.G.O v2 durable capability
+
+Goal
+  -> RunJournal / checkpoint
+  -> idempotent side-effect recovery
+  -> durable Plan
+  -> governed replanning
 ~~~
 
-The first v0.7 foundation slice is now implemented on the development branch:
-verified distinct experience can accumulate durably and promote or reinforce an
-existing Roland Library Usage Note after the promotion gate. Duplicate evidence,
-failure evidence, privileged/security-sensitive candidates, and missing Library
-targets fail closed.
+Current integrated capabilities include:
 
-Raw conversations or failures must never be promoted directly into durable
-capability.
+- replay-gated experience learning with provenance and duplicate suppression
+- promotion audit plus conservative revoke / rollback
+- E.G.O v2 packages, durable lifecycle, telemetry, and adaptive routing
+- deny-by-default authorization policy integration
+- durable goals, run journals, recovery checkpoints, and workspace reconciliation
+- durable planning, plan-to-recovery bridging, and governed replanning
+- the existing v0.4-v0.6 memory, identity, and Roland continuity foundation
+
+Raw conversation text, model claims, and unverified side effects remain outside
+the authoritative learning boundary. BIO remains an optional future adapter, not
+a dependency of YiSang Core.
+
+See `ROADMAP.md`, `docs/V08_GOAL_RECOVERY_FOUNDATION.md`, and
+`docs/V09_PLANNER_FOUNDATION.md`.

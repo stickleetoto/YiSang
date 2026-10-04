@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yisang"
-version = "0.6.1.dev0"
+version = "0.9.0.dev0"
 description = "Model-independent LLM enhancement layer with externalized memory and capabilities."
 requires-python = ">=3.11"
 dependencies = []
@@ -25,6 +25,15 @@ yisang-eval-v06-closeout = "yisang.eval.v06_closeout:main"
 yisang-eval-continuity-check = "yisang.eval.continuity_check:main"
 yisang-memory-archive = "yisang.memory.transfer:main"
 yisang-memory-audit = "yisang.memory.audit:main"
+yisang-ego-v2-smoke = "yisang.ego.smoke_v2:main"
+yisang-ego-promotion-smoke = "yisang.ego.promotion_smoke:main"
+yisang-ego-lifecycle-smoke = "yisang.ego.lifecycle_smoke:main"
+yisang-ego-adaptive-smoke = "yisang.ego.adaptive_smoke:main"
+yisang-policy-smoke = "yisang.policy_smoke:main"
+yisang-workspace-recovery-smoke = "yisang.recovery.workspace_smoke:main"
+yisang-planner-smoke = "yisang.planning.smoke:main"
+yisang-long-horizon-smoke = "yisang.planning.long_horizon_smoke:main"
+yisang-replan-smoke = "yisang.planning.replan_smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

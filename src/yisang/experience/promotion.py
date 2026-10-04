@@ -489,3 +489,8 @@ def _stricter_risk(left: str, right: str) -> str:
         "security_sensitive": 2,
     }
     return max((left, right), key=order.__getitem__)
+
+
+# Backward-compatible import path for E.G.O v2 and pre-consolidation callers.
+# The authoritative learning path remains ExperiencePromotionEngine.
+from .legacy_promotion import PromotionGate
