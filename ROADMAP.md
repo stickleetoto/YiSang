@@ -543,6 +543,10 @@ Implemented across the current v0.6 slices:
 
 ## v0.7 — Experience Promotion
 
+> Status: **IMPLEMENTED in the consolidated v0.9 development line**. The
+> authoritative path is the newer Episode / Replay / Promotion Audit design;
+> legacy promotion-artifact types exist only as an E.G.O v2 compatibility layer.
+
 ### Objective
 
 Allow YiSang to improve from successful experience without turning raw logs or model hallucinations into permanent skills.
@@ -661,6 +665,10 @@ The canonical format remains YiSang-native. Agent Skills or plugin formats remai
 # Phase F — Durable goals, journals, and recovery
 
 ## v0.8 — Goal / Recovery Runtime
+
+> Status: **IMPLEMENTED in the consolidated v0.9 development line** with Goal
+> persistence, RunJournal checkpoints, idempotency, crash recovery, and
+> workspace side-effect reconciliation.
 
 ### Objective
 
@@ -804,13 +812,62 @@ MCP Tasks may map onto this abstraction through an adapter. MCP Tasks must not b
 
 ---
 
-# Phase G — Multi-engine and BIO interoperability
+# Phase G — Durable planning and governed replanning
 
-## v0.9 — Multi-engine / BIO
+## v0.9 — Planner / Recovery Integration
+
+> Status: **IMPLEMENTED in the consolidated v0.9 development line**. Package
+> version: `0.9.0.dev0`.
 
 ### Objective
 
-Prove that YiSang remains portable across reasoning engines and memory backends.
+Turn durable goals and recovery primitives into an inspectable long-horizon
+planning layer without making the attached LLM authoritative over plan state.
+
+### Integrated foundation
+
+~~~text
+Goal
+  -> PlanProposal
+  -> governed acceptance
+  -> durable PlanPort
+  -> ready-step scheduling
+  -> Recovery run
+  -> checkpoint / evidence
+  -> complete, retry, block, or replan
+~~~
+
+The current implementation includes:
+
+- versioned durable plan models and ports
+- in-memory and SQLite plan persistence
+- deterministic dependency-aware scheduling
+- plan-step to recovery-run bridging
+- retry/attempt budgets
+- governed plan revisions / replanning
+- long-horizon smoke and regression coverage
+
+### Exit criteria
+
+- plan state survives restart
+- a completed step is not blindly repeated
+- stale plan revisions are rejected
+- replanning is explicit and versioned
+- recovery evidence can be attached to plan progress
+- policy/verification failures do not silently become successful plan state
+
+See `docs/V09_PLANNER_FOUNDATION.md` and `docs/V09_LOCAL_VALIDATION.md`.
+
+---
+
+# Phase H — Multi-engine and BIO interoperability
+
+## v0.10 — Multi-engine / BIO
+
+### Objective
+
+Prove that YiSang remains portable across reasoning engines and optional memory
+backends after the Experience / E.G.O / Recovery / Planner stack is consolidated.
 
 ### Engine matrix
 
@@ -826,56 +883,20 @@ YiSang
 
 ### MemoryPort adapters
 
-Keep:
-
-~~~text
-InMemoryMemoryPort
-SQLiteMemoryPort
-BioMemoryPort
-~~~
-
-BIO remains optional. YiSang must work without BIO.
-
-### Protocol adapters
-
-Potential adapters:
-
-- OpenAI Chat Completions
-- OpenAI Responses
-- MCP
-- Agent Skills import/export
-- future plugin packaging
-
-Adapters sit outside the core state model.
-
-### Policy authorization
-
-Evolve ActionGate toward an explicit authorization model inspired by principal/action/resource/context systems:
-
-~~~text
-principal: engine / ego / user
-action:    memory.write / tool.run / library.mutate
-resource:  memory/... / capability/... / goal/...
-context:   trust / approval / risk / source / environment
-~~~
-
-A policy engine may be implemented internally first. External systems such as Cedar are references, not mandatory dependencies.
-
-### Optional temporal projections
-
-Experiment with timeline/entity-event projections for changing facts. These remain rebuildable read-side indexes over authoritative memory.
+Keep BIO optional. YiSang Core must continue to work with its native memory
+ports when BIO is disconnected.
 
 ### Exit criteria
 
-- same snapshot runs on at least two engines
-- memory backend can be swapped without changing core semantics
-- BIO adapter can be disconnected without disabling YiSang
-- policy behavior is independent of the attached model
+- same snapshot runs on at least two engine families
+- optional external memory adapters do not change Core semantics
+- BIO can be disconnected without disabling YiSang
+- policy behavior stays independent of the attached model
 - protocol adapters remain replaceable
 
 ---
 
-# Phase H — Persistent Agent release
+# Phase I — Persistent Agent release
 
 ## v1.0 — Continuity Release
 
