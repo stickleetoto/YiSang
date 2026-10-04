@@ -148,15 +148,7 @@ class InMemoryPromotionAuditPort(PromotionAuditPort):
         self._items.append(mutation)
 
     def all(self) -> tuple[PromotionMutation, ...]:
-        return tuple(
-            sorted(
-                self._items,
-                key=lambda item: (
-                    item.created_at,
-                    item.mutation_id,
-                ),
-            )
-        )
+        return tuple(self._items)
 
 
 class SQLitePromotionAuditPort(PromotionAuditPort):
@@ -169,7 +161,8 @@ class SQLitePromotionAuditPort(PromotionAuditPort):
             self._conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS experience_promotion_mutations (
-                    mutation_id TEXT PRIMARY KEY,
+                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mutation_id TEXT NOT NULL UNIQUE,
                     candidate_key TEXT NOT NULL,
                     created_at REAL NOT NULL,
                     payload_json TEXT NOT NULL
@@ -181,7 +174,7 @@ class SQLitePromotionAuditPort(PromotionAuditPort):
                 CREATE INDEX IF NOT EXISTS
                 idx_experience_promotion_candidate
                 ON experience_promotion_mutations(
-                    candidate_key, created_at, mutation_id
+                    candidate_key, sequence
                 )
                 """
             )
@@ -220,7 +213,7 @@ class SQLitePromotionAuditPort(PromotionAuditPort):
                 """
                 SELECT payload_json
                 FROM experience_promotion_mutations
-                ORDER BY created_at ASC, mutation_id ASC
+                ORDER BY sequence ASC
                 """
             ).fetchall()
         return tuple(
@@ -240,7 +233,7 @@ class SQLitePromotionAuditPort(PromotionAuditPort):
                 SELECT payload_json
                 FROM experience_promotion_mutations
                 WHERE candidate_key = ?
-                ORDER BY created_at ASC, mutation_id ASC
+                ORDER BY sequence ASC
                 """,
                 (candidate_key,),
             ).fetchall()
