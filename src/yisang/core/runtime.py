@@ -8,6 +8,10 @@ from yisang.engines.router import EngineRouter
 from yisang.execution.failure import failure_from_gate_reason
 from yisang.execution.models import ActionResult
 from yisang.execution.runtime import ActionRuntime
+from yisang.experience.episode import (
+    EpisodePort,
+    build_runtime_episode,
+)
 from yisang.identity.models import AgentState, IdentityCharter
 from yisang.library.delivery import build_library_delivery
 from yisang.library.port import LibraryPort
@@ -40,6 +44,7 @@ class YiSangRuntime:
         library_retriever: LexicalLibraryRetriever | None = None,
         library_limit: int = 3,
         max_action_rounds: int = 3,
+        episode_port: EpisodePort | None = None,
     ) -> None:
         if max_action_rounds < 0:
             raise ValueError("max_action_rounds must be non-negative")
@@ -80,6 +85,7 @@ class YiSangRuntime:
             quarantine=InMemoryQuarantinePort(),
         )
         self.max_action_rounds = max_action_rounds
+        self.episode_port = episode_port
 
     def run(self, request: YiSangRequest) -> YiSangResponse:
         session_id = _session_id(request)
@@ -263,6 +269,22 @@ class YiSangRuntime:
                 },
             )
 
+        episode_id: str | None = None
+        if self.episode_port is not None:
+            episode = build_runtime_episode(
+                request_id=request.request_id,
+                goal=self.state.current_goal or request.text,
+                engine_id=result.engine_id,
+                verification_status=verification.status,
+                verification_reason=verification.reason,
+                action_results=[
+                    item.to_dict() for item in action_results
+                ],
+                active_project=self.state.active_project,
+            )
+            self.episode_port.put(episode)
+            episode_id = episode.episode_id
+
         return YiSangResponse(
             request_id=request.request_id,
             text=result.text,
@@ -273,6 +295,7 @@ class YiSangRuntime:
             used_knowledge_refs=used_knowledge_refs,
             action_results=[item.to_dict() for item in action_results],
             memory_write_results=memory_write_results,
+            episode_id=episode_id,
         )
 
 
