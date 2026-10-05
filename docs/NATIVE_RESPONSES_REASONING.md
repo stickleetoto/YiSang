@@ -56,8 +56,9 @@ status             ok
 model              yisang-luna
 upstream_wire_api  responses
 reasoning_effort   xhigh
-reasoning_mode     pro
+reasoning_mode     standard
 tool_profile       full
+rate_limit         ...
 ~~~
 
 ## Reasoning policy
@@ -84,3 +85,24 @@ completed response, rewrites the public model id back to the YiSang alias, and
 then emits the existing Codex-compatible Responses/SSE surface. This preserves
 native reasoning and tool output items without requiring native upstream token
 streaming.
+
+## Provider rate-limit containment
+
+YiSang now treats provider HTTP 429 as rate limiting rather than as a generic
+gateway failure.
+
+Behavior:
+
+- upstream 429 is returned to Codex as HTTP 429, not 502;
+- Retry-After is preserved when the provider supplies it;
+- a local exponential cooldown opens after a provider 429;
+- requests arriving during cooldown are rejected locally without touching the
+  provider;
+- request starts are spaced by upstream-min-interval, which defaults to 2s;
+- a successful provider response resets the consecutive-429 strike counter.
+
+This prevents a fast Codex tool loop from turning one provider 429 into a retry
+storm. YiSang itself never retries the failed provider request.
+
+For normal long-running Luna development, start with xhigh + standard. Enable
+pro only for cases where representative evals show a material quality gain.
