@@ -39,6 +39,7 @@ def create_http_server(
     proxy: YiSangModelProxy,
     upstream: OpenAIChatUpstream,
     responses_upstream: OpenAIResponsesUpstream | None = None,
+    upstream_wire_api: str | None = None,
     max_body_bytes: int = _DEFAULT_MAX_BODY_BYTES,
     tool_profile: str = "full",
     codex_context_window: int = DEFAULT_CODEX_CONTEXT_WINDOW,
@@ -51,6 +52,18 @@ def create_http_server(
         raise ValueError(f"unknown tool profile: {tool_profile}")
     if codex_context_window <= 0:
         raise ValueError("codex_context_window must be positive")
+    if upstream_wire_api is None:
+        upstream_wire_api = (
+            "responses" if responses_upstream is not None else "chat-completions"
+        )
+    if upstream_wire_api not in {"chat-completions", "responses", "pleum-chat"}:
+        raise ValueError(f"unknown upstream wire API: {upstream_wire_api}")
+    if upstream_wire_api == "responses" and responses_upstream is None:
+        raise ValueError("responses upstream is required for responses wire API")
+    if upstream_wire_api != "responses" and responses_upstream is not None:
+        raise ValueError(
+            "responses upstream must be omitted for chat-completions/pleum-chat"
+        )
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "YiSangModelServer/0.4"
@@ -80,11 +93,7 @@ def create_http_server(
                     {
                         "status": "ok",
                         "model": proxy.model_id,
-                        "upstream_wire_api": (
-                            "responses"
-                            if responses_upstream is not None
-                            else "chat-completions"
-                        ),
+                        "upstream_wire_api": upstream_wire_api,
                         "reasoning_effort": reasoning_effort,
                         "reasoning_mode": reasoning_mode,
                         "tool_profile": tool_profile,
@@ -170,13 +179,18 @@ def create_http_server(
                     self._send_json(200, response)
                 return
 
+            pleum_chat = upstream_wire_api == "pleum-chat"
             prepared = prepare_responses_request(
                 proxy,
                 body,
                 tool_profile=tool_profile,
+                reasoning_effort=reasoning_effort if pleum_chat else None,
+                reasoning_mode=reasoning_mode if pleum_chat else None,
             )
-            # Legacy bridge: complete an upstream Chat response, then render
-            # Responses events. This keeps Ollama/local backends compatible.
+            # Chat bridge: complete an upstream Chat response, then render
+            # Responses events.  The generic path keeps Ollama/local backends
+            # compatible; pleum-chat additionally preserves GPT reasoning
+            # controls on PleumRouter's documented Chat Completions route.
             chat_response = upstream.complete(prepared.chat_payload)
             response = chat_response_to_responses(
                 proxy=proxy,
