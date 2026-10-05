@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import math
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -125,7 +126,7 @@ def create_http_server(
             except ValueError as exc:
                 self._send_error(400, "invalid_request_error", str(exc))
             except UpstreamHTTPError as exc:
-                self._send_error(502, "upstream_error", str(exc))
+                self._send_upstream_error(exc)
             except Exception as exc:  # containment boundary for the local server
                 self._send_error(500, "internal_error", f"{type(exc).__name__}: {exc}")
 
@@ -252,16 +253,45 @@ def create_http_server(
                 # failure and must not trigger a second error response.
                 return False
 
-        def _send_json(self, status: int, payload: dict[str, Any]) -> bool:
+        def _send_json(
+            self,
+            status: int,
+            payload: dict[str, Any],
+            *,
+            headers: dict[str, str] | None = None,
+        ) -> bool:
             encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             try:
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(encoded)))
+                for name, value in (headers or {}).items():
+                    self.send_header(name, value)
                 self.end_headers()
             except _CLIENT_DISCONNECT_ERRORS:
                 return False
             return self._write_response_bytes(encoded)
+
+        def _send_upstream_error(self, exc: UpstreamHTTPError) -> None:
+            if exc.status == 429:
+                retry_after = max(1, math.ceil(exc.retry_after or 1.0))
+                self._send_json(
+                    429,
+                    {
+                        "error": {
+                            "message": str(exc),
+                            "type": "upstream_rate_limited",
+                            "code": "upstream_rate_limited",
+                            "upstream_status": 429,
+                            "retry_after": retry_after,
+                            "locally_blocked": exc.locally_blocked,
+                        }
+                    },
+                    headers={"Retry-After": str(retry_after)},
+                )
+                return
+
+            self._send_error(502, "upstream_error", str(exc))
 
         def _send_error(self, status: int, code: str, message: str) -> None:
             self._send_json(
