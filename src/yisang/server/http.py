@@ -10,12 +10,17 @@ from yisang.integrations.codex import (
     build_codex_model_catalog,
 )
 
+from .native_responses import (
+    normalize_native_responses_response,
+    prepare_native_responses_request,
+)
 from .proxy import YiSangModelProxy
 from .responses import (
     chat_response_to_responses,
     prepare_responses_request,
     responses_sse_events,
 )
+from .responses_upstream import OpenAIResponsesUpstream
 from .upstream import OpenAIChatUpstream, UpstreamHTTPError
 
 _DEFAULT_MAX_BODY_BYTES = 8 * 1024 * 1024
@@ -32,9 +37,12 @@ def create_http_server(
     port: int,
     proxy: YiSangModelProxy,
     upstream: OpenAIChatUpstream,
+    responses_upstream: OpenAIResponsesUpstream | None = None,
     max_body_bytes: int = _DEFAULT_MAX_BODY_BYTES,
     tool_profile: str = "full",
     codex_context_window: int = DEFAULT_CODEX_CONTEXT_WINDOW,
+    reasoning_effort: str | None = None,
+    reasoning_mode: str | None = None,
 ) -> ThreadingHTTPServer:
     if max_body_bytes <= 0:
         raise ValueError("max_body_bytes must be positive")
@@ -44,7 +52,7 @@ def create_http_server(
         raise ValueError("codex_context_window must be positive")
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "YiSangModelServer/0.3"
+        server_version = "YiSangModelServer/0.4"
         # Windows PowerShell 5.1 uses HttpWebRequest, whose ServicePoint
         # enables Expect: 100-continue by default for POST requests. Python
         # BaseHTTPRequestHandler defaults to HTTP/1.0, which does not perform
@@ -60,7 +68,21 @@ def create_http_server(
         def do_GET(self) -> None:  # noqa: N802
             path = urlsplit(self.path).path.rstrip("/") or "/"
             if path == "/health":
-                self._send_json(200, {"status": "ok", "model": proxy.model_id})
+                self._send_json(
+                    200,
+                    {
+                        "status": "ok",
+                        "model": proxy.model_id,
+                        "upstream_wire_api": (
+                            "responses"
+                            if responses_upstream is not None
+                            else "chat-completions"
+                        ),
+                        "reasoning_effort": reasoning_effort,
+                        "reasoning_mode": reasoning_mode,
+                        "tool_profile": tool_profile,
+                    },
+                )
                 return
             if path == "/v1/models":
                 self._send_json(
@@ -117,14 +139,32 @@ def create_http_server(
             self._send_json(200, proxy.normalize_chat_response(response))
 
         def _handle_responses(self, body: dict[str, Any]) -> None:
+            if responses_upstream is not None:
+                prepared_native = prepare_native_responses_request(
+                    proxy,
+                    body,
+                    tool_profile=tool_profile,
+                    reasoning_effort=reasoning_effort,
+                    reasoning_mode=reasoning_mode,
+                )
+                native_response = responses_upstream.complete(prepared_native.payload)
+                response = normalize_native_responses_response(
+                    proxy,
+                    native_response,
+                )
+                if prepared_native.stream:
+                    self._send_responses_sse(response)
+                else:
+                    self._send_json(200, response)
+                return
+
             prepared = prepare_responses_request(
                 proxy,
                 body,
                 tool_profile=tool_profile,
             )
-            # The bridge intentionally uses a completed upstream Chat response,
-            # then renders Responses events. This keeps Ollama compatibility
-            # while presenting the protocol current Codex expects.
+            # Legacy bridge: complete an upstream Chat response, then render
+            # Responses events. This keeps Ollama/local backends compatible.
             chat_response = upstream.complete(prepared.chat_payload)
             response = chat_response_to_responses(
                 proxy=proxy,
