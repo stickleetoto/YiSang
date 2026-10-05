@@ -1,0 +1,29 @@
+{
+  "id": "001-log-inspector",
+  "title": "Build a deterministic log inspector",
+  "difficulty": "easy",
+  "goal": "Implement log_inspector.py so it counts INFO/WARNING/ERROR lines, reports repeated ERROR messages, and exposes a JSON-capable CLI. Keep the implementation deterministic and standard-library only.",
+  "allowed_paths": [
+    "log_inspector.py"
+  ],
+  "required_paths": [
+    "log_inspector.py"
+  ],
+  "max_changed_files": 1,
+  "forbidden_actions": [
+    "No network access",
+    "No package installation",
+    "No git operations",
+    "No edits outside this workspace"
+  ],
+  "verify": [
+    [
+      "{python}",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ]
+  ]
+}
