@@ -13,7 +13,11 @@ from yisang.identity.models import AgentState, IdentityCharter
 from yisang.memory.in_memory import InMemoryMemoryPort
 from yisang.server.http import create_http_server
 from yisang.server.proxy import YiSangModelProxy
-from yisang.server.rate_limit import (\n    LocalRateLimitError,\n    LocalUpstreamCooldownError,\n    RateLimitGovernor,\n)
+from yisang.server.rate_limit import (
+    LocalRateLimitError,
+    LocalUpstreamCooldownError,
+    RateLimitGovernor,
+)
 from yisang.server.responses_upstream import OpenAIResponsesUpstream
 from yisang.server.upstream import OpenAIChatUpstream, UpstreamHTTPError
 
