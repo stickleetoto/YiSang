@@ -207,7 +207,15 @@ class FailingStreamUpstream(FakeUpstream):
         yield b""  # pragma: no cover
 
 
-def _server(upstream=None, *, tool_profile="full", codex_context_window=4096):
+def _server(
+    upstream=None,
+    *,
+    tool_profile="full",
+    codex_context_window=4096,
+    upstream_wire_api=None,
+    reasoning_effort=None,
+    reasoning_mode=None,
+):
     proxy = YiSangModelProxy(
         model_id="yisang-qwen",
         upstream_model="qwen",
@@ -223,8 +231,11 @@ def _server(upstream=None, *, tool_profile="full", codex_context_window=4096):
         port=0,
         proxy=proxy,
         upstream=upstream,  # type: ignore[arg-type]
+        upstream_wire_api=upstream_wire_api,
         tool_profile=tool_profile,
         codex_context_window=codex_context_window,
+        reasoning_effort=reasoning_effort,
+        reasoning_mode=reasoning_mode,
     )
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -768,6 +779,72 @@ def test_http11_expect_100_continue_does_not_deadlock():
         assert len(upstream.seen) == 1
     finally:
         sock.close()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_pleum_chat_bridge_forwards_reasoning_and_normalizes_tools():
+    server, thread, upstream = _server(
+        upstream_wire_api="pleum-chat",
+        reasoning_effort="xhigh",
+        reasoning_mode="standard",
+    )
+    try:
+        _, _, raw = _post_json(
+            server,
+            "/v1/responses",
+            {
+                "model": "yisang-qwen",
+                "input": [
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "inspect repo"}],
+                    }
+                ],
+                "temperature": 0.4,
+                "top_p": 0.9,
+                "tools": [
+                    {
+                        "type": "namespace",
+                        "name": "functions",
+                        "tools": [
+                            {
+                                "type": "function",
+                                "name": "exec_command",
+                                "description": "Run a command",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {"cmd": {"type": "string"}},
+                                    "required": ["cmd"],
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "stream": False,
+            },
+        )
+        response = json.loads(raw)
+        forwarded = upstream.seen[0]
+
+        assert response["model"] == "yisang-qwen"
+        assert forwarded["model"] == "qwen"
+        assert forwarded["stream"] is False
+        assert forwarded["reasoning_effort"] == "xhigh"
+        assert forwarded["reasoning_mode"] == "standard"
+        assert "temperature" not in forwarded
+        assert "top_p" not in forwarded
+        assert forwarded["tools"][0]["type"] == "function"
+        assert forwarded["tools"][0]["function"]["name"] == "functions__exec_command"
+
+        with urllib_request.urlopen(_url(server, "/health")) as health_response:
+            health = json.loads(health_response.read())
+        assert health["upstream_wire_api"] == "pleum-chat"
+        assert health["reasoning_effort"] == "xhigh"
+        assert health["reasoning_mode"] == "standard"
+    finally:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
