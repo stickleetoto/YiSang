@@ -15,6 +15,16 @@ from .completion import (
 from .proxy import PreparedChatRequest, YiSangModelProxy
 
 _CODEX_SMALL_ALLOWED_TOOLS = frozenset({"exec_command", "apply_patch"})
+_ALLOWED_REASONING_EFFORTS = {
+    "none",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+}
+_ALLOWED_REASONING_MODES = {"standard", "pro"}
 _CODEX_SMALL_SYSTEM_MESSAGE = (
     "[YISANG CODEX SMALL-MODEL TOOL PROFILE]\n"
     "Only tools present in the attached tools array are executable. Ignore tool "
@@ -40,6 +50,8 @@ def prepare_responses_request(
     payload: dict[str, Any],
     *,
     tool_profile: str = "full",
+    reasoning_effort: str | None = None,
+    reasoning_mode: str | None = None,
 ) -> PreparedResponsesRequest:
     if not isinstance(payload, dict):
         raise ValueError("request body must be a JSON object")
@@ -52,6 +64,13 @@ def prepare_responses_request(
 
     if tool_profile not in {"full", "codex-small"}:
         raise ValueError(f"unknown tool profile: {tool_profile}")
+    if (
+        reasoning_effort is not None
+        and reasoning_effort not in _ALLOWED_REASONING_EFFORTS
+    ):
+        raise ValueError(f"unsupported reasoning effort: {reasoning_effort}")
+    if reasoning_mode is not None and reasoning_mode not in _ALLOWED_REASONING_MODES:
+        raise ValueError(f"unsupported reasoning mode: {reasoning_mode}")
 
     tool_feedback = summarize_tool_feedback(payload)
     messages = _responses_input_to_chat_messages(payload)
@@ -98,6 +117,19 @@ def prepare_responses_request(
         chat_payload["top_p"] = payload["top_p"]
     if isinstance(payload.get("max_output_tokens"), int):
         chat_payload["max_tokens"] = payload["max_output_tokens"]
+
+    # PleumRouter's /v1/responses adapter accepts Codex reasoning fields but
+    # documents them as ignored.  When YiSang is configured for the dedicated
+    # pleum-chat bridge, force those controls onto /v1/chat/completions instead,
+    # where PleumRouter forwards reasoning_effort/reasoning_mode to GPT-5.6/6.
+    if reasoning_effort is not None:
+        chat_payload["reasoning_effort"] = reasoning_effort
+    if reasoning_mode is not None:
+        chat_payload["reasoning_mode"] = reasoning_mode
+    if reasoning_effort is not None and reasoning_effort != "none":
+        # Keep reasoning requests conservative and aligned with native Responses.
+        chat_payload.pop("temperature", None)
+        chat_payload.pop("top_p", None)
 
     prepared: PreparedChatRequest = proxy.prepare_chat_request(chat_payload)
     return PreparedResponsesRequest(
