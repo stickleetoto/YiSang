@@ -13,6 +13,7 @@ from yisang.memory.sqlite import SQLiteMemoryPort
 
 from .http import create_http_server
 from .proxy import YiSangModelProxy
+from .rate_limit import RateLimitGovernor
 from .responses_upstream import OpenAIResponsesUpstream
 from .upstream import OpenAIChatUpstream
 
@@ -50,6 +51,27 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=1800.0,
         help="Upstream request timeout in seconds.",
+    )
+    parser.add_argument(
+        "--upstream-min-interval",
+        type=float,
+        default=2.0,
+        help=(
+            "Minimum seconds between upstream request starts. This serializes "
+            "fast Codex tool loops before they can burst against a provider."
+        ),
+    )
+    parser.add_argument(
+        "--upstream-rate-limit-backoff",
+        type=float,
+        default=2.0,
+        help="Initial local cooldown after an upstream HTTP 429.",
+    )
+    parser.add_argument(
+        "--upstream-rate-limit-max-backoff",
+        type=float,
+        default=60.0,
+        help="Maximum exponential local cooldown after repeated upstream 429s.",
     )
     parser.add_argument(
         "--reasoning-effort",
@@ -104,6 +126,15 @@ def main(argv: list[str] | None = None) -> int:
         )
     if args.upstream_timeout <= 0:
         parser.error("--upstream-timeout must be positive")
+    if args.upstream_min_interval < 0:
+        parser.error("--upstream-min-interval must be non-negative")
+    if args.upstream_rate_limit_backoff <= 0:
+        parser.error("--upstream-rate-limit-backoff must be positive")
+    if args.upstream_rate_limit_max_backoff < args.upstream_rate_limit_backoff:
+        parser.error(
+            "--upstream-rate-limit-max-backoff must be >= "
+            "--upstream-rate-limit-backoff"
+        )
     if (
         args.upstream_wire_api != "responses"
         and (args.reasoning_effort is not None or args.reasoning_mode is not None)
@@ -133,16 +164,23 @@ def main(argv: list[str] | None = None) -> int:
         capability_router=CapabilityRouter(),
         context_compiler=ContextCompiler(),
     )
+    rate_limit_governor = RateLimitGovernor(
+        min_interval=args.upstream_min_interval,
+        backoff_initial=args.upstream_rate_limit_backoff,
+        backoff_max=args.upstream_rate_limit_max_backoff,
+    )
     upstream = OpenAIChatUpstream(
         base_url=args.upstream_base_url,
         api_key=args.upstream_api_key,
         timeout=args.upstream_timeout,
+        rate_limit_governor=rate_limit_governor,
     )
     responses_upstream = (
         OpenAIResponsesUpstream(
             base_url=args.upstream_base_url,
             api_key=args.upstream_api_key,
             timeout=args.upstream_timeout,
+            rate_limit_governor=rate_limit_governor,
         )
         if args.upstream_wire_api == "responses"
         else None
@@ -165,6 +203,9 @@ def main(argv: list[str] | None = None) -> int:
         f"wire={args.upstream_wire_api} "
         f"reasoning={args.reasoning_effort or 'upstream-default'}/"
         f"{args.reasoning_mode or 'upstream-default'} "
+        f"min_interval={args.upstream_min_interval}s "
+        f"rate_backoff={args.upstream_rate_limit_backoff}-"
+        f"{args.upstream_rate_limit_max_backoff}s "
         f"tool_profile={args.tool_profile} "
         f"codex_context_window={args.codex_context_window}"
     )
