@@ -332,8 +332,9 @@ def test_stream_upstream_failure_preserves_503_before_sse_headers():
             urllib_request.urlopen(request)
         except urllib_error.HTTPError as exc:
             body = json.loads(exc.read())
-            assert exc.code == 502
-            assert body["error"]["type"] == "upstream_error"
+            assert exc.code == 503
+            assert body["error"]["type"] == "upstream_service_error"
+            assert body["error"]["upstream_status"] == 503
         else:
             raise AssertionError("failing upstream unexpectedly returned 200")
     finally:
