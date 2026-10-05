@@ -34,12 +34,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--upstream-model", required=True)
     parser.add_argument(
         "--upstream-wire-api",
-        choices=("chat-completions", "responses"),
+        choices=("chat-completions", "responses", "pleum-chat"),
         default="chat-completions",
         help=(
             "Protocol YiSang uses to call the attached model. Use 'responses' "
-            "for GPT-6 reasoning with tools; keep 'chat-completions' for local "
-            "OpenAI-compatible backends such as Ollama."
+            "for providers with native Responses reasoning/tool support; use "
+            "'pleum-chat' for PleumRouter so Codex Responses are translated to "
+            "Chat Completions and reasoning_effort/reasoning_mode are preserved; "
+            "keep 'chat-completions' for local OpenAI-compatible backends."
         ),
     )
     parser.add_argument(
@@ -78,15 +80,19 @@ def build_parser() -> argparse.ArgumentParser:
         choices=_REASONING_EFFORTS,
         default=None,
         help=(
-            "Force Responses reasoning.effort. Recommended for Luna agentic "
-            "development: xhigh; reserve max for measured quality-first cases."
+            "Force reasoning effort. With native 'responses' this is written to "
+            "reasoning.effort; with 'pleum-chat' it is sent as the documented "
+            "Chat Completions reasoning_effort field."
         ),
     )
     parser.add_argument(
         "--reasoning-mode",
         choices=_REASONING_MODES,
         default=None,
-        help="Force Responses reasoning.mode (standard or pro).",
+        help=(
+            "Force reasoning mode (standard or pro). With 'pleum-chat' this is "
+            "sent as the documented Chat Completions reasoning_mode field."
+        ),
     )
     parser.add_argument("--memory", default="data/yisang-model.db")
     parser.add_argument("--ego-root", default="ego")
@@ -136,12 +142,12 @@ def main(argv: list[str] | None = None) -> int:
             "--upstream-rate-limit-backoff"
         )
     if (
-        args.upstream_wire_api != "responses"
+        args.upstream_wire_api == "chat-completions"
         and (args.reasoning_effort is not None or args.reasoning_mode is not None)
     ):
         parser.error(
             "--reasoning-effort/--reasoning-mode require "
-            "--upstream-wire-api responses"
+            "--upstream-wire-api responses or pleum-chat"
         )
 
     memory_path = Path(args.memory)
@@ -191,6 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         proxy=proxy,
         upstream=upstream,
         responses_upstream=responses_upstream,
+        upstream_wire_api=args.upstream_wire_api,
         tool_profile=args.tool_profile,
         codex_context_window=args.codex_context_window,
         reasoning_effort=args.reasoning_effort,
