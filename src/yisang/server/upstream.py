@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import json
+import socket
 from typing import Any, Iterator
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
-from .rate_limit import LocalRateLimitError, RateLimitGovernor
+from .rate_limit import LocalUpstreamCooldownError, RateLimitGovernor
 
 
 class UpstreamHTTPError(RuntimeError):
@@ -82,6 +83,8 @@ class OpenAIChatUpstream:
                 raw = response.read()
         except urllib_error.HTTPError as exc:
             self._raise_http_error(exc)
+        except (urllib_error.URLError, TimeoutError, socket.timeout, OSError) as exc:
+            self._raise_transport_error(exc)
         self._record_success()
 
         try:
@@ -99,6 +102,8 @@ class OpenAIChatUpstream:
             response = urllib_request.urlopen(request, timeout=self.timeout)
         except urllib_error.HTTPError as exc:
             self._raise_http_error(exc)
+        except (urllib_error.URLError, TimeoutError, socket.timeout, OSError) as exc:
+            self._raise_transport_error(exc)
         self._record_success()
 
         try:
@@ -115,9 +120,9 @@ class OpenAIChatUpstream:
             return
         try:
             self.rate_limit_governor.before_request()
-        except LocalRateLimitError as exc:
+        except LocalUpstreamCooldownError as exc:
             raise UpstreamHTTPError(
-                429,
+                exc.status,
                 str(exc),
                 retry_after=exc.retry_after,
                 locally_blocked=True,
@@ -132,11 +137,26 @@ class OpenAIChatUpstream:
         retry_after = retry_after_seconds(
             exc.headers.get("Retry-After") if exc.headers is not None else None
         )
-        if exc.code == 429 and self.rate_limit_governor is not None:
-            retry_after = self.rate_limit_governor.record_rate_limit(retry_after)
+        if self.rate_limit_governor is not None:
+            if exc.code == 429:
+                retry_after = self.rate_limit_governor.record_rate_limit(retry_after)
+            elif 500 <= exc.code <= 599:
+                retry_after = self.rate_limit_governor.record_transient_failure(
+                    retry_after
+                )
         raise UpstreamHTTPError(
             exc.code,
             body,
+            retry_after=retry_after,
+        ) from exc
+
+    def _raise_transport_error(self, exc: BaseException) -> None:
+        retry_after = None
+        if self.rate_limit_governor is not None:
+            retry_after = self.rate_limit_governor.record_transient_failure()
+        raise UpstreamHTTPError(
+            503,
+            f"transport error: {type(exc).__name__}: {exc}",
             retry_after=retry_after,
         ) from exc
 
