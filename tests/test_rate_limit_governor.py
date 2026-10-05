@@ -319,3 +319,30 @@ def test_http_preserves_transient_503_and_retry_after():
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_responses_upstream_transient_cooldown_blocks_before_network():
+    clock = FakeClock()
+    governor = RateLimitGovernor(
+        min_interval=0.0,
+        backoff_initial=2.0,
+        backoff_max=60.0,
+        transient_backoff_initial=5.0,
+        transient_backoff_max=30.0,
+        clock=clock,
+        sleeper=clock.sleep,
+    )
+    governor.record_transient_failure()
+    upstream = OpenAIResponsesUpstream(
+        base_url="http://127.0.0.1:1/v1",
+        timeout=0.1,
+        rate_limit_governor=governor,
+    )
+
+    with pytest.raises(UpstreamHTTPError) as raised:
+        upstream.complete({"model": "gpt-6-luna", "input": "hello"})
+
+    error = raised.value
+    assert error.status == 503
+    assert error.locally_blocked is True
+    assert error.retry_after == 5.0
