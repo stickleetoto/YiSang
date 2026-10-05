@@ -313,7 +313,7 @@ def test_stream_passthrough_rewrites_model():
         thread.join(timeout=2)
 
 
-def test_stream_upstream_failure_is_clean_502_before_sse_headers():
+def test_stream_upstream_failure_preserves_503_before_sse_headers():
     server, thread, _ = _server(FailingStreamUpstream())
     try:
         request = urllib_request.Request(
