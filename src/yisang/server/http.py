@@ -69,6 +69,12 @@ def create_http_server(
         def do_GET(self) -> None:  # noqa: N802
             path = urlsplit(self.path).path.rstrip("/") or "/"
             if path == "/health":
+                active_upstream = (
+                    responses_upstream
+                    if responses_upstream is not None
+                    else upstream
+                )
+                governor = getattr(active_upstream, "rate_limit_governor", None)
                 self._send_json(
                     200,
                     {
@@ -82,6 +88,11 @@ def create_http_server(
                         "reasoning_effort": reasoning_effort,
                         "reasoning_mode": reasoning_mode,
                         "tool_profile": tool_profile,
+                        "rate_limit": (
+                            governor.snapshot().to_dict()
+                            if governor is not None
+                            else None
+                        ),
                     },
                 )
                 return
