@@ -284,8 +284,25 @@ def create_http_server(
             return self._write_response_bytes(encoded)
 
         def _send_upstream_error(self, exc: UpstreamHTTPError) -> None:
+            retry_after = (
+                max(1, math.ceil(exc.retry_after))
+                if exc.retry_after is not None
+                else None
+            )
+            self.log_message(
+                "upstream failure status=%s locally_blocked=%s retry_after=%s",
+                exc.status,
+                exc.locally_blocked,
+                retry_after,
+            )
+
+            headers = (
+                {"Retry-After": str(retry_after)}
+                if retry_after is not None
+                else None
+            )
+
             if exc.status == 429:
-                retry_after = max(1, math.ceil(exc.retry_after or 1.0))
                 self._send_json(
                     429,
                     {
@@ -294,11 +311,44 @@ def create_http_server(
                             "type": "upstream_rate_limited",
                             "code": "upstream_rate_limited",
                             "upstream_status": 429,
+                            "retry_after": retry_after or 1,
+                            "locally_blocked": exc.locally_blocked,
+                        }
+                    },
+                    headers=headers or {"Retry-After": "1"},
+                )
+                return
+
+            if 400 <= exc.status <= 499:
+                self._send_json(
+                    exc.status,
+                    {
+                        "error": {
+                            "message": str(exc),
+                            "type": "upstream_client_error",
+                            "code": f"upstream_http_{exc.status}",
+                            "upstream_status": exc.status,
+                            "locally_blocked": exc.locally_blocked,
+                        }
+                    },
+                    headers=headers,
+                )
+                return
+
+            if 500 <= exc.status <= 599:
+                self._send_json(
+                    exc.status,
+                    {
+                        "error": {
+                            "message": str(exc),
+                            "type": "upstream_service_error",
+                            "code": f"upstream_http_{exc.status}",
+                            "upstream_status": exc.status,
                             "retry_after": retry_after,
                             "locally_blocked": exc.locally_blocked,
                         }
                     },
-                    headers={"Retry-After": str(retry_after)},
+                    headers=headers,
                 )
                 return
 

@@ -13,7 +13,11 @@ from yisang.identity.models import AgentState, IdentityCharter
 from yisang.memory.in_memory import InMemoryMemoryPort
 from yisang.server.http import create_http_server
 from yisang.server.proxy import YiSangModelProxy
-from yisang.server.rate_limit import LocalRateLimitError, RateLimitGovernor
+from yisang.server.rate_limit import (
+    LocalRateLimitError,
+    LocalUpstreamCooldownError,
+    RateLimitGovernor,
+)
 from yisang.server.responses_upstream import OpenAIResponsesUpstream
 from yisang.server.upstream import OpenAIChatUpstream, UpstreamHTTPError
 
@@ -196,3 +200,153 @@ def test_http_preserves_upstream_429_retry_after(locally_blocked):
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_governor_opens_transient_service_cooldown():
+    clock = FakeClock()
+    governor = RateLimitGovernor(
+        min_interval=0.0,
+        backoff_initial=2.0,
+        backoff_max=60.0,
+        transient_backoff_initial=3.0,
+        transient_backoff_max=30.0,
+        clock=clock,
+        sleeper=clock.sleep,
+    )
+
+    assert governor.record_transient_failure() == 3.0
+    with pytest.raises(LocalUpstreamCooldownError) as raised:
+        governor.before_request()
+
+    error = raised.value
+    assert error.status == 503
+    assert error.reason == "transient-upstream"
+    assert error.retry_after == 3.0
+    snapshot = governor.snapshot()
+    assert snapshot.consecutive_transient_failures == 1
+    assert snapshot.blocked_status == 503
+    assert snapshot.blocked_reason == "transient-upstream"
+
+
+class StatusNativeUpstream:
+    def __init__(
+        self,
+        status: int,
+        *,
+        retry_after: float | None = None,
+        locally_blocked: bool = False,
+    ) -> None:
+        self.rate_limit_governor = None
+        self.status = status
+        self.retry_after = retry_after
+        self.locally_blocked = locally_blocked
+        self.calls = 0
+
+    def complete(self, payload):
+        self.calls += 1
+        raise UpstreamHTTPError(
+            self.status,
+            '{"error":{"message":"synthetic"}}',
+            retry_after=self.retry_after,
+            locally_blocked=self.locally_blocked,
+        )
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 422])
+def test_http_preserves_non_retryable_upstream_4xx(status):
+    upstream = StatusNativeUpstream(status)
+    server, thread = _native_server(upstream)
+    try:
+        body = json.dumps(
+            {
+                "model": "yisang-luna",
+                "input": "hello",
+                "stream": False,
+            }
+        ).encode("utf-8")
+        request = urllib_request.Request(
+            f"http://127.0.0.1:{server.server_port}/v1/responses",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        with pytest.raises(urllib_error.HTTPError) as raised:
+            urllib_request.urlopen(request)
+
+        error = raised.value
+        decoded = json.loads(error.read())
+        assert error.code == status
+        assert decoded["error"]["type"] == "upstream_client_error"
+        assert decoded["error"]["upstream_status"] == status
+        assert upstream.calls == 1
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_http_preserves_transient_503_and_retry_after():
+    upstream = StatusNativeUpstream(
+        503,
+        retry_after=6.1,
+        locally_blocked=True,
+    )
+    server, thread = _native_server(upstream)
+    try:
+        body = json.dumps(
+            {
+                "model": "yisang-luna",
+                "input": "hello",
+                "stream": False,
+            }
+        ).encode("utf-8")
+        request = urllib_request.Request(
+            f"http://127.0.0.1:{server.server_port}/v1/responses",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        with pytest.raises(urllib_error.HTTPError) as raised:
+            urllib_request.urlopen(request)
+
+        error = raised.value
+        decoded = json.loads(error.read())
+        assert error.code == 503
+        assert error.headers["Retry-After"] == "7"
+        assert decoded["error"]["type"] == "upstream_service_error"
+        assert decoded["error"]["upstream_status"] == 503
+        assert decoded["error"]["locally_blocked"] is True
+        assert upstream.calls == 1
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_responses_upstream_transient_cooldown_blocks_before_network():
+    clock = FakeClock()
+    governor = RateLimitGovernor(
+        min_interval=0.0,
+        backoff_initial=2.0,
+        backoff_max=60.0,
+        transient_backoff_initial=5.0,
+        transient_backoff_max=30.0,
+        clock=clock,
+        sleeper=clock.sleep,
+    )
+    governor.record_transient_failure()
+    upstream = OpenAIResponsesUpstream(
+        base_url="http://127.0.0.1:1/v1",
+        timeout=0.1,
+        rate_limit_governor=governor,
+    )
+
+    with pytest.raises(UpstreamHTTPError) as raised:
+        upstream.complete({"model": "gpt-6-luna", "input": "hello"})
+
+    error = raised.value
+    assert error.status == 503
+    assert error.locally_blocked is True
+    assert error.retry_after == 5.0
