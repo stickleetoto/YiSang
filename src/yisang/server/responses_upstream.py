@@ -5,7 +5,8 @@ from typing import Any
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
-from .upstream import UpstreamHTTPError
+from .rate_limit import LocalRateLimitError, RateLimitGovernor
+from .upstream import UpstreamHTTPError, retry_after_seconds
 
 
 class OpenAIResponsesUpstream:
@@ -17,6 +18,7 @@ class OpenAIResponsesUpstream:
         base_url: str,
         api_key: str | None = None,
         timeout: float = 1800.0,
+        rate_limit_governor: RateLimitGovernor | None = None,
     ) -> None:
         if not base_url.strip():
             raise ValueError("base_url is required")
@@ -25,12 +27,24 @@ class OpenAIResponsesUpstream:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
+        self.rate_limit_governor = rate_limit_governor
 
     @property
     def responses_url(self) -> str:
         return f"{self.base_url}/responses"
 
     def complete(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if self.rate_limit_governor is not None:
+            try:
+                self.rate_limit_governor.before_request()
+            except LocalRateLimitError as exc:
+                raise UpstreamHTTPError(
+                    429,
+                    str(exc),
+                    retry_after=exc.retry_after,
+                    locally_blocked=True,
+                ) from exc
+
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         headers = {
             "Content-Type": "application/json",
@@ -50,7 +64,19 @@ class OpenAIResponsesUpstream:
                 raw = response.read()
         except urllib_error.HTTPError as exc:
             error_body = exc.read().decode("utf-8", errors="replace")
-            raise UpstreamHTTPError(exc.code, error_body) from exc
+            retry_after = retry_after_seconds(
+                exc.headers.get("Retry-After") if exc.headers is not None else None
+            )
+            if exc.code == 429 and self.rate_limit_governor is not None:
+                retry_after = self.rate_limit_governor.record_rate_limit(retry_after)
+            raise UpstreamHTTPError(
+                exc.code,
+                error_body,
+                retry_after=retry_after,
+            ) from exc
+
+        if self.rate_limit_governor is not None:
+            self.rate_limit_governor.record_success()
 
         try:
             result = json.loads(raw.decode("utf-8"))
