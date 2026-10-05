@@ -15,6 +15,7 @@ dev = ["pytest>=8"]
 [project.scripts]
 yisang-model-server = "yisang.server.__main__:main"
 yisang-codex-catalog = "yisang.integrations.codex:main"
+yisang-gym = "yisang.gym.cli:main"
 yisang-eval-repeatability = "yisang.eval.repeatability:main"
 yisang-eval-codex = "yisang.eval.codex_runner:main"
 yisang-eval-memory = "yisang.eval.memory_benchmark:main"
